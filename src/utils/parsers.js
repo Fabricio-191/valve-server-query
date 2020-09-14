@@ -18,7 +18,7 @@ function time(total){
 }
 
 class BufferParser{
-	constructor(buffer, offset){
+	constructor(buffer, offset = 0){
 		Object.assign(this, { buffer, offset })
 	}
 	buffer = null;
@@ -210,14 +210,14 @@ module.exports = {
 		return players;
 	},
 	serverRules: buffer => {
-		buffer = new BufferParser(buffer)
+		buffer = new BufferParser(buffer, 1)
 		//firstByte = header
 		const rulesQuantity = buffer.short(), rules = {};
 		
 		for(let i=0; i < rulesQuantity; i++){
 			const key = buffer.string(), value = buffer.string();
-			
-			if(!Number.isNaN(value) || value === '0'){ //numbers in strings
+
+			if((!isNaN(value) && value !== '') || value === '0'){ //numbers in strings
 				rules[key] = parseInt(value);
 			}else if(['true', 'false'].includes( //booleans in strings
 				value.toLowerCase().trim()

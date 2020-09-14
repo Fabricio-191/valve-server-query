@@ -2,6 +2,19 @@
 {
     "name": "@fabricio-191/valve-server-query",
     "version": "1.0.2",
+    "main": "./src/index.js",
+    "types": "./typings/index.d.ts",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Fabricio-191/valve-server-query"
+    },
+    "bugs": {
+      "url": "https://github.com/Fabricio-191/valve-server-query/issues"
+    },
+    "author": "Fabricio-191",
+    "license": "Apache License 2.0",
+    "description": "An implementation of valve server query protocol",
+    "deprecated": false,
     "keywords": [
         "protocol",
         "valve",
@@ -9,18 +22,8 @@
         "query",
         "server"
     ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Fabricio-191/Simple.db"
-    },
-    "bugs": {
-      "url": "https://github.com/Fabricio-191/Simple.db/issues"
-    },
-    "author": "Fabricio-191",
-    "main": "./src/index.js",
-    "types": "./typings/index.d.ts",
-    "license": "Apache License 2.0",
-    "description": "",
-    "deprecated": false
+    "scripts": {
+        "test": "node test/test.js"
+    }
   }
   

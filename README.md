@@ -10,7 +10,7 @@ const Server = require('@fabricio-191/valve-server-query');
 const server = new Server({
     ip: '0.0.0.0',
     port: 27015
-}, 1000);
+});
 
 
 server.getInfo()
