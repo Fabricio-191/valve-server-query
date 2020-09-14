@@ -26,8 +26,8 @@ server.getRules()
 .catch(console.error)
 ```
 
-## `class` **Server**
-* `getInfo()`  
+# **Server**
+## `getInfo()`  
 Returns a promise that is resolved in an object with the server information, example:
 ```js
 {
@@ -53,7 +53,7 @@ Returns a promise that is resolved in an object with the server information, exa
 ```
 
 
-* `getPlayers()`  
+## `getPlayers()`  
 Returns a promise that is resolved in an array with the players in the server, example:
 
 ```js
@@ -83,7 +83,7 @@ Returns a promise that is resolved in an array with the players in the server, e
 ]
 ```
 
-* `getRules()`  
+## `getRules()`  
 Returns a promise that is resolved in an object with the server rules, example:
 
 ```js
