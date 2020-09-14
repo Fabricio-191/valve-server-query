@@ -55,6 +55,7 @@ class Server{
 			try{
 				resolve(parsers.playersInfo(buffer))
 			}catch(e){
+				console.log(e)
 				reject(Error('Wrong server response'))
 			}
 		});

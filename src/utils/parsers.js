@@ -198,12 +198,25 @@ module.exports = {
 			});
 		}
 		
-		if(buffer.remaining().length){ //is the ship (there is more bytes in the buffer)
-			for (let i = 0; i < playersCount; i++) {
-				Object.assign(players[i], { 
-					deaths: buffer.int(4), 
-					money: buffer.int(4)
-				});
+		
+		if(buffer.remaining().length){
+			if(buffer.remaining().length === (playersCount*8)){ //is the ship
+				for (let i = 0; i < playersCount; i++) {
+					Object.assign(players[i], { 
+						deaths: buffer.long(), 
+						money: buffer.long()
+					});
+				}
+				
+			}else{
+				while(buffer.remaining().length){
+					players.push({ 
+						index: buffer.byte(), 
+						name: buffer.string(), 
+						score: buffer.long(), 
+						timeOnline: time(buffer.float())
+					});
+				}
 			}
 		}
 		

@@ -156,7 +156,7 @@ declare class Server{
      * Retrieves a list of players in the servers
      * @returns The list of players
     */
-    getPlayers(): Promise<PlayerInfo[]>;
+    getPlayers(): Promise<Array<PlayerInfo>>;
 
     /**
      * Retrieves a list of the rules in the servers (aka: config)
