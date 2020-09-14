@@ -106,5 +106,10 @@
 		"packetSize": [
 			215, 17550, 17700
 		]
+	},
+	"defaultOptions": { 
+		"port": 27015,
+		"timeout": 1000,
+		"debug": false
 	}
 }

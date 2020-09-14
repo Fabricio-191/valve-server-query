@@ -40,9 +40,9 @@ class Connection extends EventEmitter{
 		
 		Object.assign(this, server)
 
-		const timeout = setTimeout(() => {
+		timeout = setTimeout(() => {
 			throw Error('Can not connect to the server.');
-		}, this.timeoutTime * 2)
+		}, this.timeout * 2)
 
 		this.send(constants.commands.info, true)
 		.then(buffer => {
@@ -72,7 +72,7 @@ class Connection extends EventEmitter{
 	appID = null;
 	isGoldSource = false;
 
-	timeoutTime = 3000;
+	timeout = 3000;
 
 	send(command, bypass = false){
 		return new Promise(async (resolve, reject) => {
@@ -90,7 +90,7 @@ class Connection extends EventEmitter{
 			const timeout = setTimeout(() => {
 				this.removeListener('packet', handler);
 				reject(Error('Response timeout.'));
-			}, this.timeoutTime);
+			}, this.timeout);
 					
 			const handler = buffer => {
 				if(!responseHeaders.includes(buffer[0])) return;

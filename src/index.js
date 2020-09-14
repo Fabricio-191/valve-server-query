@@ -8,11 +8,7 @@ class Server{
 	constructor(options = {}) {
 		Object.defineProperty(this, connectionSymbol, {
 			value: new Connection(
-				Object.assign({ 
-					port: 27015,
-					timeout: 1000,
-					debug: false
-				}, options)
+				Object.assign(constants.defaultOptions, options)
 			), 
 			enumerable: false
 		})

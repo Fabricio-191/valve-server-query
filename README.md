@@ -1,4 +1,4 @@
-# valve-server-query
+# **valve-server-query**
 
 ### Implementation of https://developer.valvesoftware.com/wiki/Server_queries 
 
