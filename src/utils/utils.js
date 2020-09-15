@@ -14,7 +14,8 @@ function parseOptions(options){
     options = Object.assign(constants.defaultOptions, {
         ip: options.ip || options.address,
         port: Number(options.port) || 27015,
-        timeout: options.timeout
+        timeout: options.timeout,
+        debug: options.debug
     })
 
     if(!options.ip){
@@ -42,6 +43,8 @@ function parseOptions(options){
     if(options.timeout && typeof options.timeout !== 'number'){
         throw Error('The timeout should be a number');
     }
+
+    return options;
 }
 
 function resolveHostname(hostname){

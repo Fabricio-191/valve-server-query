@@ -1,11 +1,14 @@
-const utils = require('./utils/utils.js');
+const { constants, parseOptions, parsers, decompressBZip } = require('./utils/utils.js');
 const client = require('dgram').createSocket('udp4');
+const EventEmitter = require('events');
 
-class Server{
+class Server extends EventEmitter{
 	constructor(options = {}) {
+		super();
+
 		client.on('message', this.packetHandler.bind(this))
 		
-		Object.assign(this, utils.parseOptions(options))
+		Object.assign(this, parseOptions(options))
 
 		if(options.debug){
 			client.on('message', (buffer, rinfo) => console.log('received:', buffer));
@@ -47,7 +50,6 @@ class Server{
 
 	timeout = 3000;
 
-
 	send(command, bypass = false){
 		return new Promise(async (resolve, reject) => {
 			if(this.ip instanceof Promise) await this.ip;
@@ -71,21 +73,20 @@ class Server{
 			const handler = buffer => {
 				if(!responseHeaders.includes(buffer[0])) return;
 	
-				this.removeListener('packet', handler);
+				this.off('packet', handler)
 				clearTimeout(timeout);
 
 				resolve(buffer)
 			};
 					
-			this.on('packet', handler);
+			this.on('packet', handler)
 		})
 	}
 
 	packetsQueues = {};
 	packetHandler(buffer, rinfo){
 		if(
-			rinfo.address !== this.ip || 
-			rinfo.port !== this.port || 
+			rinfo.address !== this.ip || rinfo.port !== this.port || 
 			buffer.length === 0
 		) return;
 		
@@ -117,25 +118,14 @@ class Server{
 			const finalPayload = Buffer.concat(orderedQueue.map(p => p.payload));
 
 			if(bzip) finalPayload = decompressBZip(finalPayload, bzip);
+			/*
+			I never tried bzip decompression, if you are having trouble with this, contact me on discord
+			Fabricio-191#8051
+			*/
 			
 
-			this.emit('packet', finalPayload.slice(4));
+			this.emit('packet', buffer.slice(4));
 		}
-	}
-	
-	challenge(code){
-		const command = constants.commands.challenge;
-		if(!constants.apps_IDs.challenge.includes(this.appID)){
-			command[4] = code;
-		}
-		
-		return new Promise((resolve, reject) => {
-			this.send(command)
-			.then(buffer => {
-				resolve(Array.from(buffer))
-			})
-			.catch(reject);
-		})
 	}
 
 	_ready(){
@@ -150,16 +140,14 @@ class Server{
 		const start = Date.now();
 		
 		return new Promise((resolve, reject) => {
-			this._connection.send(constants.commands.info)
+			this.send(constants.commands.info)
 			.then(buffer => {
-				const isGoldSource = this._connection.isGoldSource
-	
 				const info = parsers[
-					isGoldSource ? 'goldSourceServerInfo' : 'serverInfo'
+					this.isGoldSource ? 'goldSourceServerInfo' : 'serverInfo'
 				](buffer);
 		
 				Object.assign(info, {
-					isGoldSource,
+					isGoldSource: this.isGoldSource,
 					ping: Date.now() - start
 				})
 	
@@ -171,11 +159,11 @@ class Server{
 
 	getPlayers(){
 		return new Promise((resolve, reject) => {
-			this[connectionSymbol].challenge(0x55)
+			this.challenge(0x55)
 			.then(key => {
 				const command = constants.commands.players.concat(...key.slice(1));
 		
-				this[connectionSymbol].send(command)
+				this.send(command)
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'))
@@ -195,7 +183,7 @@ class Server{
 
 	getRules(){
 		return new Promise((resolve, reject) => {
-			this[connectionSymbol].challenge(0x56)
+			this.challenge(0x56)
 			.then(key => {
 				if(key[0] === 0x45 && key.length > 5){
 					resolve(parsers.serverRules(Buffer.from(key)));
@@ -203,7 +191,7 @@ class Server{
 		
 				const command = constants.commands.rules.concat(...key.slice(1));
 		
-				this[connectionSymbol].send(command)
+				this.send(command)
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'))
@@ -222,12 +210,27 @@ class Server{
 
 		});
 	}
+	
+	challenge(code){
+		const command = Array.from(constants.commands.challenge); //(copy)
+		if(!constants.apps_IDs.challenge.includes(this.appID)){
+			command[4] = code;
+		}
+		
+		return new Promise((resolve, reject) => {
+			this.send(command)
+			.then(buffer => {
+				resolve(Array.from(buffer))
+			})
+			.catch(reject);
+		})
+	}
 
 	ping(){
 		const start = Date.now();
 		
 		return new Promise((resolve, reject) => {
-			this[connectionSymbol].send(constants.commands.ping)
+			this.send(constants.commands.ping)
 			.then(() => {
 				resolve(Date.now() - start)
 			})
@@ -235,15 +238,15 @@ class Server{
 		})
 	}
 
-	static getInfo(options){
+	static async getInfo(options){
 
 	}
 
-	static getPlayers(options){
+	static async getPlayers(options){
 
 	}
 
-	static getRules(options){
+	static async getRules(options){
 		
 	}
 };

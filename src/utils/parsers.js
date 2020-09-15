@@ -243,12 +243,12 @@ module.exports = {
 		return rules;
 	},
 
-	multiPacketResponse: (buffer, server) => {
+	multiPacketResponse: (buffer, {protocol, appID, isGoldSource}) => {
 		buffer = new BufferParser(buffer)
 
-		if(server.isGoldSource){
-			const ID = buffer.long(), packets = buffer.byte();
+		const ID = buffer.long(), packets = buffer.byte();
 
+		if(isGoldSource){
 			return {
 				ID, 
 				packets: {
@@ -259,16 +259,16 @@ module.exports = {
 			};
 		}else{
 			const info = { 
-				ID: buffer.long(), 
+				ID, 
 				packets: {
-					total: buffer.byte(),
+					total: packets,
 					current: buffer.byte()
 				}
 			};
 
 			if(
-				!constants.apps_IDs.packetSize.includes(server.appID) && 
-				!(server.protocol === 7 && server.appID === 240)
+				!constants.apps_IDs.packetSize.includes(appID) && 
+				!(protocol === 7 && appID === 240)
 			){
 				info.maxPacketSize = buffer.short();
 			}
