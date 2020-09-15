@@ -183,7 +183,7 @@ module.exports = {
 		return info;
 	},
 
-	playersInfo: buffer => {
+	playersInfo: (buffer) => {
 		buffer = new BufferParser(buffer, 1)
 		//first byte = header
 		const playersCount = buffer.byte(), players = [];
@@ -200,14 +200,13 @@ module.exports = {
 		
 		
 		if(buffer.remaining().length){
-			if(buffer.remaining().length === (playersCount*8)){ //is the ship
-				for (let i = 0; i < playersCount; i++) {
+			if(playersCount !== 255){
+				for (let i = 0; i < playersCount; i++) { //is the ship
 					Object.assign(players[i], { 
 						deaths: buffer.long(), 
 						money: buffer.long()
 					});
 				}
-				
 			}else{
 				while(buffer.remaining().length){
 					players.push({ 

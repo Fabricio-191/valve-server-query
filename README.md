@@ -9,7 +9,8 @@ It is not tested with servers that use pre-2007 engines.
 const Server = require('@fabricio-191/valve-server-query');
 const server = new Server({
     ip: '0.0.0.0',
-    port: 27015
+    port: 27015,
+    timeout: 3000
 });
 
 

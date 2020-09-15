@@ -19,7 +19,7 @@ interface Options{
     address?: string,
     port?: number,
     debug?: boolean,
-    timeoutTime?: number
+    timeout?: number
 }
 
 /** Info from a mod from the game in the server. */
@@ -55,10 +55,9 @@ interface PlayerInfo{
     money?: number;
 }
 
-/**
- * An object with the server info
-*/
+/** An object with the server info */
 interface ServerInfo{
+    /** IP address and port of the server. (provided in the server response) */
     address?: string;
     /** Protocol version used by the server. */
     protocol: number;
@@ -156,19 +155,13 @@ declare class Server{
      * Retrieves a list of players in the servers
      * @returns The list of players
     */
-    getPlayers(): Promise<Array<PlayerInfo>>;
+    getPlayers(): Promise<PlayerInfo[]>;
 
     /**
      * Retrieves a list of the rules in the servers (aka: config)
      * @returns The list of rules
     */
     getRules(): Promise<object>;
-
-    /**
-     * Retrieves server info, players and rules
-     * @returns The server info
-    */
-    getAll(): Promise<ServerInfo>;    
 }
 
 export = Server;
