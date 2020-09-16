@@ -2,11 +2,12 @@ const  parsers = require('./parsers.js'),
      constants = require('./constants.json'),
 decompressBZip = require('./Bzip2.js');
 
+const dns = require('dns'), net = require('net');
+
 module.exports = {
     parsers,
     constants,
     decompressBZip,
-    resolveHostname,
     parseOptions
 }
 
@@ -24,9 +25,9 @@ function parseOptions(options){
         throw Error('The ip to connect should be a string')
     }
 
-    if(options.ip.split('.').length !== 4){
+    if(net.isIP(options.ip) === 0){
         options.ip = resolveHostName(options.ip)
-            .catch(err => {
+            .catch(() => { 
                 throw Error('Introduced ip/hostname is not valid')
             })
     }

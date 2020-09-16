@@ -47,7 +47,7 @@ interface PlayerInfo{
     /** Player's score (usually "frags" or "kills"). */
     score: number;
     /** Time that the player has been connected to the server. */
-    timeOnline: Time;
+    timeOnline: Time | null;
 
     /** Player's deaths (Only for "the ship" servers). */
     deaths?: number;
