@@ -15,10 +15,13 @@ interface Time{
 }
 
 interface Options{
+    /** Ip address to the server to connect */
     ip?: string,
-    address?: string,
+    /** Port to use to send data to the server */
     port?: number,
+    /** If it's true, it shows sent and recieved data */
     debug?: boolean,
+    /** Maximum time to wait a server response */
     timeout?: number
 }
 

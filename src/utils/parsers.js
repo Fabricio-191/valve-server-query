@@ -255,6 +255,7 @@ function multiPacketResponse(buffer, server){
 	buffer = new BufferParser(buffer, 4)
 
 	if(buffer.buffer.readInt32LE(9) === -1){
+		//only first packet
 		server.isGoldSource = true;
 	};
 
@@ -263,11 +264,13 @@ function multiPacketResponse(buffer, server){
 	if(server.isGoldSource){
 		return {
 			ID, 
+			isGoldSource: true,
 			packets: {
 				current: (packets & 0b11110000) >> 4,
 				total: packets & 0b00001111
 			},
-			payload: buffer.remaining()
+			payload: buffer.remaining(),
+			raw: buffer.buffer
 		};
 	}else{
 		const info = { 
@@ -275,7 +278,8 @@ function multiPacketResponse(buffer, server){
 			packets: {
 				total: packets,
 				current: buffer.byte()
-			}
+			},
+			raw: buffer.buffer
 		};
 
 		if(
