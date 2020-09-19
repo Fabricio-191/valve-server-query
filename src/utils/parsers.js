@@ -153,6 +153,7 @@ function goldSourceServerInfo(buffer){
 			max: buffer.byte(),
 		},
 		protocol: buffer.byte(),
+		isGoldSource: true,
 
 		type: constants.serversTypes[
 			buffer.char().toLowerCase()
@@ -237,14 +238,17 @@ function serverRules(buffer){
 	for(let i=0; i < rulesQuantity; i++){
 		const key = buffer.string(), value = buffer.string();
 
-		if((!isNaN(value) && value !== '') || value === '0'){ //numbers in strings
-			rules[key] = parseInt(value);
-		}else if(['true', 'false'].includes( //booleans in strings
-			value.toLowerCase().trim()
-		)){
-			rules[key] = (value.toLowerCase().trim() === 'true');
-		}else{
+		if(value === ''){
 			rules[key] = value;
+		}else if(!isNaN(value)){
+			rules[key] = Number(value);
+		}else{
+			let b = value.toLowerCase().trim();
+			if(['true', 'false'].includes(b)){
+				return b === 'true';
+			}else{
+				rules[key] = value;
+			}
 		}
 	}
 	
@@ -254,23 +258,16 @@ function serverRules(buffer){
 function multiPacketResponse(buffer, server){
 	buffer = new BufferParser(buffer, 4)
 
-	if(buffer.buffer.readInt32LE(9) === -1){
-		//only first packet
-		server.isGoldSource = true;
-	};
-
 	const ID = buffer.long(), packets = buffer.byte();
 
 	if(server.isGoldSource){
 		return {
 			ID, 
-			isGoldSource: true,
 			packets: {
 				current: (packets & 0b11110000) >> 4,
 				total: packets & 0b00001111
 			},
-			payload: buffer.remaining(),
-			raw: buffer.buffer
+			payload: buffer.remaining()
 		};
 	}else{
 		const info = { 
@@ -278,8 +275,7 @@ function multiPacketResponse(buffer, server){
 			packets: {
 				total: packets,
 				current: buffer.byte()
-			},
-			raw: buffer.buffer
+			}
 		};
 
 		if(

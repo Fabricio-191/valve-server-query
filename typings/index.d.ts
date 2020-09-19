@@ -15,7 +15,7 @@ interface Time{
 }
 
 interface Options{
-    /** Ip address to the server to connect */
+    /** Ip address or hostname to the server to connect */
     ip?: string,
     /** Port to use to send data to the server */
     port?: number,
@@ -43,9 +43,9 @@ interface ModInfo{
 
 /** Info from a player in the server. */
 interface PlayerInfo{
+    /* Index of the player. */
     index: number;
-
-    /** Name of the player */
+    /** Name of the player. */
     name: string;
     /** Player's score (usually "frags" or "kills"). */
     score: number;

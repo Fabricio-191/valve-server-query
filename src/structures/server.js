@@ -1,5 +1,5 @@
-const { constants, parseOptions, parsers } = require('./utils/utils.js');
-const Connection = require('./structures/connection.js');
+const { constants, parseOptions, parsers } = require('../utils/utils.js');
+const Connection = require('./connection.js');
 
 class Server{
 	constructor(options = {}) {
@@ -15,12 +15,24 @@ class Server{
 	getInfo = function(){
 		const start = Date.now();
 		
-		return new Promise((resolve, reject) => {
-			this.send(constants.commands.info)
-			.then(buffer => {
-				const info = parsers.serverInfo(buffer);
+		return new Promise(async (resolve, reject) => {
+			this._connection.send(constants.commands.info, reject);
+
+			let responses = [
+				this._connection.awaitResponse(0x49)
+			]
+
+			if(this._connection.isGoldSource){
+				responses.push(
+					this._connection.awaitResponse(0x6D)
+				)
+			}
+
+			Promise.all(responses)
+			.then(responses => {
+				const info = Object.assign(...responses.map(parsers.serverInfo));
 				info.ping = Date.now() - start;
-	
+
 				resolve(info)
 			})
 			.catch(reject)
@@ -33,7 +45,9 @@ class Server{
 			.then(key => {
 				const command = constants.commands.players.concat(...key.slice(1));
 		
-				this.send(command)
+				this._connection.send(command, reject);
+				
+				this._connection.awaitResponse(0x44)
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'))
@@ -63,7 +77,9 @@ class Server{
 		
 				const command = constants.commands.rules.concat(...key.slice(1));
 		
-				this.send(command)
+				this._connection.send(command, reject)
+
+				this._connection.awaitResponse(0x45)
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'))
@@ -85,12 +101,14 @@ class Server{
 	
 	_challenge(code){
 		const command = Array.from(constants.commands.challenge); //(copy)
-		if(!constants.apps_IDs.challenge.includes(this.appID)){
+		if(!constants.apps_IDs.challenge.includes(this._connection.appID)){
 			command[4] = code;
 		}
 		
 		return new Promise((resolve, reject) => {
-			this.send(command)
+			this._connection.send(command, reject)
+			
+			this._connection.awaitResponse(0x41)
 			.then(buffer => {
 				resolve(Array.from(buffer))
 			})
@@ -102,7 +120,9 @@ class Server{
 		const start = Date.now();
 		
 		return new Promise((resolve, reject) => {
-			this.send(constants.commands.ping)
+			this.send(constants.commands.ping, reject)
+			
+			this._connection.awaitResponse(0x6A)
 			.then(() => {
 				resolve(Date.now() - start)
 			})
@@ -110,19 +130,13 @@ class Server{
 		})
 	}
 
-	send(...args){
-		return this._connection.send(...args)
-	}
-
 	static setSocketRef(value){
-		if(value){
-			
-		}else{
+		if(typeof value !== 'boolean') throw Error("'value' must be a boolean")
 
-		}
+		Connection.client[
+			value ? 'ref' : 'unref'
+		]()
 	}
 };
-
-Server.prototype.ping = require('util').deprecate(Server.prototype.ping, 'Ping method is a deprecated feature of source servers, you should use the getInfo method');
 
 module.exports = Server;

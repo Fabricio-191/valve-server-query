@@ -1,19 +1,43 @@
 # **valve-server-query**
 
-### Implementation of https://developer.valvesoftware.com/wiki/Server_queries 
+### Implementation of [Valve server queries](https://developer.valvesoftware.com/wiki/Server_queries)
 
-It is not tested with servers that use pre-2007 engines.
+### Features:
+* Supports [Multi-packet Response Format](https://developer.valvesoftware.com/wiki/Server_queries#Multi-packet_Response_Format)  
+  * Source and GoldSource
+* [A2S_INFO](https://developer.valvesoftware.com/wiki/Server_queries#A2S_INFO)
+  * Supports [Obsolete GoldSource Response](https://developer.valvesoftware.com/wiki/Server_queries#Obsolete_GoldSource_Response)
+* [A2S_PLAYER](https://developer.valvesoftware.com/wiki/Server_queries#A2S_PLAYER)
+  * Supports more than 255 players in the same server
+* [A2S_RULES](https://developer.valvesoftware.com/wiki/Server_queries#A2S_RULES)
+* Supports [A2S_SERVERQUERY_GETCHALLENGE](https://developer.valvesoftware.com/wiki/Server_queries#A2S_SERVERQUERY_GETCHALLENGE)
+* Fully supports `The ship`
+* Supports Hostnames
+
+### Known issues: 
+* If A2S_INFO response is splited in 2 or more packets, the server will never start
+
+#### Warns: 
+* [Bzip decompression](https://developer.valvesoftware.com/wiki/Server_queries#Source_Server) not tested
+* IPv6 not tested
+* There are a lot of untested situations
+
+> If you have any error you can contact me on [Discord](https://discord.gg/zrESMn6) or [GitHub](https://github.com/Fabricio-191/valve-server-query/issues) (i prefer Discord)
 
 ## Use example:
 ```js
 const Server = require('@fabricio-191/valve-server-query');
 const server = new Server({
-    ip: '0.0.0.0',
-    port: 27015,
-    timeout: 3000
+    ip: '0.0.0.0', //the only required parameter
+    port: 28015, //default is 27015
+    timeout: 3000, //default is 1000 (1 second)
 });
+```
+
+If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an attempt will be made to obtain the IP, if the attempt fails, it will throw an error
 
 
+```js
 server.getInfo()
 .then(console.log)
 .catch(console.error)
@@ -26,8 +50,8 @@ server.getRules()
 .then(console.log)
 .catch(console.error)
 ```
+ ___
 
-# **Server**
 ## `getInfo()`  
 Returns a promise that is resolved in an object with the server information, example:
 ```js

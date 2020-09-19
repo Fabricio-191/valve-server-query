@@ -31,7 +31,7 @@ function parseOptions(options){
         throw Error('You should put the port for the server to connect')
     }else if(
         !Number.isInteger(options.port) || 
-        port > 0 || port < 65535
+        options.port < 0 || options.port > 65535
     ){
         throw Error('The port to connect should be a number between 0 and 65535')
     }
