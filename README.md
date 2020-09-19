@@ -5,6 +5,7 @@
 ### Features:
 * Supports [Multi-packet Response Format](https://developer.valvesoftware.com/wiki/Server_queries#Multi-packet_Response_Format)  
   * Source and GoldSource
+  * Supports when the multipacket response is goldsource, but the A2S_INFO response is not
 * [A2S_INFO](https://developer.valvesoftware.com/wiki/Server_queries#A2S_INFO)
   * Supports [Obsolete GoldSource Response](https://developer.valvesoftware.com/wiki/Server_queries#Obsolete_GoldSource_Response)
 * [A2S_PLAYER](https://developer.valvesoftware.com/wiki/Server_queries#A2S_PLAYER)
@@ -28,28 +29,45 @@
 ```js
 const Server = require('@fabricio-191/valve-server-query');
 const server = new Server({
-    ip: '0.0.0.0', //the only required parameter
-    port: 28015, //default is 27015
-    timeout: 3000, //default is 1000 (1 second)
+    ip: '0.0.0.0',
+    port: 28015,
+    timeout: 3000,
 });
+
+server.getInfo()
+.then(info => {
+    console.log(info);
+    //do something...
+})
+.catch(console.error)
+
+server.getPlayers()
+.then(players => {
+    console.log(info);
+    //do something...
+})
+.catch(console.error)
+
+server.getRules()
+.then(rules => {
+    console.log(info);
+    //do something...
+})
+.catch(console.error)
 ```
 
 If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an attempt will be made to obtain the IP, if the attempt fails, it will throw an error
 
-
 ```js
-server.getInfo()
-.then(console.log)
-.catch(console.error)
-
-server.getPlayers()
-.then(console.log)
-.catch(console.error)
-
-server.getRules()
-.then(console.log)
-.catch(console.error)
+{
+    ip: 'vanilla.rustoria.us', //the only required parameter
+    port: 28015, //by default is 27015
+    timeout: 3000, //by default is 1000 (1 second)
+    debug: true, //by default is false (it shows incoming and outcoming buffers)
+    maxListeners: 30 //by default is 20 (max listeners that the connection may have, for memory leak warning)
+}
 ```
+
  ___
 
 ## `getInfo()`  

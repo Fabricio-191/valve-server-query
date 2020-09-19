@@ -41,6 +41,8 @@ function parseOptions(options){
         throw Error("'timeout' should be a number");
     }else if(typeof options.maxListeners !== 'number'){
         throw Error("'maxListeners' should be a number");
+    }else if(typeof options.debug !== 'boolean'){
+        throw Error("'debug' should be a boolean");
     }
 
     return options;

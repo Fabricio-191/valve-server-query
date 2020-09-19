@@ -18,12 +18,12 @@ class Server{
 			const start = Date.now();
 
 			let responses = [
-				this._connection.awaitResponse(0x49)
+				this._connection.awaitPacket(0x49)
 			]
 	
-			if(this._connection.isGoldSource){
+			if(this._connection.infoIsGoldSource){
 				responses.push(
-					this._connection.awaitResponse(0x6D)
+					this._connection.awaitPacket(0x6D)
 				)
 			}
 
@@ -46,7 +46,7 @@ class Server{
 		
 				this._connection.send(command, reject);
 				
-				this._connection.awaitResponse(0x44)
+				this._connection.awaitPacket(0x44)
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'))
@@ -78,7 +78,7 @@ class Server{
 		
 				this._connection.send(command, reject)
 
-				this._connection.awaitResponse(0x45)
+				this._connection.awaitPacket(0x45)
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'))
@@ -108,7 +108,7 @@ class Server{
 			}
 			this._connection.send(command, reject)
 			
-			this._connection.awaitResponse(0x41, 0x45)
+			this._connection.awaitPacket(0x41, 0x45)
 			.then(buffer => {
 				resolve(Array.from(buffer))
 			})
@@ -121,7 +121,7 @@ class Server{
 			this._connection.send(constants.commands.ping, reject)
 			const start = Date.now();
 			
-			this._connection.awaitResponse(0x6A)
+			this._connection.awaitPacket(0x6A)
 			.then(() => {
 				resolve(Date.now() - start)
 			})

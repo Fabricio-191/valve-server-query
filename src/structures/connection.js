@@ -20,6 +20,7 @@ async function createConnection(options, onMessage, onReady){
 	}
 	let key = options.ip+':'+options.port;
 	
+	if(options.debug) console.log('\nStarting connection, sent:\n', Buffer.from(constants.commands.info));
 	client.send(Buffer.from(constants.commands.info), options.port, options.ip, err => {
 		if(err) throw err;
 	})
@@ -38,6 +39,7 @@ async function createConnection(options, onMessage, onReady){
     let timeout = setTimeout(timeoutFn, options.timeout)
 	
     servers[key] = buffer => {
+		if(options.debug) console.log('\nStarting connection, recieved:', `\n<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
         if(buffer.readInt32LE() === -2){
             throw Error('I need to handle this somehow');
         }else{
@@ -52,7 +54,7 @@ async function createConnection(options, onMessage, onReady){
 				servers[key] = onMessage;
 				return onReady(Object.assign(...responses), options);
 			}else{
-				timeout = setTimeout(timeoutFn, options.timeout / 2)
+				timeout = setTimeout(timeoutFn, options.timeout / 3)
 			}
         }
     }
@@ -66,14 +68,8 @@ class Connection extends EventEmitter{
     constructor(options){
 		super();
 
+		this.debug = options.debug;
 		this.setMaxListeners(options.maxListeners);
-
-		this.on('newListener', () => {
-			let totalListeners = this.listenerCount('ready') + this.listenerCount('packet');
-			if(totalListeners > options.maxListeners){
-				console.warn("")
-			}
-		})
 		
 		createConnection(
 			options, 
@@ -83,8 +79,10 @@ class Connection extends EventEmitter{
 					protocol: info.protocol,
 					appID: info.appID,
 					ready: true,
-					isGoldSource: info.isGoldSource || false
+					infoIsGoldSource: info.isGoldSource
 				});
+
+				if(options.debug) console.log('\nready')
 
 				this.emit('ready');
 			}
@@ -100,16 +98,19 @@ class Connection extends EventEmitter{
 	appID = null
 	protocol = null;
 
+	infoIsGoldSource = false;
+	multiPacketIsGoldSource = false;
+
 	async send(command, reject){
 		if(!this.ready) await this._ready();
 
-		//console.log('\nSent:    ', Buffer.from(command));
+		if(this.debug) console.log('\nSent:    ', Buffer.from(command));
 		client.send(Buffer.from(command), this.port, this.ip, err => {
 			if(err) reject(err);
 		});
 	}
 
-	awaitResponse(...responseHeaders){
+	awaitPacket(...packetHeaders){
 		return new Promise(async (resolve, reject) => {
 			if(!this.ready) await this._ready();
 
@@ -119,7 +120,7 @@ class Connection extends EventEmitter{
 			}, this.timeout);
 			
 			const handler = buffer => {
-				if(!responseHeaders.includes(buffer[0])) return;
+				if(!packetHeaders.includes(buffer[0])) return;
 
 				this.off('packet', handler);
 				clearTimeout(timeout);
@@ -133,7 +134,7 @@ class Connection extends EventEmitter{
 
 	packetsQueues = {};
 	packetHandler(buffer){
-		//console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
+		if(this.debug) console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
 
 		if(buffer.readInt32LE() === -2){
 			const packet = parsers.multiPacketResponse(
@@ -154,6 +155,13 @@ class Connection extends EventEmitter{
 			queue.sort(
 				(p1, p2) => p1.packets.current - p2.packets.current
 			);
+
+			if(
+				this.multiPacketIsGoldSource && 
+				queue.some(p => !p.isGoldSource)
+			) queue = queue.map(p => parsers.multiPacketResponse(
+				p.raw, this
+			))
 				
 			buffer = Buffer.concat(
 				queue.map(p => p.payload)

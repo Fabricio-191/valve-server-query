@@ -17,22 +17,17 @@ fetch('https://api.battlemetrics.com/servers?filter[status]=online&filter[game]=
 console.log('\n'.repeat(100))
 console.clear()
 
+/*
 const sv = new Server({
     ip: '200.104.195.197',
     port: 30000
 })
-
+*/
 
 const sv2 = new Server({
-    ip: 'vanilla.rustoria.us',
-    port: 28015,
-    debug: true,
-    timeout: 3000
+    ip: '131.221.32.207'
 })
 
 sv2.getPlayers()
 .then(console.log)
 .catch(console.error)
-
-setInterval(() => {
-}, 200)

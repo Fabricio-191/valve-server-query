@@ -258,16 +258,22 @@ function serverRules(buffer){
 function multiPacketResponse(buffer, server){
 	buffer = new BufferParser(buffer, 4)
 
+	if(buffer.buffer.readInt32LE(9) === -1){
+		server.multiPacketIsGoldSource = true;
+	}
+
 	const ID = buffer.long(), packets = buffer.byte();
 
-	if(server.isGoldSource){
+	if(server.multiPacketIsGoldSource){
 		return {
 			ID, 
 			packets: {
 				current: (packets & 0b11110000) >> 4,
 				total: packets & 0b00001111
 			},
-			payload: buffer.remaining()
+			payload: buffer.remaining(),
+			isGoldSource: true,
+			raw: buffer.buffer
 		};
 	}else{
 		const info = { 
@@ -275,7 +281,9 @@ function multiPacketResponse(buffer, server){
 			packets: {
 				total: packets,
 				current: buffer.byte()
-			}
+			},
+			isGoldSource: false,
+			raw: buffer.buffer
 		};
 
 		if(

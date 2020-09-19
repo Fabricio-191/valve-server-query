@@ -15,12 +15,14 @@ interface Time{
 interface Options{
     /** Ip address or hostname to the server to connect */
     ip?: string;
-    /** Port to use to send data to the server, default: 27015 */
+    /** Port to use to send data to the server, default: `27015` */
     port?: number;
-    /** Maximum time (in miliseconds) to wait a server response, default: 1000 */
+    /** Maximum time (in miliseconds) to wait a server response, default: `1000` */
     timeout?: number;
-    /** Maximum listeners before the memory leak warning */
+    /** Maximum listeners before the memory leak warning, default: `20` */
     maxListeners?: number;
+    /** Whenether to show or not the incoming and outcoming packages, default: `false` */
+    debug?: boolean;
 }
 
 /** Info from a mod from the game in the server. */
