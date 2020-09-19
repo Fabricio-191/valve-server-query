@@ -1,28 +1,26 @@
-type serverTypes = 'dedicated' | 'non-dedicated' | 'source tv relay' | null;
-type serverOS = 'linux' | 'windows' | 'mac';
+type serverType = 'dedicated' | 'non-dedicated' | 'source tv relay' | null;
+type operativeSystem = 'linux' | 'windows' | 'mac';
 type theShipModes = 'hunt' | 'elimination' | 'duel' | 'deathmatch' | 'vip team' | 'team elimination';
 
-/** An object representing time */
+/** An object representing time. */
 interface Time{
-    /** Hours */
     hours: number;
-    /** Minutes */
     minutes: number;
-    /** Seconds */
     seconds: number;
-    /** Since when is counting */
+    /** Since when is counting. */
     start: Date;
 }
 
+/** Options to initialize the server. */
 interface Options{
     /** Ip address or hostname to the server to connect */
-    ip?: string,
-    /** Port to use to send data to the server */
-    port?: number,
-    /** If it's true, it shows sent and recieved data */
-    debug?: boolean,
-    /** Maximum time to wait a server response */
-    timeout?: number
+    ip?: string;
+    /** Port to use to send data to the server, default: 27015 */
+    port?: number;
+    /** Maximum time (in miliseconds) to wait a server response, default: 1000 */
+    timeout?: number;
+    /** Maximum listeners before the memory leak warning */
+    maxListeners?: number;
 }
 
 /** Info from a mod from the game in the server. */
@@ -60,7 +58,7 @@ interface PlayerInfo{
 
 /** An object with the server info */
 interface ServerInfo{
-    /** IP address and port of the server. (provided in the server response) */
+    /** IP address and port of the server. (provided in the server response). */
     address?: string;
     /** Protocol version used by the server. */
     protocol: number;
@@ -86,9 +84,9 @@ interface ServerInfo{
     };
 
     /** Indicates the type of server (dedicated, non-dedicated or source tv relay/HLTV) */
-    type: serverTypes;
+    type: serverType;
     /** Indicates the operating system of the server (windows, linux or mac) */
-    OS: serverOS;
+    OS: operativeSystem;
     /** Indicates whether the server requires a password */
     visibility: 'private' | 'public';
     /**	Specifies whether the server uses VAC */
@@ -133,9 +131,9 @@ interface ServerInfo{
     /** The server's 64-bit GameID. If this is present, the appID is more accurate */
     gameID?: number;
 
-    /** Whether the server uses a goldsource engine */
-    isGoldSource: boolean;
-    /** Response delay from the server (in ms) */
+    /** Whether the server uses a goldsource engine. */
+    isGoldSource: boolean | undefined;
+    /** Response delay from the server (in miliseconds). */
     ping: number;
 }
 
@@ -165,6 +163,14 @@ declare class Server{
      * @returns The list of rules
     */
     getRules(): Promise<object>;
+
+    /**
+     * Ejecutes the A2A_PING request to the server
+     * This method is deprecated, you should use the `getInfo` method instead
+     * @returns The ping (miliseconds)
+     * @deprecated
+    */
+    ping(): Promise<number>;
 }
 
 export = Server;

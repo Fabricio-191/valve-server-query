@@ -12,7 +12,10 @@ module.exports = {
 }
 
 function parseOptions(options){
-    options = Object.assign(constants.defaultOptions, options)
+    if(typeof options !== 'object'){
+        throw Error("'options' must be an object")
+    }
+    options = Object.assign({}, constants.defaultOptions, options)
 
     if(!options.ip){
         throw Error('You should put the IP for the server to connect')
@@ -21,7 +24,7 @@ function parseOptions(options){
     }
 
     if(net.isIP(options.ip) === 0){
-        options.ip = resolveHostName(options.ip)
+        options.ip = resolveHostname(options.ip)
         .catch(() => { 
             throw Error('Introduced ip/hostname is not valid')
         })
@@ -34,10 +37,10 @@ function parseOptions(options){
         options.port < 0 || options.port > 65535
     ){
         throw Error('The port to connect should be a number between 0 and 65535')
-    }
-    
-    if(typeof options.timeout !== 'number'){
-        throw Error('The timeout should be a number');
+    }else if(typeof options.timeout !== 'number'){
+        throw Error("'timeout' should be a number");
+    }else if(typeof options.maxListeners !== 'number'){
+        throw Error("'maxListeners' should be a number");
     }
 
     return options;

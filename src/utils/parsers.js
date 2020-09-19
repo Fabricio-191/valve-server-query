@@ -245,7 +245,7 @@ function serverRules(buffer){
 		}else{
 			let b = value.toLowerCase().trim();
 			if(['true', 'false'].includes(b)){
-				return b === 'true';
+				rules[key] = (b === 'true');
 			}else{
 				rules[key] = value;
 			}

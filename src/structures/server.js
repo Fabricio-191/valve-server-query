@@ -13,15 +13,14 @@ class Server{
 	_connection = null;
 
 	getInfo = function(){
-		const start = Date.now();
-		
 		return new Promise(async (resolve, reject) => {
-			this._connection.send(constants.commands.info, reject);
+			await this._connection.send(constants.commands.info, reject);
+			const start = Date.now();
 
 			let responses = [
 				this._connection.awaitResponse(0x49)
 			]
-
+	
 			if(this._connection.isGoldSource){
 				responses.push(
 					this._connection.awaitResponse(0x6D)
@@ -100,15 +99,16 @@ class Server{
 	}
 	
 	_challenge(code){
-		const command = Array.from(constants.commands.challenge); //(copy)
-		if(!constants.apps_IDs.challenge.includes(this._connection.appID)){
-			command[4] = code;
-		}
-		
-		return new Promise((resolve, reject) => {
+		return new Promise(async (resolve, reject) => {
+			await this._connection._ready();
+			
+			const command = Array.from(constants.commands.challenge); //(copy)
+			if(!constants.apps_IDs.challenge.includes(this._connection.appID)){
+				command[4] = code;
+			}
 			this._connection.send(command, reject)
 			
-			this._connection.awaitResponse(0x41)
+			this._connection.awaitResponse(0x41, 0x45)
 			.then(buffer => {
 				resolve(Array.from(buffer))
 			})
@@ -117,10 +117,9 @@ class Server{
 	}
 
 	ping(){
-		const start = Date.now();
-		
-		return new Promise((resolve, reject) => {
-			this.send(constants.commands.ping, reject)
+		return new Promise(async (resolve, reject) => {
+			this._connection.send(constants.commands.ping, reject)
+			const start = Date.now();
 			
 			this._connection.awaitResponse(0x6A)
 			.then(() => {

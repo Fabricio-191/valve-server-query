@@ -90,6 +90,7 @@
 	"defaultOptions": { 
 		"port": 27015,
 		"timeout": 1000,
-		"debug": false
+		"debug": false,
+		"maxListeners": 20
 	}
 }

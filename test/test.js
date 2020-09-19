@@ -19,13 +19,20 @@ console.clear()
 
 const sv = new Server({
     ip: '200.104.195.197',
-    port: 30000,
-    debug: true
+    port: 30000
 })
 
-sv.getInfo()
+
+const sv2 = new Server({
+    ip: 'vanilla.rustoria.us',
+    port: 28015,
+    debug: true,
+    timeout: 3000
+})
+
+sv2.getPlayers()
 .then(console.log)
-sv.getPlayers()
-.then(console.log)
-sv.getRules()
-.then(console.log)
+.catch(console.error)
+
+setInterval(() => {
+}, 200)

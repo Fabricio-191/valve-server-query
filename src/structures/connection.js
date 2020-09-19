@@ -7,14 +7,18 @@ client.on('message', (buffer, rinfo) => {
 	if(buffer.length === 0) return;
 
     let callback = servers[rinfo.address+':'+rinfo.port];
-    if(callback) callback(buffer);
+    if(callback){
+		try{
+			callback(buffer);
+		}catch(e){}
+	}
 });
 
-client.createConnection = async function(options, onMessage, onReady){
+async function createConnection(options, onMessage, onReady){
     if(options.ip instanceof Promise){
         options.ip = await options.ip;
-    }
-    let key = options.ip+':'+options.port;
+	}
+	let key = options.ip+':'+options.port;
 	
 	client.send(Buffer.from(constants.commands.info), options.port, options.ip, err => {
 		if(err) throw err;
@@ -22,14 +26,16 @@ client.createConnection = async function(options, onMessage, onReady){
 
 	let responses = []
 
-    setTimeout(() => {
+	let timeoutFn = () => {
 		if(responses.length){
+			if(servers[key] === onMessage) return;
 			servers[key] = onMessage;
-			return onReady(Object.assign({}, ...responses), options);
+			return onReady(Object.assign(...responses), options);
 		}else{
 			throw Error('Can not connect to the server.');
 		}
-	}, options.timeout * 2)
+	}
+    let timeout = setTimeout(timeoutFn, options.timeout)
 	
     servers[key] = buffer => {
         if(buffer.readInt32LE() === -2){
@@ -40,6 +46,14 @@ client.createConnection = async function(options, onMessage, onReady){
             responses.push(
 				parsers.serverInfo(buffer.slice(4))
 			);
+
+			clearTimeout(timeout);
+			if(responses.length === 2){
+				servers[key] = onMessage;
+				return onReady(Object.assign(...responses), options);
+			}else{
+				timeout = setTimeout(timeoutFn, options.timeout / 2)
+			}
         }
     }
 
@@ -51,17 +65,30 @@ client.createConnection = async function(options, onMessage, onReady){
 class Connection extends EventEmitter{
     constructor(options){
 		super();
-		
-		client.createConnection(options, this.packetHandler.bind(this), (info, options) => {
-			Object.assign(this, options, {
-				protocol: info.protocol,
-				appID: info.appID,
-				ready: true,
-				isGoldSource: info.isGoldSource || false
-			});
 
-			this.emit('ready');
+		this.setMaxListeners(options.maxListeners);
+
+		this.on('newListener', () => {
+			let totalListeners = this.listenerCount('ready') + this.listenerCount('packet');
+			if(totalListeners > options.maxListeners){
+				console.warn("")
+			}
 		})
+		
+		createConnection(
+			options, 
+			this.packetHandler.bind(this), 
+			(info, endOptions) => {
+				Object.assign(this, endOptions, {
+					protocol: info.protocol,
+					appID: info.appID,
+					ready: true,
+					isGoldSource: info.isGoldSource || false
+				});
+
+				this.emit('ready');
+			}
+		)
     }
 	timeout = 3000;
 
@@ -74,17 +101,18 @@ class Connection extends EventEmitter{
 	protocol = null;
 
 	async send(command, reject){
-		if(this.ip instanceof Promise) await this.ip;
 		if(!this.ready) await this._ready();
 
-		if(this.debug) console.log('\nSent:    ', Buffer.from(command));
+		//console.log('\nSent:    ', Buffer.from(command));
 		client.send(Buffer.from(command), this.port, this.ip, err => {
 			if(err) reject(err);
 		});
 	}
 
 	awaitResponse(...responseHeaders){
-		return new Promise((resolve, reject) => {
+		return new Promise(async (resolve, reject) => {
+			if(!this.ready) await this._ready();
+
 			const timeout = setTimeout(() => {
 				this.off('packet', handler);
 				reject(Error('Response timeout.'));
@@ -93,7 +121,7 @@ class Connection extends EventEmitter{
 			const handler = buffer => {
 				if(!responseHeaders.includes(buffer[0])) return;
 
-				this.off('packet', handler)
+				this.off('packet', handler);
 				clearTimeout(timeout);
 
 				resolve(buffer)
@@ -105,9 +133,7 @@ class Connection extends EventEmitter{
 
 	packetsQueues = {};
 	packetHandler(buffer){
-		if(this.debug){
-			console.log('\nRecieved:    ', buffer.toString('hex').match(/../g).join(' '));
-		}
+		//console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
 
 		if(buffer.readInt32LE() === -2){
 			const packet = parsers.multiPacketResponse(
@@ -124,15 +150,16 @@ class Connection extends EventEmitter{
 			}else queue.push(packet);
 	
 			if(queue.length !== packet.packets.total) return;
-			const orderedQueue = queue.sort(
+			
+			queue.sort(
 				(p1, p2) => p1.packets.current - p2.packets.current
 			);
 				
 			buffer = Buffer.concat(
-				orderedQueue.map(p => p.payload)
+				queue.map(p => p.payload)
 			);
 	
-			if(orderedQueue[0].bzip) buffer = decompressBZip(finalPayload);
+			if(queue[0].bzip) buffer = decompressBZip(finalPayload);
 			/*
 			I never tried bzip decompression, if you are having trouble with this, contact me on discord
 			Fabricio-191#8051, and please send me de ip and port of the server, so i can do tests
@@ -146,8 +173,6 @@ class Connection extends EventEmitter{
 		return new Promise(resolve => {
 			this.once('ready', resolve)
 		})  
-
-		
 	}
 }
 
