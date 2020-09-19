@@ -31,7 +31,7 @@ const Server = require('@fabricio-191/valve-server-query');
 const server = new Server({
     ip: '0.0.0.0',
     port: 28015,
-    timeout: 3000,
+    timeout: 3000
 });
 
 server.getInfo()
@@ -43,14 +43,14 @@ server.getInfo()
 
 server.getPlayers()
 .then(players => {
-    console.log(info);
+    console.log(players);
     //do something...
 })
 .catch(console.error)
 
 server.getRules()
 .then(rules => {
-    console.log(info);
+    console.log(rules);
     //do something...
 })
 .catch(console.error)
