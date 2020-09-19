@@ -2,6 +2,8 @@
 
 ### Implementation of [Valve server queries](https://developer.valvesoftware.com/wiki/Server_queries)
 
+Bzip decompression function was taken from https://www.npmjs.com/package/bz2
+
 ### Features:
 * Supports [Multi-packet Response Format](https://developer.valvesoftware.com/wiki/Server_queries#Multi-packet_Response_Format)  
   * Source and GoldSource

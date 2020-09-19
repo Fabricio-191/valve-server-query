@@ -173,6 +173,8 @@ declare class Server{
      * @deprecated
     */
     ping(): Promise<number>;
+
+    static init(options: Options): Server;
 }
 
 export = Server;

@@ -100,7 +100,7 @@ class Server{
 	
 	_challenge(code){
 		return new Promise(async (resolve, reject) => {
-			await this._connection._ready();
+			if(!this._connection.ready) await this._connection._ready();
 			
 			const command = Array.from(constants.commands.challenge); //(copy)
 			if(!constants.apps_IDs.challenge.includes(this._connection.appID)){
@@ -118,7 +118,7 @@ class Server{
 
 	ping(){
 		return new Promise(async (resolve, reject) => {
-			this._connection.send(constants.commands.ping, reject)
+			await this._connection.send(constants.commands.ping, reject)
 			const start = Date.now();
 			
 			this._connection.awaitPacket(0x6A)
