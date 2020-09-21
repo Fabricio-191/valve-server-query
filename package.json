@@ -1,6 +1,6 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "1.5.3-200",
+  "version": "1.5.3-201",
   "main": "./src/index.js",
   "types": "./typings/index.d.ts",
   "repository": {
@@ -21,11 +21,6 @@
     "query",
     "server"
   ],
-  "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "4.1.1",
-    "@typescript-eslint/parser": "4.1.1",
-    "eslint": "7.9.0"
-  },
   "scripts": {
     "test": "node test/test.js"
   }
