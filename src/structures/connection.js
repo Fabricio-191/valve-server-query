@@ -80,14 +80,14 @@ async function connect(server, callback){
 
     if(server.options.debug) console.log('\nSent (initializing):    ', Buffer.from(constants.commands.info));
     client.send(Buffer.from(constants.commands.info), server.port, server.ip, err => {
-		if(err) throw err;
+		if(err) callback(null, err);
     })
 
     let responses = []
     
-    function end(){
+    let end = () => {
         if(responses.length === 0){
-			throw Error('Can not connect to the server.');
+			callback(null, Error('Can not connect to the server.'));
         }
         
         servers[key].callback = function(buffer){

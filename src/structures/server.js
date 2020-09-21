@@ -12,9 +12,7 @@ class Server extends EventEmitter{
 		super();
 
 		this.connect(options)
-		.catch(err => {
-			throw err;
-		});
+		.catch(console.error);
 	}
 	ip = null;
 	port = null;
@@ -181,7 +179,7 @@ class Server extends EventEmitter{
 			if(!this.ready) await this._ready();
 			
 			const command = Array.from(commands.challenge); //(copy)
-			if(!apps_IDs.challenge.includes(this._info[2].appID)){
+			if(!apps_IDs.challenge.includes(this._info[2])){
 				command[4] = code;
 			}
 			
@@ -209,7 +207,9 @@ class Server extends EventEmitter{
 		return new Promise((resolve, reject) => {
 			Object.assign(this, parseOptions(options))
 	
-			Connection(this, (info) => {
+			Connection(this, (info, err) => {
+				if(err) return reject(err);
+
 				Object.assign(this, {
 					_info: [info.goldSource, this._info[1], info.appID, info.protocol],
 					ready: true
@@ -217,7 +217,6 @@ class Server extends EventEmitter{
 				this.emit('ready');
 				resolve();
 			})
-			.catch(reject)
 		})
     }
 

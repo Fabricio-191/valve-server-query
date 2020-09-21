@@ -1,6 +1,6 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "1.5.3-201",
+  "version": "1.5.3-400",
   "main": "./src/index.js",
   "types": "./typings/index.d.ts",
   "repository": {
