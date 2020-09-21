@@ -39,8 +39,6 @@ function parseOptions(options){
         throw Error('The port to connect should be a number between 0 and 65535')
     }else if(typeof options.timeout !== 'number'){
         throw Error("'timeout' should be a number");
-    }else if(typeof options.maxListeners !== 'number'){
-        throw Error("'maxListeners' should be a number");
     }else if(typeof options.debug !== 'boolean'){
         throw Error("'debug' should be a boolean");
     }

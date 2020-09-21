@@ -206,7 +206,7 @@ class Server extends EventEmitter{
     }
 
     async connect(options = {}){
-        Object.assign(this, parseOptions(options))
+		Object.assign(this, parseOptions(options))
 
 		await Connection(this, (info) => {
 			Object.assign(this, {

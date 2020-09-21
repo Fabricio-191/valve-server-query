@@ -19,8 +19,6 @@ interface Options{
     port?: number;
     /** Maximum time (in miliseconds) to wait a server response, default: `1000` */
     timeout?: number;
-    /** Maximum listeners before the memory leak warning, default: `20` */
-    maxListeners?: number;
     /** Whenether to show or not the incoming and outcoming packages, default: `false` */
     debug?: boolean;
 }

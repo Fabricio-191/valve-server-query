@@ -17,9 +17,6 @@ Bzip decompression function was taken from https://www.npmjs.com/package/bz2
 * Fully supports `The ship`
 * Supports Hostnames
 
-### Known issues: 
-* If A2S_INFO response is splited in 2 or more packets, the server will never start
-
 #### Warns: 
 * [Bzip decompression](https://developer.valvesoftware.com/wiki/Server_queries#Source_Server) not tested
 * IPv6 not tested
@@ -35,6 +32,10 @@ const server = new Server({
     port: 28015,
     timeout: 3000
 });
+
+server.on('ready', () => {
+  console.log('I am ready!')
+})
 
 server.getInfo()
 .then(info => {
@@ -56,6 +57,8 @@ server.getRules()
     //do something...
 })
 .catch(console.error)
+
+Server.setSocketRef(false); //the socket will not keep the node.js process alive
 ```
 
 If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an attempt will be made to obtain the IP, if the attempt fails, it will throw an error
@@ -66,7 +69,6 @@ If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an a
     port: 28015, //by default is 27015
     timeout: 3000, //by default is 1000 (1 second)
     debug: true, //by default is false (it shows incoming and outcoming buffers)
-    maxListeners: 30 //by default is 20 (max listeners that the connection may have, for memory leak warning)
 }
 ```
 
