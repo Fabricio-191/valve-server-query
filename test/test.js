@@ -1,7 +1,7 @@
 const Server = require('../');
 Server.setSocketRef(false);
 
-const fetch = require('./tiniFetch.js');
+const fetch = require('./minifetch.js');
 
 fetch(
     'https://api.battlemetrics.com/servers?filter[game]=cs&filter[status]=online&page[size]=100',
@@ -14,7 +14,7 @@ fetch(
         }catch(e){
             return console.error('Error at fetching the list of servers');
         }
-
+        
         let randomServer = servers[ 
             Math.floor(Math.random() * servers.length) 
         ]
@@ -25,6 +25,7 @@ fetch(
             timeout: 3000
         });
 
+        console.log(randomServer.attributes.ip, randomServer.attributes.port)
 
         await sv.getInfo()
         .then(console.log)
@@ -34,7 +35,7 @@ fetch(
         console.log('\n'.repeat(5))
 
         await sv.getPlayers()
-        //.then(console.log)
+        .then(console.log)
         .catch(console.error)
 
         await new Promise(res => setTimeout(res, 4000))
@@ -45,3 +46,5 @@ fetch(
         .catch(console.error)
     }
 )
+
+

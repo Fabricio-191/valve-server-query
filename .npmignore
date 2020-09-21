@@ -3,3 +3,5 @@ package-lock.json
 test/
 
 .gitignore
+.eslintrc.json
+test2.js

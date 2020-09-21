@@ -48,7 +48,7 @@ class BufferParser{
 		return this.buffer.readFloatLE(this.offset-4);
 	}
 
-	bigUInt(asString){//long long
+	bigUInt(){//long long
 		this.offset += 8;
 		return this.buffer.readBigUInt64LE(this.offset-8);
 	}
@@ -57,7 +57,7 @@ class BufferParser{
 		let stringEndIndex = this.buffer.indexOf(0, this.offset);
 		let string = this.buffer.slice(this.offset, stringEndIndex).toString() 
 		
-		this.offset += Buffer.byteLength(string) + 1;
+		this.offset += (stringEndIndex - this.offset) + 1;
 		return string;
 	}
 
@@ -287,6 +287,9 @@ function multiPacketResponse(buffer, server){
 			!constants.apps_IDs.packetSize.includes(server.appID) && 
 			!(server.protocol === 7 && server.appID === 240)
 		){
+			if(buffer.length > 10){
+
+			}
 			info.maxPacketSize = buffer.short();
 		}
 		

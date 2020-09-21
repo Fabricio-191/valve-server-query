@@ -17,16 +17,25 @@ client.on('message', (buffer, rinfo) => {
 function packetHandler(buffer, server){ //cambiar
     if(server.options.debug)  console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
     if(buffer.readInt32LE() === -2){
-        if(buffer.length > 9 && buffer.readInt32LE(9) === -1){
+        if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
+            //only valid in the first packet
             server._info[1] = true;  //multiPacketResponseIsGoldSource
         }
 
         const { packetsQueues } = servers[server.ip+':'+server.port];
-        let packet = parsers.multiPacketResponse(
-            buffer, server
-        );
 
-        const queue = packetsQueues[packet.ID]; 
+        let packet;
+        try{
+            packet = parsers.multiPacketResponse(
+                buffer, server
+            );
+        }catch(e){
+            server._info[1] = true;
+            packet = parsers.multiPacketResponse(
+                buffer, server
+            );
+        }
+        let queue = packetsQueues[packet.ID]; 
 
         if(!queue){
             setTimeout(() => {
@@ -38,23 +47,22 @@ function packetHandler(buffer, server){ //cambiar
 
         if(queue.length !== packet.packets.total) return;
         
-        if(
-            server.multiPacketIsGoldSource && 
-            queue.some(p => !p.goldSource)
-        ) queue = queue.map(p => parsers.multiPacketResponse(
-            p.raw, server
-        ))
-        
-        queue.sort(
-            (p1, p2) => p1.packets.current - p2.packets.current
-        );
+        if(server._info[1] && queue.some(p => !p.goldSource)){
+            queue = queue.map(p => parsers.multiPacketResponse(
+                p.raw, server
+            ))
+        }
             
         buffer = Buffer.concat(
-            queue.map(p => p.payload)
+            queue.sort(
+                (p1, p2) => p1.packets.current - p2.packets.current
+            ).map(p => p.payload)
         );
 
-        console.log(queue[0].bzip)
-        if(queue[0].bzip) buffer = decompressBZip(buffer);
+        if(queue[0].bzip){
+            //console.log('BZip', server.ip+':'+server.port, `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`)
+            buffer = decompressBZip(buffer);
+        }
         /*
         I never tried bzip decompression, if you are having trouble with this, contact me on discord
         Fabricio-191#8051, and please send me de ip and port of the server, so i can do tests
