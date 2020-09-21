@@ -1,5 +1,9 @@
 # **valve-server-query**
 
+[![GitHub license](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
+[![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
+
+
 ### Implementation of [Valve server queries](https://developer.valvesoftware.com/wiki/Server_queries)
 
 Bzip decompression function was taken from https://www.npmjs.com/package/bz2

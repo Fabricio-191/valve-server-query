@@ -58,6 +58,12 @@ interface PlayerInfo{
 
 /** An object with the server info */
 interface ServerInfo{
+    /** Response delay from the server (in miliseconds). */
+    ping: number;
+    /** Ip address from the server */
+    ip: string;
+    /** Port used to send data to the server */
+    port: number;
     /** IP address and port of the server. (provided in the server response). */
     address?: string;
     /** Protocol version used by the server. */
@@ -132,9 +138,6 @@ interface ServerInfo{
 
     /** The server's 64-bit GameID. If this is present, the appID is more accurate */
     gameID?: number;
-
-    /** Response delay from the server (in miliseconds). */
-    ping: number;
 }
 
 

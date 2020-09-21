@@ -1,29 +1,47 @@
 const Server = require('../');
-
-const sv2 = new Server({
-    ip: '45.235.98.69',
-    port: 27020,
-    debug: true
-});
-
-(async function(){
-    await sv2.getInfo()
-    .then(console.log)
-    .catch(console.error)
-
-    await new Promise(res => setTimeout(res, 4000))
-    console.log('\n'.repeat(5))
-
-    await sv2.getPlayers()
-    .then(console.log)
-    .catch(console.error)
-
-    await new Promise(res => setTimeout(res, 4000))
-    console.log('\n'.repeat(5))
-
-    await sv2.getRules()
-    .then(console.log)
-    .catch(console.error)
-})();
-
 Server.setSocketRef(false);
+
+const fetch = require('./tiniFetch.js');
+
+fetch(
+    'https://api.battlemetrics.com/servers?filter[game]=cs&filter[status]=online&page[size]=100',
+    async (err, body, response) => {
+        if(err) return console.error('Error at fetching the list of servers');
+
+        let servers;
+        try{
+            servers = JSON.parse(body.toString()).data
+        }catch(e){
+            return console.error('Error at fetching the list of servers');
+        }
+
+        let randomServer = servers[ 
+            Math.floor(Math.random() * servers.length) 
+        ]
+
+        const sv = new Server({
+            ip: randomServer.attributes.ip,
+            port: randomServer.attributes.port,
+            timeout: 3000
+        });
+
+
+        await sv.getInfo()
+        .then(console.log)
+        .catch(console.error)
+
+        await new Promise(res => setTimeout(res, 4000))
+        console.log('\n'.repeat(5))
+
+        await sv.getPlayers()
+        //.then(console.log)
+        .catch(console.error)
+
+        await new Promise(res => setTimeout(res, 4000))
+        console.log('\n'.repeat(5))
+
+        await sv.getRules()
+        .then(console.log)
+        .catch(console.error)
+    }
+)

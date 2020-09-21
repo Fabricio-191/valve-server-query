@@ -17,7 +17,7 @@ client.on('message', (buffer, rinfo) => {
 function packetHandler(buffer, server){ //cambiar
     if(server.options.debug)  console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
     if(buffer.readInt32LE() === -2){
-        if(buffer.readInt32LE(9) === -1){
+        if(buffer.length > 9 && buffer.readInt32LE(9) === -1){
             server._info[1] = true;  //multiPacketResponseIsGoldSource
         }
 
@@ -53,7 +53,8 @@ function packetHandler(buffer, server){ //cambiar
             queue.map(p => p.payload)
         );
 
-        if(queue[0].bzip) buffer = decompressBZip(finalPayload);
+        console.log(queue[0].bzip)
+        if(queue[0].bzip) buffer = decompressBZip(buffer);
         /*
         I never tried bzip decompression, if you are having trouble with this, contact me on discord
         Fabricio-191#8051, and please send me de ip and port of the server, so i can do tests
@@ -88,7 +89,6 @@ async function connect(server, callback){
         responses.sort((a, b) => a.goldSource - b.goldSource)
         
         callback(Object.assign({}, ...responses))
-        server.emit('ready');
     }
 
     let timeout = setTimeout(end, server.options.timeout)

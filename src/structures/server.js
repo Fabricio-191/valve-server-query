@@ -86,7 +86,7 @@ class Server extends EventEmitter{
 			.then(responses => 
 				resolve(
 					Object.assign(
-						{ ping: Date.now() - start }, 
+						{ ip: this.ip, port: this.port, ping: Date.now() - start }, 
 						...responses.map(parsers.serverInfo)
 					)
 				)
@@ -205,16 +205,20 @@ class Server extends EventEmitter{
 		});
     }
 
-    async connect(options = {}){
-		Object.assign(this, parseOptions(options))
-
-		await Connection(this, (info) => {
-			Object.assign(this, {
-				_info: [info.goldSource, this._info[1], info.appID, info.protocol],
-				ready: true
-			});
+    connect(options = {}){
+		return new Promise((resolve, reject) => {
+			Object.assign(this, parseOptions(options))
+	
+			Connection(this, (info) => {
+				Object.assign(this, {
+					_info: [info.goldSource, this._info[1], info.appID, info.protocol],
+					ready: true
+				});
+				this.emit('ready');
+				resolve();
+			})
+			.catch(reject)
 		})
-		.catch(err => { throw err })
     }
 
 	static setSocketRef(value){
