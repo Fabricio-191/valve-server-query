@@ -1,33 +1,29 @@
 const Server = require('../');
-const fetch = require('node-fetch');
-
-fetch('https://api.battlemetrics.com/servers?filter[status]=online&filter[game]=rust')
-.then(res => res.json())
-.then(json => {
-    return;
-    let servers = json.data.map(s => new Server({
-        ip: s.attributes.ip,
-        port: s.attributes.port
-    }))
-    
-    console.log(servers)
-})
-.catch(console.error)
-
-console.log('\n'.repeat(100))
-console.clear()
-
-/*
-const sv = new Server({
-    ip: '200.104.195.197',
-    port: 30000
-})
-*/
 
 const sv2 = new Server({
-    ip: '131.221.32.207'
-})
+    ip: '45.235.98.69',
+    port: 27020,
+    debug: true
+});
 
-sv2.getPlayers()
-.then(console.log)
-.catch(console.error)
+(async function(){
+    await sv2.getInfo()
+    .then(console.log)
+    .catch(console.error)
+
+    await new Promise(res => setTimeout(res, 4000))
+    console.log('\n'.repeat(5))
+
+    await sv2.getPlayers()
+    .then(console.log)
+    .catch(console.error)
+
+    await new Promise(res => setTimeout(res, 4000))
+    console.log('\n'.repeat(5))
+
+    await sv2.getRules()
+    .then(console.log)
+    .catch(console.error)
+})();
+
+Server.setSocketRef(false);

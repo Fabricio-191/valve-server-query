@@ -45,7 +45,15 @@ function parseOptions(options){
         throw Error("'debug' should be a boolean");
     }
 
-    return options;
+    return {
+        ip: options.ip,
+        port: options.port,
+        options: {
+            timeout: options.timeout,
+            maxListeners: options.maxListeners,
+            debug: options.debug
+        }
+    };
 }
 
 function resolveHostname(hostname){

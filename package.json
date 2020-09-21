@@ -20,5 +20,8 @@
     "source",
     "query",
     "server"
-  ]
+  ],
+  "scripts": {
+    "test": "node test/test.js"
+  }
 }

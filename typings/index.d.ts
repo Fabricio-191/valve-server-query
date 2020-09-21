@@ -14,7 +14,7 @@ interface Time{
 /** Options to initialize the server. */
 interface Options{
     /** Ip address or hostname to the server to connect */
-    ip?: string;
+    ip: string;
     /** Port to use to send data to the server, default: `27015` */
     port?: number;
     /** Maximum time (in miliseconds) to wait a server response, default: `1000` */
@@ -64,6 +64,8 @@ interface ServerInfo{
     address?: string;
     /** Protocol version used by the server. */
     protocol: number;
+    /** Whether the server uses a goldsource engine. */
+    goldSource: boolean;
     /** Name of the server. */
     name: string;
     /** Map the server has currently loaded. */
@@ -133,8 +135,6 @@ interface ServerInfo{
     /** The server's 64-bit GameID. If this is present, the appID is more accurate */
     gameID?: number;
 
-    /** Whether the server uses a goldsource engine. */
-    isGoldSource: boolean | undefined;
     /** Response delay from the server (in miliseconds). */
     ping: number;
 }
@@ -174,7 +174,28 @@ declare class Server{
     */
     ping(): Promise<number>;
 
+    /**
+     * Disconnects the server
+     * @returns Nothing
+    */
+    disconnect(): void;
+
+    /**
+     * Connects to a server
+     * @returns A promise that is resolved when the connection is complete
+    */
+    connect(): Promise<void>;
+
+    /** @returns The server */
     static init(options: Options): Server;
+
+    /** 
+     * Whenether to bind o not the used socket
+     * If the value is `false`, the socket is unbinded an it will not mantain the Node.js process running
+     * by default the socket is binded (value: `true`)
+     * @see https://nodejs.org/api/dgram.html#dgram_socket_unref and also you can see the [ref](https://nodejs.org/api/dgram.html#dgram_socket_ref) method
+     */
+    static setSocketRef(value: boolean): void;
 }
 
 export = Server;

@@ -48,7 +48,7 @@ class BufferParser{
 		return this.buffer.readFloatLE(this.offset-4);
 	}
 
-	bigUInt(){//long long
+	bigUInt(asString){//long long
 		this.offset += 8;
 		return this.buffer.readBigUInt64LE(this.offset-8);
 	}
@@ -89,6 +89,7 @@ function serverInfo(buffer){
 	
 	let	info = {
 		protocol: buffer.byte(),
+		goldSource: false,
 		name: buffer.string().trim(),
 		map: buffer.string(),
 		folder: buffer.string(),
@@ -133,7 +134,7 @@ function serverInfo(buffer){
 		info.keywords = buffer.string().trim().split(',');
 	}
 	if (EDF & 0x01) {//0000 0001
-		info.gameID = buffer.bigUInt();
+		info.gameID = buffer.bigUInt(); //00000000 00000000 00000000 00000000 
 		info.appID = info.gameID & BigInt(0xFFFFFF)
 	}
 	
@@ -153,7 +154,7 @@ function goldSourceServerInfo(buffer){
 			max: buffer.byte(),
 		},
 		protocol: buffer.byte(),
-		isGoldSource: true,
+		goldSource: true,
 
 		type: constants.serversTypes[
 			buffer.char().toLowerCase()
@@ -258,21 +259,17 @@ function serverRules(buffer){
 function multiPacketResponse(buffer, server){
 	buffer = new BufferParser(buffer, 4)
 
-	if(buffer.buffer.readInt32LE(9) === -1){
-		server.multiPacketIsGoldSource = true;
-	}
-
 	const ID = buffer.long(), packets = buffer.byte();
 
-	if(server.multiPacketIsGoldSource){
+	if(server._info[1]){
 		return {
 			ID, 
 			packets: {
-				current: (packets & 0b11110000) >> 4,
-				total: packets & 0b00001111
+				current: (packets & 0xF0) >> 4,
+				total: packets & 0x0F
 			},
 			payload: buffer.remaining(),
-			isGoldSource: true,
+			goldSource: true,
 			raw: buffer.buffer
 		};
 	}else{
@@ -282,7 +279,7 @@ function multiPacketResponse(buffer, server){
 				total: packets,
 				current: buffer.byte()
 			},
-			isGoldSource: false,
+			goldSource: false,
 			raw: buffer.buffer
 		};
 
@@ -293,7 +290,7 @@ function multiPacketResponse(buffer, server){
 			info.maxPacketSize = buffer.short();
 		}
 		
-		if(info.packets.current === 0 && info.ID.toString(2)[0] === 1){ //10000000 00000000 00000000 00000000
+		if(info.packets.current === 0 && info.ID.toString(2)[0] === '1'){ //10000000 00000000 00000000 00000000
 			info.bzip = { 
 				uncompressedSize: buffer.long(), 
 				CRC32_sum: buffer.long() 

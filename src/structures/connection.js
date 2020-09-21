@@ -1,188 +1,116 @@
 const client = require('dgram').createSocket('udp4');
-const EventEmitter = require('events');
 const { constants, parsers, decompressBZip } = require('../utils/utils.js');
-const servers = {};
+const servers = {}, packetsQueues = {};
 
 client.on('message', (buffer, rinfo) => {
 	if(buffer.length === 0) return;
 
-    let callback = servers[rinfo.address+':'+rinfo.port];
-    if(callback){
-		try{
-			callback(buffer);
-		}catch(e){}
+    let entry = servers[rinfo.address+':'+rinfo.port];
+    if(entry){
+        let packet = packetHandler(buffer, entry.server);
+        if(!packet) return;
+
+        entry.callback(packet)
 	}
 });
 
-async function createConnection(options, onMessage, onReady){
-    if(options.ip instanceof Promise){
-        options.ip = await options.ip;
-	}
-	let key = options.ip+':'+options.port;
-	
-	if(options.debug) console.log('\nStarting connection, sent:\n', Buffer.from(constants.commands.info));
-	client.send(Buffer.from(constants.commands.info), options.port, options.ip, err => {
-		if(err) throw err;
-	})
-
-	let responses = []
-
-	let timeoutFn = () => {
-		if(responses.length){
-			if(servers[key] === onMessage) return;
-			servers[key] = onMessage;
-			return onReady(Object.assign(...responses), options);
-		}else{
-			throw Error('Can not connect to the server.');
-		}
-	}
-    let timeout = setTimeout(timeoutFn, options.timeout)
-	
-    servers[key] = buffer => {
-		if(options.debug) console.log('\nStarting connection, recieved:', `\n<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
-        if(buffer.readInt32LE() === -2){
-            throw Error('I need to handle this somehow');
-        }else{
-			if(![0x49, 0x6d].includes(buffer[4])) return;
-			
-            responses.push(
-				parsers.serverInfo(buffer.slice(4))
-			);
-
-			clearTimeout(timeout);
-			if(responses.length === 2){
-				servers[key] = onMessage;
-				return onReady(Object.assign(...responses), options);
-			}else{
-				timeout = setTimeout(timeoutFn, options.timeout / 3)
-			}
+function packetHandler(buffer, server){ //cambiar
+    if(server.options.debug)  console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
+    if(buffer.readInt32LE() === -2){
+        if(buffer.readInt32LE(9) === -1){
+            server._info[1] = true;  //multiPacketResponseIsGoldSource
         }
+
+        const { packetsQueues } = servers[server.ip+':'+server.port];
+        let packet = parsers.multiPacketResponse(
+            buffer, server
+        );
+
+        const queue = packetsQueues[packet.ID]; 
+
+        if(!queue){
+            setTimeout(() => {
+                delete packetsQueues[packet.ID];
+            }, server.options.timeout * 2)
+
+            return packetsQueues[packet.ID] = [packet];
+        }else queue.push(packet);
+
+        if(queue.length !== packet.packets.total) return;
+        
+        if(
+            server.multiPacketIsGoldSource && 
+            queue.some(p => !p.goldSource)
+        ) queue = queue.map(p => parsers.multiPacketResponse(
+            p.raw, server
+        ))
+        
+        queue.sort(
+            (p1, p2) => p1.packets.current - p2.packets.current
+        );
+            
+        buffer = Buffer.concat(
+            queue.map(p => p.payload)
+        );
+
+        if(queue[0].bzip) buffer = decompressBZip(finalPayload);
+        /*
+        I never tried bzip decompression, if you are having trouble with this, contact me on discord
+        Fabricio-191#8051, and please send me de ip and port of the server, so i can do tests
+        */
     }
 
-    return () => {
-        delete servers[key];
+    return buffer.slice(4);
+}
+
+async function connect(server, callback){
+    if(server.ip instanceof Promise){
+        server.ip = await server.ip;
+    }
+    let key = server.ip+':'+server.port;
+
+    if(server.options.debug) console.log('\nSent (initializing):    ', Buffer.from(constants.commands.info));
+    client.send(Buffer.from(constants.commands.info), server.port, server.ip, err => {
+		if(err) throw err;
+    })
+
+    let responses = []
+    
+    function end(){
+        if(responses.length === 0){
+			throw Error('Can not connect to the server.');
+        }
+        
+        servers[key].callback = function(buffer){
+            server.emit('packet', buffer)
+        }
+
+        responses.sort((a, b) => a.goldSource - b.goldSource)
+        
+        callback(Object.assign({}, ...responses))
+        server.emit('ready');
+    }
+
+    let timeout = setTimeout(end, server.options.timeout)
+    
+    servers[key] = { 
+        server,
+        packetsQueues: {},
+        callback: buffer => {
+            if(![0x49, 0x6d].includes(buffer[0])) return;
+            
+            responses.push(
+				parsers.serverInfo(buffer)
+			);
+
+            clearTimeout(timeout);
+			if(responses.length === 2) return end();
+                
+            timeout = setTimeout(end, server.options.timeout / 3);
+        }
     };
 }
 
-class Connection extends EventEmitter{
-    constructor(options){
-		super();
-
-		this.debug = options.debug;
-		this.setMaxListeners(options.maxListeners);
-		
-		createConnection(
-			options, 
-			this.packetHandler.bind(this), 
-			(info, endOptions) => {
-				Object.assign(this, endOptions, {
-					protocol: info.protocol,
-					appID: info.appID,
-					ready: true,
-					infoIsGoldSource: info.isGoldSource
-				});
-
-				if(options.debug) console.log('\nready')
-
-				this.emit('ready');
-			}
-		)
-    }
-	timeout = 3000;
-
-	ip = null
-	port = null
-
-	ready = false;
-
-	appID = null
-	protocol = null;
-
-	infoIsGoldSource = false;
-	multiPacketIsGoldSource = false;
-
-	async send(command, reject){
-		if(!this.ready) await this._ready();
-
-		if(this.debug) console.log('\nSent:    ', Buffer.from(command));
-		client.send(Buffer.from(command), this.port, this.ip, err => {
-			if(err) reject(err);
-		});
-	}
-
-	awaitPacket(...packetHeaders){
-		return new Promise(async (resolve, reject) => {
-			if(!this.ready) await this._ready();
-
-			const timeout = setTimeout(() => {
-				this.off('packet', handler);
-				reject(Error('Response timeout.'));
-			}, this.timeout);
-			
-			const handler = buffer => {
-				if(!packetHeaders.includes(buffer[0])) return;
-
-				this.off('packet', handler);
-				clearTimeout(timeout);
-
-				resolve(buffer)
-			};
-					
-			this.on('packet', handler)
-		})
-	}
-
-	packetsQueues = {};
-	packetHandler(buffer){
-		if(this.debug) console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
-
-		if(buffer.readInt32LE() === -2){
-			const packet = parsers.multiPacketResponse(
-				buffer, this
-			);
-			const ID = packet.ID, queue = this.packetsQueues[ID]; 
-	
-			if(!queue){
-				setTimeout(() => {
-					delete this.packetsQueues[ID];
-				}, this.timeout * 2)
-
-				return this.packetsQueues[ID] = [packet];
-			}else queue.push(packet);
-	
-			if(queue.length !== packet.packets.total) return;
-			
-			queue.sort(
-				(p1, p2) => p1.packets.current - p2.packets.current
-			);
-
-			if(
-				this.multiPacketIsGoldSource && 
-				queue.some(p => !p.isGoldSource)
-			) queue = queue.map(p => parsers.multiPacketResponse(
-				p.raw, this
-			))
-				
-			buffer = Buffer.concat(
-				queue.map(p => p.payload)
-			);
-	
-			if(queue[0].bzip) buffer = decompressBZip(finalPayload);
-			/*
-			I never tried bzip decompression, if you are having trouble with this, contact me on discord
-			Fabricio-191#8051, and please send me de ip and port of the server, so i can do tests
-			*/
-		}
-
-		this.emit('packet', buffer.slice(4));
-	}
-
-	_ready(){
-		return new Promise(resolve => {
-			this.once('ready', resolve)
-		})  
-	}
-}
-
-module.exports = Connection;
+module.exports = connect;
 module.exports.client = client;
+module.exports.servers = servers;
