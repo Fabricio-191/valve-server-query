@@ -3,9 +3,9 @@ const constants = require('./constants.json');
 function time(total){
 	if(!total || total === -1) return null;
 
-	const hours   = Math.floor(total/ 3600)
-	const minutes = Math.floor(total/ 60) -hours*60
-	const seconds = Math.floor(total) -minutes*60 -hours*3600
+	const hours   = Math.floor(total/ 3600);
+	const minutes = Math.floor(total/ 60) -hours*60;
+	const seconds = Math.floor(total) -minutes*60 -hours*3600;
 	
 	const start = Date.now() - total;
 
@@ -19,7 +19,7 @@ function time(total){
 
 class BufferParser{
 	constructor(buffer, offset = 0){
-		Object.assign(this, { buffer, offset })
+		Object.assign(this, { buffer, offset });
 	}
 	buffer = null;
 	offset = 0;
@@ -55,7 +55,7 @@ class BufferParser{
 
 	string(){
 		let stringEndIndex = this.buffer.indexOf(0, this.offset);
-		let string = this.buffer.slice(this.offset, stringEndIndex).toString() 
+		let string = this.buffer.slice(this.offset, stringEndIndex).toString(); 
 		
 		this.offset += (stringEndIndex - this.offset) + 1;
 		return string;
@@ -64,12 +64,12 @@ class BufferParser{
 	char(){
 		return this.buffer.slice(
 			this.offset++, this.offset
-		).toString()
+		).toString();
 	}
 
 
 	remaining(){
-		return this.buffer.slice(this.offset)
+		return this.buffer.slice(this.offset);
 	}
 }
 
@@ -78,10 +78,10 @@ module.exports = {
 	playersInfo,
 	serverRules,
 	multiPacketResponse
-}
+};
 
 function serverInfo(buffer){
-	buffer = new BufferParser(buffer)
+	buffer = new BufferParser(buffer);
 
 	if(buffer.byte() === 0x6D){ //is goldsource
 		return goldSourceServerInfo(buffer);
@@ -95,7 +95,6 @@ function serverInfo(buffer){
 		folder: buffer.string(),
 		game: buffer.string(),
 		appID: buffer.short(),
-		   
 		players: {
 			online: buffer.byte(),
 			max: buffer.byte(),
@@ -112,7 +111,7 @@ function serverInfo(buffer){
 			mode: constants.theShipModes[buffer.byte()],
 			witnesses: buffer.byte(),
 			duration: buffer.byte(),
-		})
+		});
 	}
 
 	info.version = buffer.string();
@@ -135,7 +134,7 @@ function serverInfo(buffer){
 	}
 	if (EDF & 0x01) {//0000 0001
 		info.gameID = buffer.bigUInt(); //00000000 00000000 00000000 00000000 
-		info.appID = info.gameID & BigInt(0xFFFFFF)
+		info.appID = info.gameID & BigInt(0xFFFFFF);
 	}
 	
 	return info;
@@ -171,7 +170,7 @@ function goldSourceServerInfo(buffer){
 			link: buffer.string(),
 			downloadLink: buffer.string(),
 			
-		}
+		};
 
 		buffer.byte(); //null byte
 
@@ -180,7 +179,7 @@ function goldSourceServerInfo(buffer){
 			size: buffer.long(),
 			type: buffer.byte()?'multiplayer only mod':'single and multiplayer mod',
 			DLL: buffer.byte()?'it uses its own DLL':'it uses the Half-Life DLL'
-		})
+		});
 	}
 	
 	info.VAC = buffer.byte() === 1;
@@ -190,7 +189,7 @@ function goldSourceServerInfo(buffer){
 }
 
 function playersInfo(buffer){
-	buffer = new BufferParser(buffer, 1)
+	buffer = new BufferParser(buffer, 1);
 	//first byte = header
 	const playersCount = buffer.byte(), players = [];
 	for (let i = 0; i < playersCount; i++) {
@@ -232,7 +231,7 @@ function playersInfo(buffer){
 }
 
 function serverRules(buffer){
-	buffer = new BufferParser(buffer, 1)
+	buffer = new BufferParser(buffer, 1);
 	//firstByte = header
 	const rulesQuantity = buffer.short(), rules = {};
 	
@@ -257,7 +256,7 @@ function serverRules(buffer){
 }
 
 function multiPacketResponse(buffer, server){
-	buffer = new BufferParser(buffer, 4)
+	buffer = new BufferParser(buffer, 4);
 
 	const ID = buffer.long(), packets = buffer.byte();
 
@@ -287,9 +286,6 @@ function multiPacketResponse(buffer, server){
 			!constants.apps_IDs.packetSize.includes(server.appID) && 
 			!(server.protocol === 7 && server.appID === 240)
 		){
-			if(buffer.length > 10){
-
-			}
 			info.maxPacketSize = buffer.short();
 		}
 		

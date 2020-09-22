@@ -1,37 +1,37 @@
 const http = require('http'), https = require('https');
 
 function fetch(url, options = {}, callback = options){
-    if(typeof callback !== 'function') throw new Error('The callback must be a function')
-    if(typeof options === 'function') options = {};
-    if(typeof options !== 'object') throw new Error('The options must be an object')
+	if(typeof callback !== 'function') throw new Error('The callback must be a function');
+	if(typeof options === 'function') options = {};
+	if(typeof options !== 'object') throw new Error('The options must be an object');
 
-    const parsedURL = new URL(url);
+	const parsedURL = new URL(url);
 
-    function cb(response){
-        let body = [];
+	function cb(response){
+		let body = [];
 
-        response.on('data', chunk => body.push(chunk))
+		response.on('data', chunk => body.push(chunk));
 
-        response.on('end', () => {
-            body = Buffer.concat(body)
-            callback(null, body, response)
-        })
+		response.on('end', () => {
+			body = Buffer.concat(body);
+			callback(null, body, response);
+		});
 
-        response.on('error', err => {
-            callback(err, null, response)
-        })
-    }
+		response.on('error', err => {
+			callback(err, null, response);
+		});
+	}
 
-    const request = (
-        parsedURL.protocol === 'https:' ?
-        https.request : http.request
-    )(url, options, cb);
+	const request = (
+		parsedURL.protocol === 'https:' ?
+			https.request : http.request
+	)(url, options, cb);
 
-    request.on('error', err => {
-        callback(err, null, null)
-    })
+	request.on('error', err => {
+		callback(err, null, null);
+	});
 
-    request.end();
+	request.end();
 }
 
 module.exports = fetch;

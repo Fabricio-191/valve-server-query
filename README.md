@@ -17,6 +17,8 @@ Bzip decompression function was taken from https://www.npmjs.com/package/bz2
 * [A2S_PLAYER](https://developer.valvesoftware.com/wiki/Server_queries#A2S_PLAYER)
   * Supports more than 255 players in the same server
 * [A2S_RULES](https://developer.valvesoftware.com/wiki/Server_queries#A2S_RULES)
+* [A2A_PING](https://developer.valvesoftware.com/wiki/Server_queries#A2A_PING)
+  * It's a deprecated feature of source servers
 * Supports [A2S_SERVERQUERY_GETCHALLENGE](https://developer.valvesoftware.com/wiki/Server_queries#A2S_SERVERQUERY_GETCHALLENGE)
 * Fully supports `The ship`
 * Supports Hostnames
@@ -31,15 +33,17 @@ Bzip decompression function was taken from https://www.npmjs.com/package/bz2
 ## Use example:
 ```js
 const Server = require('@fabricio-191/valve-server-query');
-const server = new Server({
-    ip: '0.0.0.0',
-    port: 28015,
-    timeout: 3000
-});
+const server = new Server();
+
+Server.setSocketRef(false); //the socket will not keep the node.js process alive
 
 server.on('ready', () => {
-  console.log('I am ready!')
+    //emitted when the server is ready, and you can start doing queries 
+    console.log('I am ready!')
 })
+
+//if you do a query before the server is ready, it will be delayed until it is ready
+//the maximum time for the server to be ready is the "timeout" you set, multiplied by 1.333 (a 33% more)
 
 server.getInfo()
 .then(info => {
@@ -61,8 +65,6 @@ server.getRules()
     //do something...
 })
 .catch(console.error)
-
-Server.setSocketRef(false); //the socket will not keep the node.js process alive
 ```
 
 If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an attempt will be made to obtain the IP, if the attempt fails, it will throw an error
@@ -76,7 +78,7 @@ If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an a
 }
 ```
 
- ___
+___
 
 ## `getInfo()`  
 Returns a promise that is resolved in an object with the server information, example:
