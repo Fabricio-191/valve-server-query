@@ -91,7 +91,7 @@ Returns a promise that is resolved in an object with the server information, exa
   folder: 'cstrike',
   game: 'Counter-Strike',
   appID: 10,
-  players: { online: 11, max: 32, bots: 0 },       
+  players: { online: 2, max: 32, bots: 0 },       
   type: 'dedicated',
   OS: 'linux',
   visibility: 'public',
@@ -113,7 +113,7 @@ Returns a promise that is resolved in an array with the players in the server, e
     name: 'KoMaToZZzz',
     score: 11,
     timeOnline: {
-      hours: 731,
+      hours: 1,
       minutes: 16,
       seconds: 15,
       start: 2020-09-23T00:33:31.197Z
@@ -247,6 +247,7 @@ Returns a promise that is resolved in an object with the server rules, example:
   yb_version: '4.0.0.449'
 } //Rules can change a lot depending on the game an the server
 ```
+___
 
 ### Other things:
 ```js
