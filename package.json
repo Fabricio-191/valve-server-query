@@ -1,6 +1,6 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "1.6.0-2",
+  "version": "1.6.0-3",
   "main": "./src/index.js",
   "types": "./typings/index.d.ts",
   "repository": {
@@ -29,7 +29,7 @@
   },
   "scripts": {
     "test": "node test/test.js",
-    "eslint": "npx eslint ./src/structures/*.js ./test/*.js ./src/utils/*.js ./src/index.js --fix",
+    "eslint": "npx eslint ./src/structures/*.js ./src/utils/*.js ./src/index.js ./test/*.js --fix",
     "eslintd": "npx eslint ./typings/index.d.ts  --fix --parser @typescript-eslint/parser"
   }
 }

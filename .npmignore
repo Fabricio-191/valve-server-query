@@ -1,6 +1,5 @@
 node_modules/
 package-lock.json
+test2.js
 
 .gitignore
-.eslintrc.json
-test2.js

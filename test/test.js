@@ -1,8 +1,6 @@
 const Server = require('../');
 Server.setSocketRef(false);
 
-const fetch = require('./minifetch.js');
-
 fetch(
 	'https://api.battlemetrics.com/servers?filter[game]=cs&filter[status]=online&page[size]=100',
 	async (err, body) => {
@@ -48,3 +46,29 @@ fetch(
 );
 
 
+const https = require('https');
+
+function fetch(url, callback){
+	function cb(response){
+		let body = [];
+
+		response.on('data', chunk => body.push(chunk));
+
+		response.on('end', () => {
+			body = Buffer.concat(body);
+			callback(null, body, response);
+		});
+
+		response.on('error', err => {
+			callback(err, null, response);
+		});
+	}
+
+	const request = https.request(url, {}, cb);
+
+	request.on('error', err => {
+		callback(err, null, null);
+	});
+
+	request.end();
+}
