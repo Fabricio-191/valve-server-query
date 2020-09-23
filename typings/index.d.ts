@@ -1,3 +1,5 @@
+/*eslint no-unused-vars: "off"*/
+
 type serverType = 'dedicated' | 'non-dedicated' | 'source tv relay' | null;
 type operativeSystem = 'linux' | 'windows' | 'mac';
 type theShipModes = 'hunt' | 'elimination' | 'duel' | 'deathmatch' | 'vip team' | 'team elimination';
@@ -60,12 +62,8 @@ interface PlayerInfo{
 interface ServerInfo{
     /** Response delay from the server (in miliseconds). */
     ping: number;
-    /** Ip address from the server */
-    ip: string;
-    /** Port used to send data to the server */
-    port: number;
-    /** IP address and port of the server. (provided in the server response). */
-    address?: string;
+    /** Ip and port from the server */
+    address: string;
     /** Protocol version used by the server. */
     protocol: number;
     /** Whether the server uses a goldsource engine. */
@@ -142,61 +140,61 @@ interface ServerInfo{
 
 
 declare class Server{
-    /**
+	/**
      * @class Server - this server class
      * @param options Options
     */
-    constructor(options: Options);
+	constructor(options: Options);
 
-    /**
+	/**
      * Retrieves info from the server
      * @returns The server info
     */
-    getInfo(): Promise<ServerInfo>;
+	getInfo(): Promise<ServerInfo>;
 
     
-    /**
+	/**
      * Retrieves a list of players in the servers
      * @returns The list of players
     */
-    getPlayers(): Promise<PlayerInfo[]>;
+	getPlayers(): Promise<PlayerInfo[]>;
 
-    /**
+	/**
      * Retrieves a list of the rules in the servers (aka: config)
      * @returns The list of rules
     */
-    getRules(): Promise<object>;
+	getRules(): Promise<object>;
 
-    /**
+	/**
      * Ejecutes the A2A_PING request to the server
      * This method is deprecated, you should use the `getInfo` method instead
      * @returns The ping (miliseconds)
      * @deprecated
     */
-    ping(): Promise<number>;
+	ping(): Promise<number>;
 
-    /**
+	/**
      * Disconnects the server
      * @returns Nothing
     */
-    disconnect(): void;
+	disconnect(): void;
 
-    /**
+	/**
      * Connects to a server
      * @returns A promise that is resolved when the connection is complete
     */
-    connect(): Promise<void>;
+	connect(): Promise<void>;
 
-    /** @returns The server */
-    static init(options: Options): Server;
+	/** @returns The server */
+	static init(options: Options): Server;
 
-    /** 
+	/** 
      * Whenether to bind o not the used socket
      * If the value is `false`, the socket is unbinded an it will not mantain the Node.js process running
      * by default the socket is binded (value: `true`)
      * @see https://nodejs.org/api/dgram.html#dgram_socket_unref and also you can see the [ref](https://nodejs.org/api/dgram.html#dgram_socket_ref) method
      */
-    static setSocketRef(value: boolean): void;
+	static setSocketRef(value: boolean): void;
 }
 
 export = Server;

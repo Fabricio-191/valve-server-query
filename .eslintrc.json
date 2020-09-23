@@ -14,6 +14,9 @@
         "linebreak-style": [ "error", "windows" ],
         "quotes": [ "error", "single" ],
         "semi": [ "error", "always" ],
-        "no-async-promise-executor": [ "off" ]
+        "no-async-promise-executor": [ "off" ],
+        "no-mixed-spaces-and-tabs": [
+            "error", "smart-tabs"
+        ]
     }
 }

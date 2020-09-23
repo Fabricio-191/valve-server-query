@@ -56,7 +56,7 @@ class BufferParser{
 	string(){
 		let stringEndIndex = this.buffer.indexOf(0, this.offset);
 		let string = this.buffer.slice(this.offset, stringEndIndex).toString(); 
-		
+			
 		this.offset += (stringEndIndex - this.offset) + 1;
 		return string;
 	}

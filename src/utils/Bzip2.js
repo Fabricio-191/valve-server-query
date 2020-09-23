@@ -1,3 +1,5 @@
+/*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
+
 //https://www.npmjs.com/package/bz2
 
 const crc32Table = [
@@ -166,7 +168,7 @@ function decompress(bytes, checkCRC = false) {
 	let out = new Uint8Array(bytes.length * 1.5);
 	let outIndex = 0;
 	let newCRC = -1;
-	while (true) {
+	while (true) { 
 		const blocktype = read(48);
 		const crc = read(32) | 0;
 		if (blocktype === 0x314159265359) {

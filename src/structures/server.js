@@ -19,9 +19,9 @@ class Server extends EventEmitter{
 	ip = null;
 	port = null;
 	ready = false;
-	
-    //[infoIsGoldSource, multiPacketResponseIsGoldSource, appID, protocol]
-    _info = [false, false, 0, 0];
+		
+	//[infoIsGoldSource, multiPacketResponseIsGoldSource, appID, protocol]
+	_info = [false, false, 0, 0];
 	options = {};
 
 	async send(command){
@@ -32,7 +32,7 @@ class Server extends EventEmitter{
 			if(err) throw err; 
 		});
 	}
-	
+		
 	awaitPacket(...packetHeaders){
 		const err = Error('Response timeout.');
 
@@ -43,7 +43,7 @@ class Server extends EventEmitter{
 				this.off('packet', handler);
 				reject(err);
 			}, this.options.timeout);
-			
+				
 			const handler = buffer => {
 				if(!packetHeaders.includes(buffer[0])) return;
 
@@ -52,17 +52,17 @@ class Server extends EventEmitter{
 
 				resolve(buffer);
 			};
-					
+							
 			this.on('packet', handler);
 		});
 	}
-    
+		
 	_ready(){
 		return new Promise(resolve => {
 			this.once('ready', resolve);
 		});  
 	}
-	
+		
 	//-----
 
 	getInfo(){
@@ -76,7 +76,7 @@ class Server extends EventEmitter{
 					let requests = [
 						this.awaitPacket(0x49)
 					];
-				
+						
 					if(this._info[0]){
 						requests.push(this.awaitPacket(0x6D));
 					}
@@ -86,7 +86,7 @@ class Server extends EventEmitter{
 				.then(responses => 
 					resolve(
 						Object.assign(
-							{ ip: this.ip, port: this.port, ping: Date.now() - start }, 
+							{ address: this.ip+':'+this.port, ping: Date.now() - start }, 
 							...responses.map(parsers.serverInfo)
 						)
 					)
@@ -117,7 +117,7 @@ class Server extends EventEmitter{
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'));
 					}
-				
+						
 					try{
 						resolve(parsers.playersInfo(buffer));
 					}catch(e){
@@ -150,7 +150,7 @@ class Server extends EventEmitter{
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
 						reject(Error('Wrong server response'));
 					}
-			
+				
 					try{
 						resolve(parsers.serverRules(buffer));
 					}catch(e){
@@ -175,32 +175,32 @@ class Server extends EventEmitter{
 				.catch(reject);
 		});
 	}
-    
+		
 	challenge(code){
 		return new Promise(async (resolve, reject) => {
 			if(!this.ready) await this._ready();
-			
+				
 			const command = Array.from(commands.challenge); //(copy)
 			if(!apps_IDs.challenge.includes(this._info[2])){
 				command[4] = code;
 			}
-			
+				
 			this.send(command)
 				.then(() => this.awaitPacket(0x41, 0x45, 0x44))
-			//0x41 normal challenge response
-			//0x45 truncated rules response
-			//0x44 truncated players response
+				//0x41 normal challenge response
+				//0x45 truncated rules response
+				//0x44 truncated players response
 				.then(buffer => resolve(Array.from(buffer)))
 				.catch(reject);
-			
+				
 		});
 	}
-	
-    
+		
+		
 	disconnect(){
 		if(!this.ready) throw new Error('server is not connected to anything');
 		delete servers[this.ip+':'+this.port];
-		
+			
 		Object.assign(this, {
 			_info: [false, false, 0, 0],
 			ready: false
@@ -210,7 +210,7 @@ class Server extends EventEmitter{
 	connect(options){
 		return new Promise((resolve, reject) => {
 			Object.assign(this, parseOptions(options));
-	
+		
 			connect(this, (info, err) => {
 				if(err) return reject(err);
 

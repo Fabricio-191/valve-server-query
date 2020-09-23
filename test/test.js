@@ -26,7 +26,6 @@ fetch(
 		});
 
 		console.log(randomServer.attributes.ip, randomServer.attributes.port);
-		console.log(sv);
 
 		await sv.getInfo()
 			.then(console.log)
