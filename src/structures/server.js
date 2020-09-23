@@ -8,7 +8,7 @@ const {
 } = require('../utils/utils.js');
 
 class Server extends EventEmitter{
-	constructor(options = {}) {
+	constructor(options) {
 		super();
 
 		if(options){
