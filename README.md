@@ -3,15 +3,17 @@
 
 
 # Implementation of some valve protocols:
-[Server query](https://developer.valvesoftware.com/wiki/Server_queries) and for 
-[master server query](https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol)
+## [Server query](https://developer.valvesoftware.com/wiki/Server_queries) and for [master server query](https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol)
 
-Bzip decompression function was taken from https://www.npmjs.com/package/bz2
+
+Bzip decompression function was taken from [here](https://www.npmjs.com/package/bz2)
+
+___
 
 ## Docs
 
-* ### [Server query](https://github.com/Fabricio-191/valve-protocols/tree/master/docs/Server.md)
-* ### [Master server query](https://github.com/Fabricio-191/valve-protocols/tree/master/docs/MasterServer.md)  
+* ### [Server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/Server.md)
+* ### [Master server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/MasterServer.md)  
   
 (later i will add RCON)
 

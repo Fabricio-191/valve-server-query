@@ -63,34 +63,34 @@ function parseFilter(options = {}){
 		switch(type){
 			case 'boolean':{
 				if(![0, 1, true, false].includes(value)){
-					throw new Error('');
+					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
 				return str.push(`\\${key}\\${ value ? 1 : 0 }`);
 			}
 			case 'string':{
 				if(typeof value !== 'string'){
-					throw new Error('');
+					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
 				return str.push(`\\${key}\\${value}`);
 			}
 			case 'number':{
 				if(typeof value !== 'number'){
-					throw new Error('');
+					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
 				return str.push(`\\${key}\\${value}`);
 			}
 			case 'array':{
 				if(!Array.isArray(value)){
-					throw new Error('');
+					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
 				return str.push(`\\${key}\\${value.join(',')}`);
 			}
 			default:{
-				throw new Error('');
+				throw new Error('Unknown error');
 			}
 		}
 	});

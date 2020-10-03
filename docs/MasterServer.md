@@ -1,3 +1,5 @@
+## Documentation under development
+
 ## Use example:
 ```js
 const { MasterServer } = require('@fabricio-191/valve-server-query');
