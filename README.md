@@ -12,8 +12,8 @@ ___
 
 ## Docs
 
-* ### [Server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/Server.md)
-* ### [Master server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/MasterServer.md)  
+* [Server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/Server.md)
+* [Master server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/MasterServer.md)  
   
 (later i will add RCON)
 

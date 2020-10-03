@@ -123,8 +123,8 @@ Returns a promise that is resolved in an array with the players in the server, e
 
 ## `getRules()`  
 Returns a promise that is resolved in an object with the server rules.
+(you should better see it in console, to see what it's)
 
-___
 
 ### Other things:
 ```js
