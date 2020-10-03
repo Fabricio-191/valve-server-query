@@ -11,9 +11,11 @@
         "ecmaVersion": 12
     },
     "rules": {
-        "indent": [ "error", "tab" ],
+        "indent": [ "error", "tab", {
+            "SwitchCase": 1
+        }],
         "linebreak-style": [ "error", "windows" ],
-        "quotes": [ "error", "single" ],
+        "quotes": [ "error", "single", { "avoidEscape": true } ],
         "semi": [ "error", "always" ],
         "no-async-promise-executor": [ "off" ],
         "no-mixed-spaces-and-tabs": [

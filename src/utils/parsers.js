@@ -28,8 +28,11 @@ class BufferParser{
 		return this.buffer.readUInt8(this.offset++);
 	}
 
-	uShort(){
+	uShort(BE = false){
 		this.offset += 2;
+		if(BE){
+			return this.buffer.readUInt16BE(this.offset-2);
+		}
 		return this.buffer.readUInt16LE(this.offset-2);
 	}
 
@@ -74,9 +77,9 @@ class BufferParser{
 }
 
 module.exports = {
-	serverInfo,
-	playersInfo,
-	serverRules,
+	BufferParser,
+	serverInfo, playersInfo,
+	serverRules, serverList,
 	multiPacketResponse
 };
 
@@ -100,15 +103,15 @@ function serverInfo(buffer){
 			max: buffer.byte(),
 			bots: buffer.byte()
 		},
-		type: constants.serversTypes[buffer.char()] || null,
-		OS: constants.operativeSystems[buffer.char()],
+		type: constants.SERVER_TYPES[buffer.char()] || null,
+		OS: constants.OPERATIVE_SYSTEMS[buffer.char()],
 		visibility: buffer.byte()?'private':'public',
 		VAC: buffer.byte() === 1
 	};
 
 	if(info.game === 'The Ship'){
 		Object.assign(info, {
-			mode: constants.theShipModes[buffer.byte()],
+			mode: constants.THE_SHIP_MODES[buffer.byte()],
 			witnesses: buffer.byte(),
 			duration: buffer.byte(),
 		});
@@ -134,7 +137,7 @@ function serverInfo(buffer){
 	}
 	if (EDF & 0x01) {//0000 0001
 		info.gameID = buffer.bigUInt(); //00000000 00000000 00000000 00000000 
-		info.appID = info.gameID & BigInt(0xFFFFFF);
+		info.appID = info.gameID & 0xFFFFFFn;
 	}
 	
 	return info;
@@ -155,10 +158,10 @@ function goldSourceServerInfo(buffer){
 		protocol: buffer.byte(),
 		goldSource: true,
 
-		type: constants.serversTypes[
+		type: constants.SERVER_TYPES[
 			buffer.char().toLowerCase()
 		],
-		OS: constants.operativeSystems[
+		OS: constants.OPERATIVE_SYSTEMS[
 			buffer.char().toLowerCase()
 		],
 		visibility: buffer.byte()?'private':'public',
@@ -283,13 +286,13 @@ function multiPacketResponse(buffer, server){
 		};
 
 		if(
-			!constants.apps_IDs.packetSize.includes(server.appID) && 
+			!constants.APPS_IDS.PACKET_SIZE.includes(server.appID) && 
 			!(server.protocol === 7 && server.appID === 240)
 		){
 			info.maxPacketSize = buffer.short();
 		}
 		
-		if(info.packets.current === 0 && info.ID.toString(2)[0] === '1'){ //10000000 00000000 00000000 00000000
+		if(info.packets.current === 0 && (info.ID & 0x80000000)){ //10000000 00000000 00000000 00000000
 			info.bzip = { 
 				uncompressedSize: buffer.long(), 
 				CRC32_sum: buffer.long() 
@@ -300,4 +303,22 @@ function multiPacketResponse(buffer, server){
 
 		return info;
 	}
+}
+
+function serverList(buffer){
+	buffer = new BufferParser(buffer, 2);
+	let servers = [];
+
+	while (buffer.remaining().length) {
+		let ip = [
+			buffer.byte(),
+			buffer.byte(),
+			buffer.byte(),
+			buffer.byte()
+		].join('.');
+		
+		servers.push(ip+':'+buffer.uShort(true));
+	}
+
+	return servers;
 }

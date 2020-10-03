@@ -4,18 +4,42 @@ const  parsers = require('./parsers.js'),
 
 const dns = require('dns'), net = require('net');
 
+class BufferWriter{
+	buffer = [];
+
+	string(value){
+		return this.byte(
+			...Array.from(Buffer.from(value)), 0
+		);
+	}
+
+	byte(...values){
+		this.buffer.push(...values);
+
+		return this;
+	}
+
+	end(){
+		return Buffer.from(this.buffer);
+	}
+}
+
 module.exports = {
 	parsers,
 	constants,
 	decompressBZip,
-	parseOptions
+	parseOptions,
+	BufferUtils: {
+		Parser: parsers.BufferParser,
+		Writer: BufferWriter
+	}
 };
 
 function parseOptions(options){
 	if(typeof options !== 'object'){
-		throw Error('\'options\' must be an object');
+		throw Error("'options' must be an object");
 	}
-	options = Object.assign({}, constants.defaultOptions, options);
+	options = Object.assign({}, constants.DEFAULT_OPTIONS, options);
 
 	if(!options.ip){
 		throw Error('You should put the IP for the server to connect');
@@ -29,18 +53,17 @@ function parseOptions(options){
 				throw Error('Introduced ip/hostname is not valid');
 			});
 	}
-    
-	if(!options.port && options.port !== 0){
+	
+
+	options.port = parseInt(options.port);
+	if(isNaN(options.port)){
 		throw Error('You should put the port for the server to connect');
-	}else if(
-		!Number.isInteger(options.port) || 
-        options.port < 0 || options.port > 65535
-	){
+	}else if(options.port < 0 || options.port > 65535){
 		throw Error('The port to connect should be a number between 0 and 65535');
 	}else if(typeof options.timeout !== 'number'){
-		throw Error('\'timeout\' should be a number');
+		throw Error("'timeout' should be a number");
 	}else if(typeof options.debug !== 'boolean'){
-		throw Error('\'debug\' should be a boolean');
+		throw Error("'debug' should be a boolean");
 	}
 
 	return {
@@ -56,7 +79,7 @@ function parseOptions(options){
 
 function resolveHostname(hostname){
 	return new Promise((resolve, reject) => {
-		dns.resolve4(hostname, (err, addresses) => {
+		dns.resolve(hostname, (err, addresses) => {
 			if(err) return reject(err);
 	
 			resolve(addresses[0]);

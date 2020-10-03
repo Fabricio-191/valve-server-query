@@ -1,20 +1,25 @@
 const client = require('dgram').createSocket('udp4');
-const { constants, parsers, decompressBZip } = require('../utils/utils.js');
+const { EventEmitter } = require('events');
+const { parsers, decompressBZip } = require('../utils/utils.js');
 const servers = {};
 
 client.on('message', (buffer, rinfo) => {
 	if(buffer.length === 0) return;
 
 	let entry = servers[rinfo.address+':'+rinfo.port];
-	if(entry){
-		let packet = packetHandler(buffer, entry.server);
-		if(!packet) return;
+	if(!entry) return;
 
+	let packet = packetHandler(buffer, entry.server);
+	if(!packet) return;
+
+	try{
 		entry.callback(packet);
+	}catch(e){
+		console.error(e);
 	}
 });
 
-function packetHandler(buffer, server){ //cambiar
+function packetHandler(buffer, server){
 	if(server.options.debug)  console.log('\nRecieved:    ', `<Buffer ${buffer.toString('hex').match(/../g).join(' ')}>`);
 	if(buffer.readInt32LE() === -2){
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
@@ -72,55 +77,82 @@ function packetHandler(buffer, server){ //cambiar
 	return buffer.slice(4);
 }
 
-async function connect(server, callback){
-	if(server.ip instanceof Promise){
-		server.ip = await server.ip;
+class Connection extends EventEmitter{
+	constructor(server){
+		super();
+		
+		Object.assign(this, {
+			ip: server.ip,
+			port: server.port,
+			server
+		});
+
+		(async () => {
+			if(this.ip instanceof Promise){
+				this.ip = await this.ip;
+			}
+			this.ready = true;
+			this.emit('ready');
+
+			servers[this.ip+':'+this.port] = {
+				server,
+				packetsQueues: {},
+				callback: this.emit.bind(this, 'packet')
+			};
+		})();
 	}
-	let key = server.ip+':'+server.port;
+	ip = null;
+	port = null;
+	ready = false;
 
-	if(server.options.debug) console.log('\nSent (initializing):    ', Buffer.from(constants.commands.info));
-	client.send(Buffer.from(constants.commands.info), server.port, server.ip, err => {
-		if(err) callback(null, err);
-	});
+	server = null;
 
-	let responses = [];
-    
-	let end = () => {
-		if(responses.length === 0){
-			callback(null, Error('Can not connect to the server.'));
-		}
-        
-		servers[key].callback = function(buffer){
-			server.emit('packet', buffer);
-		};
+	async send(command){
+		if(!this.ready) await this._ready();
+		
+		if(this.server.options.debug) console.log('\nSent:    ', Buffer.from(command));
+		client.send(Buffer.from(command), this.port, this.ip, err => {
+			if(err) throw err; 
+		});
+	}
+	
+	awaitPacket(...packetHeaders){
+		const err = Error('Response timeout.');
 
-		responses.sort((a, b) => a.goldSource - b.goldSource);
-        
-		callback(Object.assign({}, ...responses));
-	};
+		return new Promise(async (resolve, reject) => {
+			if(!this.ready) await this._ready();
 
-	let timeout = setTimeout(end, server.options.timeout);
-    
-	servers[key] = { 
-		server,
-		packetsQueues: {},
-		callback: buffer => {
-			if(![0x49, 0x6d].includes(buffer[0])) return;
-            
-			responses.push(
-				parsers.serverInfo(buffer)
-			);
+			const timeout = setTimeout(() => {
+				this.off('packet', handler);
+				reject(err);
+			}, this.server.options.timeout);
+				
+			const handler = buffer => {
+				if(!packetHeaders.includes(buffer[0])) return;
 
-			clearTimeout(timeout);
-			if(responses.length === 2) return end();
-                
-			timeout = setTimeout(end, server.options.timeout / 3);
-		}
-	};
+				this.off('packet', handler);
+				clearTimeout(timeout);
+
+				resolve(buffer);
+			};
+							
+			this.on('packet', handler);
+		});
+	}
+		
+	_ready(){
+		return new Promise(resolve => {
+			this.once('ready', resolve);
+		});  
+	}
+
+	destroy(){
+		delete servers[this.server.ip+':'+this.server.port];
+	}
 }
 
 module.exports = {
-	connect,
+	Connection,
 	servers, 
 	client
 };

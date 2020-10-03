@@ -14,7 +14,7 @@ interface Time{
 }
 
 /** Options to initialize the server. */
-interface Options{
+interface ServerOptions{
     /** Ip address or hostname to the server to connect */
     ip: string;
     /** Port to use to send data to the server, default: `27015` */
@@ -23,6 +23,41 @@ interface Options{
     timeout?: number;
     /** Whenether to show or not the incoming and outcoming packages, default: `false` */
     debug?: boolean;
+}
+
+interface MasterServerFilter{
+    nor?: MasterServerFilter;
+    nand?: MasterServerFilter;
+
+    dedicated?: boolean;
+    secure?: boolean;
+    linux?: boolean;
+    password?: boolean;
+    empty?: boolean;
+    full?: boolean;
+    proxy?: boolean;
+    noplayers?: boolean;
+    white?: boolean;
+    collapse_addr_hash?: boolean;
+
+    gamedir?: string;
+    map?: string;
+    name_match?: string;
+    version_match?: string;
+    gameaddr?: string;
+    
+    appid?: number;
+    napp?: number;
+    
+    gametype?: string[];
+    gamedata?: string[];
+    gamedataor?: string[];
+}
+
+interface MasterServerOptions extends ServerOptions{
+    quantity?: number;
+    region?: number;
+    filter?: MasterServerFilter;
 }
 
 /** Info from a mod from the game in the server. */
@@ -144,7 +179,7 @@ declare class Server{
      * @class Server - this server class
      * @param options Options
     */
-	constructor(options: Options);
+	constructor(options: ServerOptions);
 
 	/**
      * Retrieves info from the server
@@ -186,7 +221,12 @@ declare class Server{
 	connect(): Promise<void>;
 
 	/** @returns The server */
-	static init(options: Options): Server;
+	static init(options: ServerOptions): Server;
+}
+
+interface main{
+    MasterServer(options: MasterServerOptions);
+    Server: Server;
 
 	/** 
      * Whenether to bind o not the used socket
@@ -194,7 +234,8 @@ declare class Server{
      * by default the socket is binded (value: `true`)
      * @see https://nodejs.org/api/dgram.html#dgram_socket_unref and also you can see the [ref](https://nodejs.org/api/dgram.html#dgram_socket_ref) method
      */
-	static setSocketRef(value: boolean): void;
+    setSocketRef(value: boolean): void;
+    resolveHostname(hostname: string): string[];
 }
 
-export = Server;
+export default main;
