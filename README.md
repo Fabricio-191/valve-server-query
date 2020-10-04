@@ -1,5 +1,5 @@
-[![License](https://img.shields.io/github/license/Fabricio-191/valve-protocols?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-protocols/blob/master/LICENSE)
-[![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-protocols?style=for-the-badge)](https://github.com/Fabricio-191/valve-protocols/issues)
+[![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
+[![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
 
 
 # Implementation of some valve protocols:
@@ -12,8 +12,8 @@ ___
 
 ## Docs
 
-* [Server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/Server.md)
-* [Master server query](https://github.com/Fabricio-191/valve-protocols/blob/master/docs/MasterServer.md)  
+* [Server query](https://github.com/Fabricio-191/valve-server-query/blob/master/docs/Server.md)
+* [Master server query](https://github.com/Fabricio-191/valve-server-query/blob/master/docs/MasterServer.md)  
   
 (later i will add RCON)
 
