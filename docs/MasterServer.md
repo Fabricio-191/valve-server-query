@@ -1,10 +1,13 @@
-## Documentation under development
-
 ## Use example:
 ```js
 const { MasterServer } = require('@fabricio-191/valve-server-query');
 
-MasterServer()
+MasterServer({
+    filter: {
+        full: false
+    },
+    timeout: 3000
+})
     .then(servers => {
         //do something...
 

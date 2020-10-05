@@ -11,6 +11,9 @@ interface Time{
     seconds: number;
     /** Since when is counting. */
     start: Date;
+
+    /** The number of miliseconds that the players has been connected to the server, directly from the server response */
+    raw: number;
 }
 
 /** Options to initialize the server. */

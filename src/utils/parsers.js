@@ -6,14 +6,13 @@ function time(total){
 	const hours   = Math.floor(total/ 3600);
 	const minutes = Math.floor(total/ 60) -hours*60;
 	const seconds = Math.floor(total) -minutes*60 -hours*3600;
-	
-	const start = Date.now() - total;
 
 	return { 
 		hours, 
 		minutes, 
 		seconds,
-		start: new Date(start)
+		start: new Date(Date.now() - total),
+		raw: total
 	};
 }
 
@@ -210,7 +209,7 @@ function playersInfo(buffer){
 	if(buffer.remaining().length){
 		if(
 			playersCount !== 255 && 
-			buffer.remaining().length === playersCount * 8
+			buffer.remaining().length === (playersCount * 8)
 		){
 			for (let i = 0; i < playersCount; i++) { //is the ship
 				Object.assign(players[i], { 

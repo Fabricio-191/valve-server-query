@@ -1,5 +1,5 @@
 const { Connection } = require('./connectionManager.js');
-const { constants, parseOptions, BufferUtils } = require('../utils/utils.js');
+const { constants, parseOptions, BufferUtils, resolveHostname } = require('../utils/utils.js');
 const parsers = require('../utils/parsers.js');
 
 async function MasterServer(options = {}){
@@ -17,6 +17,7 @@ async function MasterServer(options = {}){
 	options = parseQueryOptions(options);
 	let servers = [];
 
+
 	while(options.quantity > servers.length){
 		let last = servers[servers.length -1] || '0.0.0.0:0';
 
@@ -27,7 +28,7 @@ async function MasterServer(options = {}){
 		const command = new BufferUtils.Writer()
 			.byte(0x31, constants.REGION_CODES[options.region])
 			.string(last)
-			.string(parseFilter(options.filter))
+			.string(options.filter)
 			.end();
 			
 		this.connection.send(command);
@@ -41,20 +42,7 @@ async function MasterServer(options = {}){
 }
 
 function parseFilter(options = {}){
-	let str = [];
-
-	if(options.nor){
-		str.push(`\\nor\\[${
-			parseFilter(options.nor)
-		}]`);
-	}
-	if(options.nand){
-		str.push(`\\nand\\[${
-			parseFilter(options.nand)
-		}]`);
-	}
-
-	Object.keys(
+	return Object.keys(
 		constants.MASTER_FILTER
 	).map(key => {
 		const value = options[key], type = constants.MASTER_FILTER[key];
@@ -66,42 +54,31 @@ function parseFilter(options = {}){
 					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
-				return str.push(`\\${key}\\${ value ? 1 : 0 }`);
+				return `\\${key}\\${ value ? 1 : 0 }`;
 			}
+			case 'array':
+			case 'number':
 			case 'string':{
-				if(typeof value !== 'string'){
+				if(typeof value !== type){
 					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
-				return str.push(`\\${key}\\${value}`);
+				return `\\${key}\\${value}`;
 			}
-			case 'number':{
-				if(typeof value !== 'number'){
-					throw new Error(`filter: value at ${key} must be a ${type}`);
-				}
-
-				return str.push(`\\${key}\\${value}`);
-			}
-			case 'array':{
-				if(!Array.isArray(value)){
-					throw new Error(`filter: value at ${key} must be a ${type}`);
-				}
-
-				return str.push(`\\${key}\\${value.join(',')}`);
+			case '*': {
+				return `\\${key}\\${parseFilter(options.nand)}`;
 			}
 			default:{
 				throw new Error('Unknown error');
 			}
 		}
-	});
-
-	return str.join('\\') || '';
+	}).join('\\') || '';
 }
 
 function parseQueryOptions(options = {}){
 	let { quantity = Infinity, region = 0xFF, filter } = options;
 	if(typeof quantity !== 'number' && quantity <= 0){
-		throw new Error("'quantity' must be a number that cannot be zero or lower");
+		throw new Error("'quantity' must be a number greater than zero");
 	}
 	
 	if(typeof region === 'string'){
@@ -119,3 +96,13 @@ function parseQueryOptions(options = {}){
 }
 
 module.exports = MasterServer;
+module.exports.getIPS = function(){
+	return new Promise((res, rej) => {
+		Promise.all([
+			resolveHostname('hl1master.steampowered.com'),
+			resolveHostname('hl2master.steampowered.com')
+		]).then(([goldSource, source]) => {
+			res({goldSource, source});
+		}).catch(rej);
+	});
+};

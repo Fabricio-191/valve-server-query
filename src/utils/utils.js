@@ -29,6 +29,7 @@ module.exports = {
 	constants,
 	decompressBZip,
 	parseOptions,
+	resolveHostname,
 	BufferUtils: {
 		Parser: parsers.BufferParser,
 		Writer: BufferWriter
@@ -49,6 +50,9 @@ function parseOptions(options){
 
 	if(net.isIP(options.ip) === 0){
 		options.ip = resolveHostname(options.ip)
+			.then(ips => { 
+				options.ip = ips[0];
+			})
 			.catch(() => { 
 				throw Error('Introduced ip/hostname is not valid');
 			});
@@ -82,7 +86,7 @@ function resolveHostname(hostname){
 		dns.resolve(hostname, (err, addresses) => {
 			if(err) return reject(err);
 	
-			resolve(addresses[0]);
+			resolve(addresses);
 		});
 	});
 }

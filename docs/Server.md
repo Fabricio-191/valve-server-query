@@ -68,58 +68,11 @@ ___
 
 ## `getInfo()`  
 Returns a promise that is resolved in an object with the server information, example:
-```js
-{
-  address: '46.17.43.229:27031',
-  ping: 457,
-  protocol: 48,
-  goldSource: false,
-  name: '|͇̿V͇̿I͇̿P͇̿|+hook БЕСПЛАТНО [BIOHAZARD]',
-  map: 'de_dust2',
-  folder: 'cstrike',
-  game: 'Counter-Strike',
-  appID: 10,
-  players: { online: 2, max: 32, bots: 0 },       
-  type: 'dedicated',
-  OS: 'linux',
-  visibility: 'public',
-  VAC: true,
-  version: '1.1.2.7/Stdio',
-  port: 27031
-}
-//Properties change depending on the engine used by the server
-```
 
 
 ## `getPlayers()`  
 Returns a promise that is resolved in an array with the players in the server, example:
 
-```js
-[
-  {
-    index: 0,
-    name: 'KoMaToZZzz',
-    score: 11,
-    timeOnline: {
-      hours: 1,
-      minutes: 16,
-      seconds: 15,
-      start: 2020-09-23T00:33:31.197Z
-    }
-  },
-  {
-    index: 1,
-    name: 'MycoPHbIu BETEP',
-    score: 5,
-    timeOnline: {
-      hours: 0,
-      minutes: 53,
-      seconds: 20,
-      start: 2020-09-23T01:17:20.572Z
-    }
-  }
-]
-```
 
 ## `getRules()`  
 Returns a promise that is resolved in an object with the server rules.
