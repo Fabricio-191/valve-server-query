@@ -9,16 +9,17 @@ async function MasterServer(options = {}){
 			port: 27011
 		});
 	}
-	Object.assign(this, parseOptions(options));
-	this.connection = new Connection(this);
 
-	if(!this.connection.ready) await this.connection._ready();
+	let connection = new Connection(
+		parseOptions(options)
+	);
 
-	options = parseQueryOptions(options);
+	if(!connection.ready) await connection._ready();
+
+	let queryOptions = parseQueryOptions(options);
 	let servers = [];
 
-
-	while(options.quantity > servers.length){
+	while(queryOptions.quantity > servers.length){
 		let last = servers[servers.length -1] || '0.0.0.0:0';
 
 		if(servers.length !== 0 && last === '0.0.0.0:0'){
@@ -26,18 +27,18 @@ async function MasterServer(options = {}){
 		}	
 
 		const command = new BufferUtils.Writer()
-			.byte(0x31, constants.REGION_CODES[options.region])
+			.byte(0x31, constants.REGION_CODES[queryOptions.region])
 			.string(last)
-			.string(options.filter)
+			.string(queryOptions.filter)
 			.end();
 			
-		this.connection.send(command);
-		let buffer = await this.connection.awaitPacket(0x66);
+		connection.send(command);
+		let buffer = await connection.awaitPacket(0x66);
 				
 		servers.push(...parsers.serverList(buffer));
 	}
 
-	this.connection.destroy();
+	connection.destroy();
 	return servers;
 }
 
@@ -54,7 +55,7 @@ function parseFilter(options = {}){
 					throw new Error(`filter: value at ${key} must be a ${type}`);
 				}
 
-				return `\\${key}\\${ value ? 1 : 0 }`;
+				return `${key}\\${ value ? 1 : 0 }`;
 			}
 			case 'array':
 			case 'number':
@@ -66,13 +67,13 @@ function parseFilter(options = {}){
 				return `\\${key}\\${value}`;
 			}
 			case '*': {
-				return `\\${key}\\${parseFilter(options.nand)}`;
+				return `\\${key}\\${parseFilter(options[key])}`;
 			}
 			default:{
 				throw new Error('Unknown error');
 			}
 		}
-	}).join('\\') || '';
+	}).filter(k => k).join('\\') || '';
 }
 
 function parseQueryOptions(options = {}){

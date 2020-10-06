@@ -15,7 +15,7 @@ client.on('message', (buffer, rinfo) => {
 	try{
 		entry.callback(packet);
 	}catch(e){
-		console.error(e);
+		console.error('Connection Mananger', e);
 	}
 });
 
@@ -121,7 +121,7 @@ class Connection extends EventEmitter{
 
 		return new Promise(async (resolve, reject) => {
 			if(!this.ready) await this._ready();
-
+			
 			const timeout = setTimeout(() => {
 				this.off('packet', handler);
 				reject(err);

@@ -49,13 +49,15 @@ function parseOptions(options){
 	}
 
 	if(net.isIP(options.ip) === 0){
-		options.ip = resolveHostname(options.ip)
-			.then(ips => { 
-				options.ip = ips[0];
-			})
-			.catch(() => { 
-				throw Error('Introduced ip/hostname is not valid');
-			});
+		options.ip = new Promise(res => {
+			resolveHostname(options.ip)
+				.then(ips => { 
+					res(ips[0]);
+				})
+				.catch(() => { 
+					throw Error('Introduced ip/hostname is not valid');
+				});
+		});
 	}
 	
 
@@ -75,7 +77,6 @@ function parseOptions(options){
 		port: options.port,
 		options: {
 			timeout: options.timeout,
-			maxListeners: options.maxListeners,
 			debug: options.debug
 		}
 	};

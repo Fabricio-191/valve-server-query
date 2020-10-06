@@ -1,5 +1,4 @@
 const { Connection, servers } = require('./connectionManager.js');
-const EventEmitter = require('events');
 
 const { 
 	constants: { COMMANDS, APPS_IDS }, 
@@ -7,10 +6,8 @@ const {
 	parsers 
 } = require('../utils/utils.js');
 
-class Server extends EventEmitter{
+class Server{
 	constructor(options) {
-		super();
-
 		if(options){
 			this.connect(options)
 				.catch(console.error);
@@ -20,6 +17,9 @@ class Server extends EventEmitter{
 
 	//[infoIsGoldSource, multiPacketResponseIsGoldSource, appID, protocol]
 	_info = [false, false, 0, 0];
+	
+	ip = null;
+	port = null;
 	options = {};
 
 	getInfo(){

@@ -3,6 +3,7 @@
 type serverType = 'dedicated' | 'non-dedicated' | 'source tv relay' | null;
 type operativeSystem = 'linux' | 'windows' | 'mac';
 type theShipModes = 'hunt' | 'elimination' | 'duel' | 'deathmatch' | 'vip team' | 'team elimination';
+type serverRegion = 'US_EAST' | 'US_WEST' | 'SOUTH_AMERICA' | 'EUROPE' | 'ASIA' | 'AUSTRALIA' | 'MIDDLE_EAST' | 'AFRICA' | 'OTHER'
 
 /** An object representing time. */
 interface Time{
@@ -29,37 +30,71 @@ interface ServerOptions{
 }
 
 interface MasterServerFilter{
+    /** A special filter, specifies that servers matching any of the following [x] conditions should not be returned */
     nor?: MasterServerFilter;
+
+    /** A special filter, specifies that servers matching all of the following [x] conditions should not be returned */
     nand?: MasterServerFilter;
 
+    /** Servers running dedicated */
     dedicated?: boolean;
+    /** Servers using anti-cheat technology (VAC, but potentially others as well) */
     secure?: boolean;
+    /** Servers running on a Linux platform */
     linux?: boolean;
+    /** Servers that are password protected */
     password?: boolean;
+    /** Servers that are not empty */
     empty?: boolean;
+    /** Servers that are not full */
     full?: boolean;
+    /** Servers that are spectator proxies */
     proxy?: boolean;
+    /** Servers that are empty */
     noplayers?: boolean;
+    /** Servers that are whitelisted */
     white?: boolean;
+    /** Return only one server for each unique IP address matched */
     collapse_addr_hash?: boolean;
 
+    /** Servers running the specified modification (ex. cstrike) */
     gamedir?: string;
+    /** Servers running the specified map (ex. cs_italy) */
     map?: string;
+    /** Servers with their hostname matching [hostname] (can use * as a wildcard) */
     name_match?: string;
+    /** Servers running version [version] (can use * as a wildcard) */
     version_match?: string;
+
+    /** Return only servers on the specified IP address (port supported and optional) */
     gameaddr?: string;
     
+    /** Servers that are running game [appid] */
     appid?: number;
+    /** Servers that are NOT running game [appid] */
     napp?: number;
     
+    /** Servers with all of the given tag(s) in sv_tags */
     gametype?: string[];
+    /** Servers with all of the given tag(s) in their 'hidden' tags (L4D2) */
     gamedata?: string[];
+    /** Servers with any of the given tag(s) in their 'hidden' tags (L4D2) */
     gamedataor?: string[];
 }
 
+interface MasterServersIPS{
+    /** GoldSource master servers ip's */
+    goldSource: string[],
+    /** Source master servers ip's */
+    source: string[]
+}
+
 interface MasterServerOptions extends ServerOptions{
+    /** Minimum quantity of servers to retrieve  */
     quantity?: number;
-    region?: number;
+    /** Region of the servers to retrieve */
+    region?: serverRegion | number;
+    /** Filter of the servers to retrieve */
     filter?: MasterServerFilter;
 }
 
@@ -227,18 +262,27 @@ declare class Server{
 	static init(options: ServerOptions): Server;
 }
 
-interface main{
-    MasterServer(options: MasterServerOptions);
-    Server: Server;
+/**
+ * Method to query valve master servers
+ * @param options options for the query
+ */
+declare function MasterServer(options: MasterServerOptions): Promise<string[]>;
 
+/**
+ * get the source and goldsource master servers ip's
+ */
+declare function getIPS(): Promise<MasterServersIPS>;
+MasterServer.getIPS = getIPS;
+
+export = {
+	MasterServer,
+	Server,
 	/** 
      * Whenether to bind o not the used socket
      * If the value is `false`, the socket is unbinded an it will not mantain the Node.js process running
      * by default the socket is binded (value: `true`)
      * @see https://nodejs.org/api/dgram.html#dgram_socket_unref and also you can see the [ref](https://nodejs.org/api/dgram.html#dgram_socket_ref) method
      */
-    setSocketRef(value: boolean): void;
-    resolveHostname(hostname: string): string[];
-}
+	setSocketRef(value: boolean): void
+};
 
-export default main;

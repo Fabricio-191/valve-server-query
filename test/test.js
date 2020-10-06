@@ -2,7 +2,10 @@
 /* eslint-disable no-unreachable */
 const { Server, MasterServer } = require('../');
 
-MasterServer()
+MasterServer({
+	ip: 'hl2master.steampowered.com',
+	port: 27011,
+})
 	.then(async servers => {
 		console.log(servers);
 		console.log('\n'.repeat(5));
@@ -15,10 +18,6 @@ MasterServer()
 			console.log(ip+':'+port);
 
 			let sv = new Server({ ip, port });
-
-			sv.on('ready', () => {
-				console.log('ready');
-			});
 
 			await sv.getInfo()
 				.then(console.log)

@@ -89,7 +89,7 @@
 	},
 	"DEFAULT_OPTIONS": { 
 		"port": 27015,
-		"timeout": 1000,
+		"timeout": 2000,
 		"debug": false
 	},
 	"REGION_CODES": {
