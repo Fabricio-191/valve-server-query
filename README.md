@@ -8,8 +8,6 @@
 
 Bzip decompression function was taken from [here](https://www.npmjs.com/package/bz2)
 
-___
-
 ## Docs
 
 * [Server query](https://github.com/Fabricio-191/valve-server-query/blob/master/docs/Server.md)
@@ -26,36 +24,21 @@ const { Server, MasterServer } = require('@fabricio-191/valve-server-query');
 
 MasterServer({
     quantity: 200
-}).then(async servers => {
-		console.log(servers);
-		console.log('\n'.repeat(5));
-		
-		let [ip, port] = servers[0].split(':');
+}).then(servers => {
+	console.log(servers);
+	
+	let [ip, port] = servers[0].split(':');
 
-		console.log(ip+':'+port);
+	let sv = new Server({ ip, port });
 
-		let sv = new Server({ ip, port });
+	sv.getInfo()
+		.then(console.log)
+		.catch(console.error);
 
-		await sv.getInfo()
-			.then(console.log)
-			.catch(console.error);
 
-		await new Promise(res => setTimeout(res, 3000));
-		console.log('\n'.repeat(5));
-
-		await sv.getPlayers()
-			.then(console.log)
-			.catch(console.error);
-
-		await new Promise(res => setTimeout(res, 3000));
-		console.log('\n'.repeat(5));
-
-		await sv.getRules()
-			.then(console.log)
-			.catch(console.error);
-
-		await new Promise(res => setTimeout(res, 3000));
-		console.log('\n'.repeat(5));
-	})
-	.catch(console.error);
+	sv.getPlayers()
+		.then(console.log)
+		.catch(console.error);
+})
+.catch(console.error);
 ```
