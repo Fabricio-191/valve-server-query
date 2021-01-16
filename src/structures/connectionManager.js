@@ -119,12 +119,12 @@ class Connection extends EventEmitter{
 	awaitPacket(...packetHeaders){
 		const err = Error('Response timeout.');
 
-		return new Promise(async (resolve, reject) => {
+		return new Promise(async (res, rej) => {
 			if(!this.ready) await this._ready();
 			
 			const timeout = setTimeout(() => {
 				this.off('packet', handler);
-				reject(err);
+				rej(err);
 			}, this.server.options.timeout);
 				
 			const handler = buffer => {
@@ -133,16 +133,16 @@ class Connection extends EventEmitter{
 				this.off('packet', handler);
 				clearTimeout(timeout);
 
-				resolve(buffer);
+				res(buffer);
 			};
-							
+			
 			this.on('packet', handler);
 		});
 	}
 		
 	_ready(){
-		return new Promise(resolve => {
-			this.once('ready', resolve);
+		return new Promise(res => {
+			this.once('ready', res);
 		});  
 	}
 

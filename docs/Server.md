@@ -82,8 +82,10 @@ Returns a promise that is resolved in an object with the server information, exa
   version: '1.37.6.9',
   port: 27015,
   steamID: 85568392922144671n,
-  'tv-port': 27020,
-  'tv-name': 'RaidbossTV',
+  tv: {
+    port: 27020,
+    name: 'RaidbossTV'
+  },
   keywords: [
     'empty',       '5v5',
     'boss',        'casual',
@@ -148,7 +150,7 @@ Returns a promise that is resolved in an array with the players in the server, e
 Returns a promise that is resolved in an object with the server rules.
 (you should better see it in console, to see what it's)
 
-It is usually large, so I do not give an example
+It is usually large, so i do not give an example
 
 ### Other things:
 ```js
@@ -163,18 +165,14 @@ const server = Server.init(options)
 const server = Server.init() // || new Server();
 //the advantage of this is that you can control when it cannot connect to the server the first time
 server.connect({
-    ip: '0.0.0.0',
-    port: 27015,
-    timeout: 2000
+    ip: '0.0.0.0'
 })
 .then(() => {
 	console.log('I am ready!')
 	server.disconnect() //not a promise
 
 	return server.connect({
-		ip: '0.0.0.2',
-		port: 27015,
-		timeout: 2000
+		ip: '0.0.0.1'
 	})
 })
 .then(() => {

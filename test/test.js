@@ -5,11 +5,12 @@ const { Server, MasterServer } = require('../');
 MasterServer({
 	ip: 'hl2master.steampowered.com',
 	port: 27011,
+	region: 'ALL',
 })
 	.then(async servers => {
 		console.log(servers);
+		return;
 		console.log('\n'.repeat(5));
-		
 		while(true){ // eslint-disable-line no-constant-condition
 			let [ip, port] = servers[
 				Math.floor(Math.random() * servers.length)

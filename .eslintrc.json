@@ -20,6 +20,9 @@
         "no-async-promise-executor": [ "off" ],
         "no-mixed-spaces-and-tabs": [
             "error", "smart-tabs"
-        ]
+        ],
+        "no-constant-condition": ["error", { 
+            "checkLoops": false 
+        }]
     }
 }

@@ -1,5 +1,3 @@
-/*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
-
 //https://www.npmjs.com/package/bz2
 
 const crc32Table = [

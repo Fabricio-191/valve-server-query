@@ -32,6 +32,6 @@
   "scripts": {
     "test": "node test/test.js",
     "eslint": "npx eslint ./src/structures/*.js ./src/utils/*.js ./src/index.js ./test/*.js --fix",
-    "eslintd": "npx eslint ./typings/index.d.ts  --fix --parser @typescript-eslint/parser"
+    "eslintd": "npx eslint ./typings/*.ts  --fix --parser @typescript-eslint/parser --rule {no-unused-vars:'off'}"
   }
 }

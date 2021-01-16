@@ -1,6 +1,6 @@
 const constants = require('./constants.json');
 
-function time(total){
+function Time(total){
 	if(!total || total === -1) return null;
 
 	const hours   = Math.floor(total/ 3600);
@@ -25,14 +25,6 @@ class BufferParser{
 
 	byte(){
 		return this.buffer.readUInt8(this.offset++);
-	}
-
-	uShort(BE = false){
-		this.offset += 2;
-		if(BE){
-			return this.buffer.readUInt16BE(this.offset-2);
-		}
-		return this.buffer.readUInt16LE(this.offset-2);
 	}
 
 	short(){
@@ -63,22 +55,16 @@ class BufferParser{
 		return string;
 	}
 
-	char(){
-		return this.buffer.slice(
-			this.offset++, this.offset
-		).toString();
-	}
-
-
 	remaining(){
 		return this.buffer.slice(this.offset);
 	}
 }
 
 module.exports = {
-	BufferParser,
-	serverInfo, playersInfo,
-	serverRules, serverList,
+	serverInfo, 
+	playersInfo,
+	serverRules, 
+	serverList,
 	multiPacketResponse
 };
 
@@ -86,108 +72,113 @@ function serverInfo(buffer){
 	buffer = new BufferParser(buffer);
 
 	if(buffer.byte() === 0x6D){ //is goldsource
-		return goldSourceServerInfo(buffer);
-	}
-	
-	let	info = {
-		protocol: buffer.byte(),
-		goldSource: false,
-		name: buffer.string().trim(),
-		map: buffer.string(),
-		folder: buffer.string(),
-		game: buffer.string(),
-		appID: buffer.short(),
-		players: {
-			online: buffer.byte(),
-			max: buffer.byte(),
-			bots: buffer.byte()
-		},
-		type: constants.SERVER_TYPES[buffer.char()] || null,
-		OS: constants.OPERATIVE_SYSTEMS[buffer.char()],
-		visibility: buffer.byte()?'private':'public',
-		VAC: buffer.byte() === 1
-	};
-
-	if(info.game === 'The Ship'){
-		Object.assign(info, {
-			mode: constants.THE_SHIP_MODES[buffer.byte()],
-			witnesses: buffer.byte(),
-			duration: buffer.byte(),
-		});
-	}
-
-	info.version = buffer.string();
+		let info = {
+			address: buffer.string(),
+			name: buffer.string().trim(),
+			map: buffer.string(),
+			folder: buffer.string(),
+			game: buffer.string(),
 		
-	if(buffer.remaining().length === 0) return info;
-	const EDF = buffer.byte();
-		
-	if (EDF & 0x80) {//1000 0000
-		info.port = buffer.uShort(); 
-	}
-	if (EDF & 0x10) {//0001 0000
-		info.steamID = buffer.bigUInt();
-	}
-	if (EDF & 0x40) {//0100 0000
-		info['tv-port'] = buffer.short();
-		info['tv-name'] = buffer.string();
-	}
-	if (EDF & 0x20) {//0010 0000
-		info.keywords = buffer.string().trim().split(',');
-	}
-	if (EDF & 0x01) {//0000 0001
-		info.gameID = buffer.bigUInt(); //00000000 00000000 00000000 00000000 
-		info.appID = info.gameID & 0xFFFFFFn;
-	}
+			players: {
+				online: buffer.byte(),
+				max: buffer.byte(),
+			},
+			protocol: buffer.byte(),
+			goldSource: true,
 	
-	return info;
-}
-
-function goldSourceServerInfo(buffer){
-	let info = {
-		address: buffer.string(),
-		name: buffer.string().trim(),
-		map: buffer.string(),
-		folder: buffer.string(),
-		game: buffer.string(),
-	
-		players: {
-			online: buffer.byte(),
-			max: buffer.byte(),
-		},
-		protocol: buffer.byte(),
-		goldSource: true,
-
-		type: constants.SERVER_TYPES[
-			buffer.char().toLowerCase()
-		],
-		OS: constants.OPERATIVE_SYSTEMS[
-			buffer.char().toLowerCase()
-		],
-		visibility: buffer.byte()?'private':'public',
-		mod: buffer.byte() === 1
-	};
-
-	if(info.mod){
-		info.modInfo = {
-			link: buffer.string(),
-			downloadLink: buffer.string(),
-			
+			type: constants.SERVER_TYPES[
+				buffer.char().toLowerCase()
+			],
+			OS: constants.OPERATIVE_SYSTEMS[
+				buffer.char().toLowerCase()
+			],
+			visibility: buffer.byte()?'private':'public',
+			mod: buffer.byte() === 1
 		};
-
-		buffer.byte(); //null byte
-
-		Object.assign(info.modInfo, {
-			version: buffer.long(),
-			size: buffer.long(),
-			type: buffer.byte()?'multiplayer only mod':'single and multiplayer mod',
-			DLL: buffer.byte()?'it uses its own DLL':'it uses the Half-Life DLL'
-		});
-	}
 	
-	info.VAC = buffer.byte() === 1;
-	info.players.bots = buffer.byte();
-
-	return info;
+		if(info.mod){
+			info.modInfo = {
+				link: buffer.string(),
+				downloadLink: buffer.string(),
+				
+			};
+	
+			buffer.byte(); //null byte
+	
+			Object.assign(info.modInfo, {
+				version: buffer.long(),
+				size: buffer.long(),
+				type: buffer.byte() ?
+					'multiplayer only mod':'single and multiplayer mod',
+				DLL: buffer.byte() ?
+					'it uses its own DLL':'it uses the Half-Life DLL'
+			});
+		}
+		
+		info.VAC = buffer.byte() === 1;
+		info.players.bots = buffer.byte();
+	
+		return info;
+	}else{
+		let	info = {
+			protocol: buffer.byte(),
+			goldSource: false,
+			name: buffer.string().trim(),
+			map: buffer.string(),
+			folder: buffer.string(),
+			game: buffer.string(),
+			appID: buffer.short(),
+			players: {
+				online: buffer.byte(),
+				max: buffer.byte(),
+				bots: buffer.byte()
+			},
+			type: constants.SERVER_TYPES[
+				buffer.char()
+			] || null,
+			OS: constants.OPERATIVE_SYSTEMS[
+				buffer.char()
+			],
+			visibility: buffer.byte() ?
+				'private' : 'public',
+			VAC: buffer.byte() === 1
+		};
+	
+		if(info.game === 'The Ship'){
+			Object.assign(info, {
+				mode: constants.THE_SHIP_MODES[buffer.byte()],
+				witnesses: buffer.byte(),
+				duration: buffer.byte(),
+			});
+		}
+	
+		info.version = buffer.string();
+			
+		if(buffer.remaining().length === 0) return info;
+		const EDF = buffer.byte();
+			
+		if (EDF & 0x80) {//1000 0000
+			info.port = buffer.uShort(); 
+		}
+		if (EDF & 0x10) {//0001 0000
+			info.steamID = buffer.bigUInt();
+		}
+		if (EDF & 0x40) {//0100 0000
+			info.tv = {
+				port: buffer.short(),
+				name: buffer.string()
+			};
+		}
+		if (EDF & 0x20) {//0010 0000
+			info.keywords = buffer.string().trim().split(',');
+		}
+		if (EDF & 0x01) {//0000 0001
+			info.gameID = buffer.bigUInt(); //00000000 00000000 00000000 00000000 
+			info.appID = info.gameID & 0xFFFFFFn;
+		}
+		
+		return info;
+	}
 }
 
 function playersInfo(buffer){
@@ -201,7 +192,7 @@ function playersInfo(buffer){
 			index: buffer.byte(), 
 			name: buffer.string(), 
 			score: buffer.long(), 
-			timeOnline: time(buffer.float())
+			timeOnline: Time(buffer.float())
 		});
 	}
 	
@@ -209,9 +200,9 @@ function playersInfo(buffer){
 	if(buffer.remaining().length){
 		if(
 			playersCount !== 255 && 
-			buffer.remaining().length === (playersCount * 8)
+			buffer.remaining().length === (playersCount * 8) //is the ship
 		){
-			for (let i = 0; i < playersCount; i++) { //is the ship
+			for (let i = 0; i < playersCount; i++) { 
 				Object.assign(players[i], { 
 					deaths: buffer.long(), 
 					money: buffer.long()
@@ -223,7 +214,7 @@ function playersInfo(buffer){
 					index: buffer.byte(), 
 					name: buffer.string(), 
 					score: buffer.long(), 
-					timeOnline: time(buffer.float())
+					timeOnline: Time(buffer.float())
 				});
 			}
 		}
@@ -256,6 +247,26 @@ function serverRules(buffer){
 	
 	return rules;
 }
+
+
+function serverList(buffer){
+	buffer = new BufferParser(buffer, 2);
+	let servers = [];
+
+	while (buffer.remaining().length) {
+		let ip = [
+			buffer.byte(),
+			buffer.byte(),
+			buffer.byte(),
+			buffer.byte()
+		].join('.');
+		
+		servers.push(ip+':'+buffer.uShort(true));
+	}
+
+	return servers;
+}
+
 
 function multiPacketResponse(buffer, server){
 	buffer = new BufferParser(buffer, 4);
@@ -302,22 +313,4 @@ function multiPacketResponse(buffer, server){
 
 		return info;
 	}
-}
-
-function serverList(buffer){
-	buffer = new BufferParser(buffer, 2);
-	let servers = [];
-
-	while (buffer.remaining().length) {
-		let ip = [
-			buffer.byte(),
-			buffer.byte(),
-			buffer.byte(),
-			buffer.byte()
-		].join('.');
-		
-		servers.push(ip+':'+buffer.uShort(true));
-	}
-
-	return servers;
 }

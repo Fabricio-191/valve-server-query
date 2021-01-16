@@ -1,8 +1,8 @@
-const  parsers = require('./parsers.js'), 
+const dns = require('dns'), 
+	net = require('net'), 
+	parsers = require('./parsers.js'), 
 	constants = require('./constants.json'),
 	decompressBZip = require('./Bzip2.js');
-
-const dns = require('dns'), net = require('net');
 
 class BufferWriter{
 	buffer = [];
@@ -23,18 +23,6 @@ class BufferWriter{
 		return Buffer.from(this.buffer);
 	}
 }
-
-module.exports = {
-	parsers,
-	constants,
-	decompressBZip,
-	parseOptions,
-	resolveHostname,
-	BufferUtils: {
-		Parser: parsers.BufferParser,
-		Writer: BufferWriter
-	}
-};
 
 function parseOptions(options){
 	if(typeof options !== 'object'){
@@ -83,11 +71,20 @@ function parseOptions(options){
 }
 
 function resolveHostname(hostname){
-	return new Promise((resolve, reject) => {
+	return new Promise((res, rej) => {
 		dns.resolve(hostname, (err, addresses) => {
-			if(err) return reject(err);
+			if(err) return rej(err);
 	
-			resolve(addresses);
+			res(addresses);
 		});
 	});
 }
+
+module.exports = {
+	parsers,
+	constants,
+	decompressBZip,
+	parseOptions,
+	resolveHostname,
+	BufferWriter
+};

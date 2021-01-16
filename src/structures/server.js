@@ -23,7 +23,7 @@ class Server{
 	options = {};
 
 	getInfo(){
-		return new Promise((resolve, reject) => {
+		return new Promise((res, rej) => {
 			let start;
 
 			this.connection.send(COMMANDS.INFO)
@@ -43,84 +43,85 @@ class Server{
 					return Promise.all(requests);
 				})
 				.then(responses => 
-					resolve(
+					res(
 						Object.assign(
 							{ address: this.ip+':'+this.port, ping: Date.now() - start }, 
 							...responses.map(parsers.serverInfo)
 						)
 					)
 				)
-				.catch(reject);
+				.catch(rej);
 		});
 	}
 
 	getPlayers(){
-		return new Promise((resolve, reject) => {
+		return new Promise((res, rej) => {
 			let key;
 
 			this.challenge(0x55)
-				.then(res => {
-					if(res[0] === 0x44 && res.length > 5){
-						resolve(
-							parsers.playersInfo(Buffer.from(res))
+				.then(response => {
+					if(response[0] === 0x44 && response.length > 5){
+						res(
+							parsers.playersInfo(Buffer.from(response))
 						);
 					}else{
-						key = res;
+						key = response;
+
 						return this.connection.send(
-							COMMANDS.PLAYERS.concat(...key.slice(1))
+							COMMANDS.PLAYERS.concat(...response.slice(1))
 						);
 					}
 				})
 				.then(() => this.connection.awaitPacket(0x44))
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
-						reject(Error('Wrong server response'));
+						rej(Error('Wrong server response'));
 					}
 					try{
-						resolve(parsers.playersInfo(buffer));
+						res(parsers.playersInfo(buffer));
 					}catch(e){
-						reject(Error('Wrong server response'));
+						rej(Error('Wrong server response'));
 					}
 				})
-				.catch(reject);
+				.catch(rej);
 		});
 	}
 
 	getRules(){
-		return new Promise((resolve, reject) => {
+		return new Promise((res, rej) => {
 			let key;
 
 			this.challenge(0x56)
-				.then(res => {
-					if(res[0] === 0x45 && res.length > 5){
-						resolve(
-							parsers.serverRules(Buffer.from(res))
+				.then(response => {
+					if(response[0] === 0x45 && response.length > 5){
+						res(
+							parsers.serverRules(Buffer.from(response))
 						);
 					}else{
-						key = res;
+						key = response;
 						return this.connection.send(
-							COMMANDS.RULES.concat(...res.slice(1))
+							COMMANDS.RULES.concat(...response.slice(1))
 						);
 					}
 				})
 				.then(() => this.connection.awaitPacket(0x45))
 				.then(buffer => {
 					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
-						reject(Error('Wrong server response'));
+						rej(Error('Wrong server response'));
 					}
 				
 					try{
-						resolve(parsers.serverRules(buffer));
+						res(parsers.serverRules(buffer));
 					}catch(e){
-						reject(Error('Wrong server response'));
+						rej(Error('Wrong server response'));
 					}
 				})
-				.catch(reject);
+				.catch(rej);
 		});
 	}
 
 	ping(){
-		return new Promise((resolve, reject) => {
+		return new Promise((res, rej) => {
 			let start;
 
 			this.connection.send(COMMANDS.PING)
@@ -129,13 +130,13 @@ class Server{
 
 					return this.connection.awaitPacket(0x6A);
 				})
-				.then(() => resolve(Date.now() - start))
-				.catch(reject);
+				.then(() => res(Date.now() - start))
+				.catch(rej);
 		});
 	}
 		
 	challenge(code){
-		return new Promise(async (resolve, reject) => {
+		return new Promise(async (res, rej) => {
 			if(!this.connection.ready) await this.connection._ready();
 				
 			const command = Array.from(COMMANDS.CHALLENGE); //(copy)
@@ -149,8 +150,8 @@ class Server{
 				
 			this.connection.send(command)
 				.then(() => this.connection.awaitPacket(0x41, 0x45, 0x44))
-				.then(buffer => resolve(Array.from(buffer)))
-				.catch(reject);
+				.then(buffer => res(Array.from(buffer)))
+				.catch(rej);
 				
 		});
 	}
@@ -173,7 +174,7 @@ class Server{
 		Object.assign(this, parseOptions(options));
 		this.connection = new Connection(this);
 
-		return new Promise(async (resolve, reject) => {
+		return new Promise(async (res, rej) => {
 			await this.connection._ready();
 
 			getInfo(this)
@@ -182,9 +183,9 @@ class Server{
 						_info: [info.goldSource, this._info[1], info.appID, info.protocol],
 						ready: true
 					});
-					resolve();
+					res();
 				})
-				.catch(reject);
+				.catch(rej);
 		});
 	}
 
@@ -194,13 +195,13 @@ class Server{
 }
 
 function getInfo(server){
-	return new Promise(async (resolve, reject) => {
+	return new Promise(async (res, rej) => {
 		if(server.options.debug) console.log('\nSent:    ', Buffer.from(COMMANDS.INFO));
 
 		try{
 			await server.connection.send(Buffer.from(COMMANDS.INFO));
 		}catch(e){
-			reject(e);
+			return rej(e);
 		}
 	
 		let results = await Promise.allSettled([
@@ -213,10 +214,10 @@ function getInfo(server){
 			.sort((a, b) => a.goldSource - b.goldSource);
 
 		if(responses.length === 0){
-			return reject(Error('Can not connect to the server.'));
+			return rej(Error('Can not connect to the server.'));
 		}
 
-		resolve(Object.assign({}, ...responses));
+		res(Object.assign({}, ...responses));
 	});
 }
 

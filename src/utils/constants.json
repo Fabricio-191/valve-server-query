@@ -101,11 +101,12 @@
 		"AUSTRALIA": 	 5,
 		"MIDDLE_EAST":   6,
 		"AFRICA": 		 7,
-		"OTHER":       255
+		"OTHER":       255,
+		"ALL":        "ALL"
 	},
 	"MASTER_FILTER": {
-		"nor": "*",
-		"nand": "*",
+		"nor": "object",
+		"nand": "object",
 	
 		"dedicated": "boolean",
 		"secure": "boolean",
@@ -117,7 +118,6 @@
 		"noplayers": "boolean",
 		"white": "boolean",
 		"collapse_addr_hash": "boolean",
-	
 		
 		"gamedir": "string",
 		"map": "string",
@@ -127,7 +127,6 @@
 
 		"appid": "number",
 		"napp": "number",
-	
 	
 		"gametype": "array",
 		"gamedata": "array",
