@@ -1,7 +1,6 @@
 # Features:
 * Supports [Multi-packet Response Format](https://developer.valvesoftware.com/wiki/Server_queries#Multi-packet_Response_Format)  
   * Source and GoldSource
-  * Supports when the multipacket response is goldsource, but the A2S_INFO response is not
 * [A2S_INFO](https://developer.valvesoftware.com/wiki/Server_queries#A2S_INFO)
   * Supports [Obsolete GoldSource Response](https://developer.valvesoftware.com/wiki/Server_queries#Obsolete_GoldSource_Response)
 * [A2S_PLAYER](https://developer.valvesoftware.com/wiki/Server_queries#A2S_PLAYER)
@@ -12,40 +11,29 @@
 * Supports [A2S_SERVERQUERY_GETCHALLENGE](https://developer.valvesoftware.com/wiki/Server_queries#A2S_SERVERQUERY_GETCHALLENGE)
 * Fully supports `The ship`
 * Supports Hostnames
+* Supports IPv6
 
 ## Warns: 
 * [Bzip decompression](https://developer.valvesoftware.com/wiki/Server_queries#Source_Server) not tested
-* IPv6 not tested
-* There are a lot of untested situations
 
 ## Use example:
 ```js
 const { Server } = require('@fabricio-191/valve-server-query');
-const server = new Server({
+
+Server({
     ip: '0.0.0.0',
     port: 27015,
     timeout: 2000
-});
-
-//if you do a query before the server is ready, it will be delayed until it is ready
-
-server.getInfo()
-.then(info => {
-    //do something...
 })
-.catch(console.error)
+  .then(async server => {
+    const info = await server.getInfo();
+    const players = await server.getPlayers();
+    const rules = await server.getRules();
 
-server.getPlayers()
-.then(players => {
-    //do something...
-})
-.catch(console.error)
+    console.log(info, players, rules);
+  })
+  .catch(console.error)
 
-server.getRules()
-.then(rules => {
-    //do something...
-})
-.catch(console.error)
 ``` 
 
 If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an attempt will be made to obtain the IP, if the attempt fails, it will throw an error
@@ -152,41 +140,53 @@ Returns a promise that is resolved in an object with the server rules.
 
 It is usually large, so i do not give an example
 
-### Other things:
+## `ping()`
+
+Returns a promise that is resolved in a number (the ping in miliseconds)
+This is a deprecated feature of source servers, may not work
+The `getInfo` response contains the server ping, so this is not necessary
+
 ```js
-//instead of 
-const server = new Server(options)
-//you can do 
-const server = Server.init(options)
+server.ping()
+  .then(ping => {
+    console.log(ping); 
+  })
+  .catch(console.error)
+```
 
-//these both ^, call the server.connect method inside, if you dont pass options, you need to call the server.connect yourself
 
+## STATIC `getInfo()`
+The difference is that it does not require the extra step of connection
 
-const server = Server.init() // || new Server();
-//the advantage of this is that you can control when it cannot connect to the server the first time
+Returns a promise that is resolved in an object with the server information, example:
+```js
+Server.getInfo({
+    ip: '0.0.0.0',
+    port: 27015,
+})
+  .then(console.log)
+  .catch(console.error);
+```
+
+# Other example of use
+
+```js
+let server = Server();
+
 server.connect({
-    ip: '0.0.0.0'
+    ip: '0.0.0.0',
+    port: 27015,
 })
-.then(() => {
-	console.log('I am ready!')
-	server.disconnect() //not a promise
+  .then(() => {
+      console.log('connected');
+  })
+  .catch(console.error);
 
-	return server.connect({
-		ip: '0.0.0.1'
-	})
-})
-.then(() => {
-	console.log('I am ready! 2')
-	return server.getInfo();
-})
-.then(console.log)
-.catch(console.error)
+//The queries will be delayed until the connection is made, this is handled internally, you don't need to do anything
 
-
-//the "getInfo" response contains the server ping, so this is not necessary
-server.ping() //deprecated feature of source servers, may not work (it will warn you in console)
-.then(ping => {
-	console.log(ping); //number
-})
-.catch(console.error)
+server.getInfo()
+  .then(info => {
+    //...
+  })
+  .catch(console.error);
 ```

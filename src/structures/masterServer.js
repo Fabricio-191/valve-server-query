@@ -1,127 +1,111 @@
-const { Connection } = require('./connectionManager.js');
-const { constants, parseOptions, BufferWriter, resolveHostname, parsers } = require('../utils/utils.js');
+const { Connection } = require('./connection.js');
+const { constants, BufferWriter, parsers, resolveHostname } = require('../utils/utils.js');
 
-function parseFilter(options = {}) {
+/*
+function parseFilter(filter = {}){
+	if(typeof filter !== 'object'){
+		throw new Error('filter must be an object');
+	}
+
 	return Object.keys(
-		options
+		filter
 	).map(key => {
-		const value = options[key],
+		const value = filter[key],
 			type = constants.MASTER_FILTER[key];
 
-		if (
-			(type === 'array' && !Array.isArray(value)) ||
+		if(
+			type === 'array' && !Array.isArray(value) ||
 			typeof value !== type
-		) {
+		){
 			throw new Error(`filter: value at ${key} must be a ${type}`);
 		}
 
-		if (type === 'boolean') {
+		if(type === 'boolean'){
 			return `\\${key}\\${value ? 1 : 0}`;
-		} else if (type === 'object') {
-			return `\\${key}\\${parseFilter(options[key])}`;
-		} else {
-			return `\\${key}\\${value}`;
+		}else if(type === 'object'){
+			return `\\${key}\\${parseFilter(filter[key])}`;
 		}
+		return `\\${key}\\${value}`;
 	}).join('\\') || '';
 }
+*/
 
-function parseQueryOptions(options = {}) {
-	let { quantity = Infinity, region = 0xFF, filter } = options;
-	if (typeof quantity !== 'number' && quantity <= 0) {
+function parseQueryOptions(options = {}){
+	let { quantity = 200, region = 0xFF, filter } = options;
+	if(filter) throw new Error('filter is not supported');
+
+	if(quantity === 'all'){
+		quantity = Infinity;
+	}
+
+	if(typeof quantity !== 'number' && quantity <= 0){
 		throw new Error("'quantity' must be a number greater than zero");
 	}
 
-	if (typeof region === 'string') {
+	if(typeof region === 'string'){
 		region = constants.REGION_CODES[region];
 	}
 
-	if (
+	if(
 		!Object.entries(constants.REGION_CODES)
 			.some(pair => pair.includes(region))
-	) {
-		throw new Error('The specified region is not valid');
-	}
+	) throw new Error('The specified region is not valid');
+
 
 	return {
 		quantity,
 		region,
-		filter: parseFilter(filter)
 	};
 }
 
-async function MasterServer(options = {}) {
-	if (!options.ip) {
-		Object.assign(options, {
-			ip: 'hl2master.steampowered.com',
-			port: 27011
-		});
-	}
+async function MasterServer(options = {}){
+	if(!options.ip) Object.assign(options, {
+		ip: 'hl2master.steampowered.com',
+		port: 27011,
+	});
 
-	let connection = new Connection(
-		parseOptions(options)
-	);
+	const connection = await Connection.init(options);
 
-	if (!connection.ready) await connection._ready();
+	const queryOptions = parseQueryOptions(options);
+	const servers = [];
 
-	let queryOptions = parseQueryOptions(options);
-	let servers = [];
+	while(queryOptions.quantity > servers.length){
+		const last = servers.pop();
 
-	if(queryOptions.region === 'ALL'){
-		for(
-			let region of Object.values(constants.REGION_CODES)
-		){
-			while (true) {
-				await new Promise(res => setTimeout(res, 20));
-				let last = servers[servers.length - 1] || '0.0.0.0:0';
-		
-				if (servers.length !== 0 && last === '0.0.0.0:0') {
-					servers.pop(); break;
-				}
-		
-				const command = new BufferWriter()
-					.byte(0x31, region)
-					.string(last)
-					.string('')
-					.end();
-		
-				connection.send(command);
-				let buffer = await connection.awaitPacket(0x66);
-				servers.push(...parsers.serverList(buffer));
+		if(last === '0.0.0.0:0') break;
+
+		const command = (new BufferWriter)
+			.byte(0x31, queryOptions.region)
+			.string(last || '0.0.0.0:0')
+			.string('')
+			.end();
+
+		connection.send(command);
+
+		let buffer;
+		try{
+			buffer = await connection.awaitPacket(0x66);
+		}catch(e){
+			if(servers.length === 0) throw e;
+			if(!this.connection.disableWarns){
+				console.trace('cannot get full list of servers');
 			}
+			break;
 		}
-	}else{
-		while (queryOptions.quantity > servers.length) {
-			await new Promise(res => setTimeout(res, 20));
-			let last = servers[servers.length - 1] || '0.0.0.0:0';
-	
-			if (servers.length !== 0 && last === '0.0.0.0:0') {
-				servers.pop(); break;
-			}
-	
-			const command = new BufferWriter()
-				.byte(0x31, queryOptions.region)
-				.string(last)
-				.string(queryOptions.filter)
-				.end();
-	
-			connection.send(command);
-			let buffer = await connection.awaitPacket(0x66);
-	
-			servers.push(...parsers.serverList(buffer));
-		}
-	}
 
+		servers.push(...parsers.serverList(buffer));
+	}
 
 	connection.destroy();
 	return servers;
 }
 
 module.exports = MasterServer;
-module.exports.getIPS = () => new Promise((res, rej) => {
-	Promise.all([
+module.exports.getIPS = async function getIPS(){
+	const [goldSource, source] = await Promise.all([
 		resolveHostname('hl1master.steampowered.com'),
 		resolveHostname('hl2master.steampowered.com')
-	]).then(
-		([goldSource, source]) => res({ goldSource, source })
-	).catch(rej);
-});
+	]);
+
+	return { goldSource, source };
+};

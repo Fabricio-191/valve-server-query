@@ -3,7 +3,9 @@
 const { MasterServer } = require('@fabricio-191/valve-server-query');
 
 MasterServer({
-    timeout: 3000
+    timeout: 3000,
+    quantity: 5000,
+    region: 'US_EAST',
 })
     .then(servers => {
         //do something...
@@ -59,44 +61,35 @@ MasterServer({
 {
 	ip: 'hl2master.steampowered.com', //hostname that it's resolved to the first ip that it return
     port: 27011, 
-    filter: {}, //no filter
-    quantity: Infinity, //all the servers
+    quantity: 200,
     region: 'OTHER', //posible regions: 'US_EAST' | 'US_WEST' | 'SOUTH_AMERICA' | 'EUROPE' | 'ASIA' | 'AUSTRALIA' | 'MIDDLE_EAST' | 'AFRICA' | 'OTHER'
     debug: false,
-    timeout: 2000
+    timeout: 1000
 }
-
-MasterServer({
-    timeout: 3000,
-    region: 'SOUTH_AMERICA',
-    ip: '208.64.200.118',
-    port: 27010
-})
 ```
-
-(the filter is not working well and the documentation is not finished)
+If the quantity is `Infinity` or `'all'`, it will try to get all the servers, but most likely it will end up giving an error.  
+The master server stops responding at a certain point
 
 ## Other: 
 
 ```js
-const { MasterServer } = require('@fabricio-191/valve-server-query');
-
 MasterServer.getIPS()
-.then(console.log)
-.catch(console.error)
+    .then(console.log)
+    .catch(console.error)
 
 /*
-Returns an object like this: 
+Returns an object with the master servers ips, like this: 
 {
   goldSource: [ '208.64.200.118', '208.64.200.117' ],    
   source: [ '208.64.200.65', '208.64.200.39', '208.64.200.52' ]
 }
-
-these are the master servers ip's from hl1master.steampowered.com (gold source) and hl2master.steampowered.com (source)
-see https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master_servers
-
-The port numbers used by hl1master.steampowered.com can be anything between 27010 and 27013.
-
-The port used in hl2master.steampowered.com ip's is 27011 but one of them is using a different port: 27015
 */
 ```
+
+See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master_servers
+
+> The port used in `hl2master.steampowered.com` ip's is `27011` but one of them is using a different port: `27015`  
+> The port numbers used by `hl1master.steampowered.com` can be anything between `27010` and `27013`.
+
+**WARNING:** gold source servers may not work  
+The reason is unknown, the servers simply do not respond to queries

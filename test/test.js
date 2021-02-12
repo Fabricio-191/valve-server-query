@@ -1,45 +1,42 @@
 /* eslint-disable no-unused-vars */
-/* eslint-disable no-unreachable */
-const { Server, MasterServer } = require('../');
+// @ts-check
+const { Server, MasterServer } = require('../').setSocketRef(false);
 
-MasterServer({
-	ip: 'hl2master.steampowered.com',
-	port: 27011,
-	region: 'ALL',
-})
+MasterServer()
 	.then(async servers => {
-		console.log(servers);
-		return;
-		console.log('\n'.repeat(5));
-		while(true){ // eslint-disable-line no-constant-condition
-			let [ip, port] = servers[
-				Math.floor(Math.random() * servers.length)
-			].split(':');
-
-			console.log(ip+':'+port);
-
-			let sv = new Server({ ip, port });
-
-			await sv.getInfo()
-				.then(console.log)
+		console.log(servers.length);
+		while(servers[0]){
+			await test(servers.shift())
 				.catch(console.error);
 
-			await new Promise(res => setTimeout(res, 3000));
-			console.log('\n'.repeat(5));
-
-			await sv.getPlayers()
-				.then(console.log)
-				.catch(console.error);
-
-			await new Promise(res => setTimeout(res, 3000));
-			console.log('\n'.repeat(5));
-
-			await sv.getRules()
-				.then(console.log)
-				.catch(console.error);
-
-			await new Promise(res => setTimeout(res, 3000));
-			console.log('\n'.repeat(5));
+			await delay(5000);
+			console.log('\n');
 		}
 	})
-	.catch(console.error);
+	.catch(console.trace);
+
+function delay(time = 1000){
+	return new Promise(res => {
+		setTimeout(res, time);
+	});
+}
+
+async function test(address){
+	console.log(address);
+	const [ip, port] = address.split(':');
+
+	const server = await Server({
+		ip, port,
+		timeout: 2000,
+	});
+
+	const data = await Promise.all([
+		server.getInfo(),
+		server.getPlayers(),
+		server.getRules()
+	]);
+
+	server.disconnect();
+
+	return data;
+}

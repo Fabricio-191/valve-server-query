@@ -89,8 +89,9 @@
 	},
 	"DEFAULT_OPTIONS": { 
 		"port": 27015,
-		"timeout": 2000,
-		"debug": false
+		"timeout": 1000,
+		"debug": false,
+		"disableWarns": false
 	},
 	"REGION_CODES": {
 		"US_EAST":       0,
@@ -101,8 +102,7 @@
 		"AUSTRALIA": 	 5,
 		"MIDDLE_EAST":   6,
 		"AFRICA": 		 7,
-		"OTHER":       255,
-		"ALL":        "ALL"
+		"OTHER":       255
 	},
 	"MASTER_FILTER": {
 		"nor": "object",

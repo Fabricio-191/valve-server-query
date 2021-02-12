@@ -1,6 +1,6 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "2.0.1-0",
+  "version": "2.4.0-0",
   "main": "./src/index.js",
   "types": "./typings/index.d.ts",
   "repository": {
@@ -15,23 +15,23 @@
   "description": "An implementation of valve protocols",
   "deprecated": false,
   "keywords": [
-    "protocol",
     "valve",
     "source",
-    "query",
     "server",
+    "protocol",
+    "query",
     "master"
   ],
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "4.2.0",
     "@typescript-eslint/parser": "4.2.0",
-    "typescript": "4.0.3",
     "babel-eslint": "10.1.0",
-    "eslint": "7.9.0"
+    "eslint": "7.9.0",
+    "typescript": "4.0.3"
   },
   "scripts": {
     "test": "node test/test.js",
-    "eslint": "npx eslint ./src/structures/*.js ./src/utils/*.js ./src/index.js ./test/*.js --fix",
-    "eslintd": "npx eslint ./typings/*.ts  --fix --parser @typescript-eslint/parser --rule {no-unused-vars:'off'}"
+    "eslint": "npx eslint src --fix && npx eslint test --fix",
+    "eslintd": "npx eslint typings --fix"
   }
 }

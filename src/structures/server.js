@@ -1,226 +1,188 @@
-const { Connection, servers } = require('./connectionManager.js');
-
-const { 
-	constants: { COMMANDS, APPS_IDS }, 
-	parseOptions, 
-	parsers 
-} = require('../utils/utils.js');
+const { Connection } = require('./connection.js');
+const { constants, parsers, debug } = require('../utils/utils.js');
 
 class Server{
-	constructor(options) {
-		if(options){
-			this.connect(options)
-				.catch(console.error);
-		}
-	}
 	connection = null;
 
-	//[infoIsGoldSource, multiPacketResponseIsGoldSource, appID, protocol]
-	_info = [false, false, 0, 0];
-	
-	ip = null;
-	port = null;
-	options = {};
-
-	getInfo(){
-		return new Promise((res, rej) => {
-			let start;
-
-			this.connection.send(COMMANDS.INFO)
-				.then(() => {
-					start = Date.now();
-
-					let requests = [
-						this.connection.awaitPacket(0x49)
-					];
-						
-					if(this._info[0]){
-						requests.push(
-							this.connection.awaitPacket(0x6D)
-						);
-					}
-
-					return Promise.all(requests);
-				})
-				.then(responses => 
-					res(
-						Object.assign(
-							{ address: this.ip+':'+this.port, ping: Date.now() - start }, 
-							...responses.map(parsers.serverInfo)
-						)
-					)
-				)
-				.catch(rej);
-		});
+	_meta = {
+		infoIsGoldSource: false,
+		multiPacketResponseIsGoldSource: false,
+		appID: null,
+		protocol: null,
 	}
 
-	getPlayers(){
-		return new Promise((res, rej) => {
-			let key;
+	async getInfo(){
+		if(!this.connection) throw new Error('server is not connected to anything');
+		await this.connection;
 
-			this.challenge(0x55)
-				.then(response => {
-					if(response[0] === 0x44 && response.length > 5){
-						res(
-							parsers.playersInfo(Buffer.from(response))
-						);
-					}else{
-						key = response;
+		await this.connection.send(constants.COMMANDS.INFO);
+		const start = Date.now();
 
-						return this.connection.send(
-							COMMANDS.PLAYERS.concat(...response.slice(1))
-						);
-					}
-				})
-				.then(() => this.connection.awaitPacket(0x44))
-				.then(buffer => {
-					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
-						rej(Error('Wrong server response'));
-					}
-					try{
-						res(parsers.playersInfo(buffer));
-					}catch(e){
-						rej(Error('Wrong server response'));
-					}
-				})
-				.catch(rej);
-		});
+		const requests = [
+			this.connection.awaitPacket(0x49)
+		];
+
+		if(this._meta.infoIsGoldSource) requests.push(
+			this.connection.awaitPacket(0x6D)
+		);
+
+		const responses = await Promise.all(requests);
+
+		return Object.assign({
+			address: this.connection.ip+':'+this.connection.port,
+			ping: Date.now() - start,
+		}, ...responses.map(parsers.serverInfo));
 	}
 
-	getRules(){
-		return new Promise((res, rej) => {
-			let key;
+	async getPlayers(){
+		const key = await this.challenge(0x55);
 
-			this.challenge(0x56)
-				.then(response => {
-					if(response[0] === 0x45 && response.length > 5){
-						res(
-							parsers.serverRules(Buffer.from(response))
-						);
-					}else{
-						key = response;
-						return this.connection.send(
-							COMMANDS.RULES.concat(...response.slice(1))
-						);
-					}
-				})
-				.then(() => this.connection.awaitPacket(0x45))
-				.then(buffer => {
-					if(Buffer.compare(buffer, Buffer.from(key)) === 0){
-						rej(Error('Wrong server response'));
-					}
-				
-					try{
-						res(parsers.serverRules(buffer));
-					}catch(e){
-						rej(Error('Wrong server response'));
-					}
-				})
-				.catch(rej);
-		});
+		if(key[0] === 0x44 && key.length > 5){
+			return parsers.playersInfo(Buffer.from(key));
+		}
+
+		await this.connection.send(
+			constants.COMMANDS.PLAYERS.concat(...key.slice(1))
+		);
+
+		const response = await this.connection.awaitPacket(0x44);
+
+		if(Buffer.compare(response, Buffer.from(key)) === 0){
+			throw new Error('Wrong server response');
+		}
+
+		return parsers.playersInfo(response);
 	}
 
-	ping(){
-		return new Promise((res, rej) => {
-			let start;
+	async getRules(){
+		const key = await this.challenge(0x56);
 
-			this.connection.send(COMMANDS.PING)
-				.then(() => {
-					start = Date.now();
+		if(key[0] === 0x45 && key.length > 5){
+			return parsers.serverRules(Buffer.from(key));
+		}
 
-					return this.connection.awaitPacket(0x6A);
-				})
-				.then(() => res(Date.now() - start))
-				.catch(rej);
-		});
+		await this.connection.send(
+			constants.COMMANDS.RULES.concat(...key.slice(1))
+		);
+
+		const response = await this.connection.awaitPacket(0x45);
+
+		if(Buffer.compare(response, Buffer.from(key)) === 0){
+			throw new Error('Wrong server response');
+		}
+
+		return parsers.serverRules(response);
 	}
-		
-	challenge(code){
-		return new Promise(async (res, rej) => {
-			if(!this.connection.ready) await this.connection._ready();
-				
-			const command = Array.from(COMMANDS.CHALLENGE); //(copy)
-			if(!APPS_IDS.CHALLENGE.includes(this._info[2])){
-				command[4] = code;
-			}
 
-			//0x41 normal challenge response
-			//0x45 truncated rules response
-			//0x44 truncated players response
-				
-			this.connection.send(command)
-				.then(() => this.connection.awaitPacket(0x41, 0x45, 0x44))
-				.then(buffer => res(Array.from(buffer)))
-				.catch(rej);
-				
-		});
+	async ping(){
+		if(!this.connection) throw new Error('server is not connected to anything');
+		await this.connection;
+
+		if(!this.connection.disableWarns){
+			console.trace('A2A_PING request is a deprecated feature of source servers');
+		}
+
+		await this.connection.send(constants.COMMANDS.PING);
+		const start = Date.now();
+
+		await this.connection.awaitPacket(0x6A);
+		return Date.now() - start;
 	}
-		
-		
+
+	async challenge(code){
+		if(!this.connection) throw new Error('server is not connected to anything');
+		await this.connection;
+
+		const command = Array.from(constants.COMMANDS.CHALLENGE); // (copy)
+		if(!constants.APPS_IDS.CHALLENGE.includes(this._meta.appID)){
+			command[4] = code;
+		}
+
+		// 0x41 normal challenge response
+		// 0x44 truncated rules response
+		// 0x45 truncated players response
+		const truncatedCode = code - 17;
+
+		await this.connection.send(command);
+		const response = await this.connection.awaitPacket(0x41, truncatedCode);
+
+		return Array.from(response);
+	}
+
+	async connect(options){
+		if(this.connection) this.disconnect();
+		this.connection = (async () => {
+			const connection = await Connection.init(options, this);
+			const info = await _getInfo(connection);
+
+			Object.assign(this._meta, {
+				infoIsGoldSource: info.goldSource,
+				appID: info.appID,
+				protocol: info.protocol,
+			});
+
+			this.connection = connection;
+		})();
+
+		await this.connection;
+
+		if(options.debug) debug('server connected');
+
+		return this;
+	}
+
 	disconnect(){
 		if(!this.connection) throw new Error('server is not connected to anything');
-		delete servers[this.ip+':'+this.port];
 
 		this.connection.destroy();
-			
+
 		Object.assign(this, {
 			connection: null,
-			_info: [false, false, 0, 0],
-			ready: false
+			_meta: {
+				infoIsGoldSource: false,
+				multiPacketResponseIsGoldSource: false,
+				appID: null,
+				protocol: null,
+			},
 		});
-	}
 
-	connect(options){
-		Object.assign(this, parseOptions(options));
-		this.connection = new Connection(this);
-
-		return new Promise(async (res, rej) => {
-			await this.connection._ready();
-
-			getInfo(this)
-				.then(info => {
-					Object.assign(this, {
-						_info: [info.goldSource, this._info[1], info.appID, info.protocol],
-						ready: true
-					});
-					res();
-				})
-				.catch(rej);
-		});
-	}
-
-	static init(options){
-		return new Server(options);
+		return this;
 	}
 }
 
-function getInfo(server){
-	return new Promise(async (res, rej) => {
-		if(server.options.debug) console.log('\nSent:    ', Buffer.from(COMMANDS.INFO));
+module.exports = function init(options){
+	if(options){
+		return (new Server).connect(options);
+	}
 
-		try{
-			await server.connection.send(Buffer.from(COMMANDS.INFO));
-		}catch(e){
-			return rej(e);
-		}
-	
-		let results = await Promise.allSettled([
-			server.connection.awaitPacket(0x49),
-			server.connection.awaitPacket(0x6d)
-		]);
-		
-		let responses = results.filter(r => r.status === 'fulfilled')
-			.map(r => parsers.serverInfo(r.value))
-			.sort((a, b) => a.goldSource - b.goldSource);
+	return new Server;
+};
 
-		if(responses.length === 0){
-			return rej(Error('Can not connect to the server.'));
-		}
+module.exports.getInfo = async options => {
+	const connection = await Connection.init(options);
+	const info = await _getInfo(connection);
 
-		res(Object.assign({}, ...responses));
-	});
+	connection.destroy();
+	return info;
+};
+
+async function _getInfo(connection){
+	await connection.send(Buffer.from(constants.COMMANDS.INFO));
+
+	const results = await Promise.allSettled([
+		connection.awaitPacket(0x49),
+		connection.awaitPacket(0x6d)
+	]);
+
+	const responses = results
+		.filter(r => r.status === 'fulfilled')
+		.map(r => parsers.serverInfo(r.value));
+
+	if(responses.length === 0){
+		throw new Error('can not connect to the server.');
+	}
+
+	return Object.assign({
+		address: connection.ip+':'+connection.port,
+	}, ...responses);
 }
-
-Server.prototype.ping = require('util').deprecate(Server.prototype.ping, 'A2A_PING request is a deprecated feature of source servers');
-
-module.exports = Server;

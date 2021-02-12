@@ -13,7 +13,7 @@ Bzip decompression function was taken from [here](https://www.npmjs.com/package/
 * [Server query](https://github.com/Fabricio-191/valve-server-query/blob/master/docs/Server.md)
 * [Master server query](https://github.com/Fabricio-191/valve-server-query/blob/master/docs/MasterServer.md)  
   
-(later i will add RCON)
+Later i will add RCON and after that i will add the 'filter' to `master server query` options
 
 > If you have any error you can contact me on [Discord](https://discord.gg/zrESMn6) or [GitHub](https://github.com/Fabricio-191/valve-server-query/issues) (i prefer Discord)
 
@@ -24,21 +24,39 @@ const { Server, MasterServer } = require('@fabricio-191/valve-server-query');
 
 MasterServer({
     quantity: 200
-}).then(servers => {
-	console.log(servers);
-	
-	let [ip, port] = servers[0].split(':');
-
-	let sv = new Server({ ip, port });
-
-	sv.getInfo()
-		.then(console.log)
-		.catch(console.error);
-
-
-	sv.getPlayers()
-		.then(console.log)
-		.catch(console.error);
 })
-.catch(console.error);
+	.then(servers => {
+		console.log(servers); //an array of 'ip:port' strings
+	})
+	.catch(console.error);
+
+let sv = new Server()
+	.connect({ 
+		ip: '0.0.0.0', 
+		port: 27015 
+	})
+	.then(() => {
+		//connected
+	})
+	.catch(console.error);
+
+//These queries will not be done until the server is connected (this is handled internally)
+
+sv.getInfo()
+	.then(info => {
+		//...
+	})
+	.catch(console.error);
+
+sv.getPlayers()
+	.then(players => {
+		//...
+	})
+	.catch(console.error);
+
+sv.getRules()
+	.then(rules => {
+		//...
+	})
+	.catch(console.error);
 ```
