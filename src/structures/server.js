@@ -74,9 +74,10 @@ class Server{
 			console.trace('A2A_PING request is a deprecated feature of source servers');
 		}
 
+		const start = Date.now();
 		await this.connection.query(constants.COMMANDS.PING, 0x6A);
 
-		return this.ping;
+		return Date.now() - start;
 	}
 
 	async challenge(code){
