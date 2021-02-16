@@ -73,6 +73,7 @@ async function parseOptions(options){
 			debug: options.debug,
 			timeout: options.timeout,
 			retries: options.retries,
+			enableWarns: options.enableWarns,
 		},
 	};
 }

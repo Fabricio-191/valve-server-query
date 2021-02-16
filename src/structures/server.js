@@ -23,10 +23,12 @@ class Server{
 			this.connection.awaitPacket(0x6D)
 		);
 
+		const start = Date.now();
 		const responses = await Promise.all(requests);
 
 		return Object.assign({
 			address: this.connection.ip+':'+this.connection.port,
+			ping: Date.now() - start,
 		}, ...responses.map(parsers.serverInfo));
 	}
 
@@ -68,7 +70,7 @@ class Server{
 		if(!this.connection) throw new Error('server is not connected to anything');
 		await this.connection;
 
-		if(this.connection.enableWarns){
+		if(this.connection.options.enableWarns){
 			console.trace('A2A_PING request is a deprecated feature of source servers');
 		}
 

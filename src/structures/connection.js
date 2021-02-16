@@ -34,7 +34,7 @@ function onMessage(buffer, rinfo){
 
 function packetHandler(buffer, connection){
 	if(buffer.readInt32LE() === -2){
-		const { server: { _meta }, packetsQueues, timeout } = connection;
+		const { server: { _meta }, packetsQueues, options } = connection;
 
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
 			// only valid in the first packet
@@ -47,7 +47,7 @@ function packetHandler(buffer, connection){
 				buffer, _meta
 			);
 		}catch(e){
-			if(connection.options.debug){
+			if(options.debug){
 				debug('cannot parse packet', buffer);
 			}
 			throw new Error('Cannot parse packet');
@@ -59,7 +59,7 @@ function packetHandler(buffer, connection){
 
 			setTimeout(() => {
 				delete packetsQueues[packet.ID];
-			}, timeout * 2);
+			}, options.timeout * 2);
 
 			return;
 		}
@@ -80,7 +80,7 @@ function packetHandler(buffer, connection){
 		);
 
 		if(queue[0].bzip){
-			if(connection.options.debug){
+			if(options.debug){
 				debug(`BZip ${connection.ip}:${connection.port}`, buffer);
 			}
 			buffer = decompressBZip(buffer);
@@ -111,6 +111,7 @@ class Connection{
 		debug: false,
 		timeout: 2000,
 		retries: 3,
+		enableWarns: true,
 	}
 
 	server = null;

@@ -85,7 +85,7 @@ async function MasterServer(options = {}){
 			buffer = await connection.query(command, 0x66);
 		}catch(e){
 			if(servers.length === 0) throw e;
-			if(connection.enableWarns){
+			if(connection.options.enableWarns){
 				console.trace('cannot get full list of servers');
 			}
 			break;
