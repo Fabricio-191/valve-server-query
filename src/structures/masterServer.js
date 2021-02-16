@@ -64,7 +64,7 @@ async function MasterServer(options = {}){
 		port: 27011,
 	});
 
-	const connection = await Connection.init(options);
+	const connection = await Connection(options);
 
 	const queryOptions = parseQueryOptions(options);
 	const servers = [];
@@ -80,14 +80,12 @@ async function MasterServer(options = {}){
 			.string('')
 			.end();
 
-		connection.send(command);
-
 		let buffer;
 		try{
-			buffer = await connection.awaitPacket(0x66);
+			buffer = await connection.query(command, 0x66);
 		}catch(e){
 			if(servers.length === 0) throw e;
-			if(!this.connection.disableWarns){
+			if(connection.enableWarns){
 				console.trace('cannot get full list of servers');
 			}
 			break;

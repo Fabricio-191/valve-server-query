@@ -6,6 +6,7 @@ type address = string;
 
 declare namespace MasterServer {
 	/** Filter to use when querying a master server */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface Filter{
 		/** A special filter, specifies that servers matching any of the following [x] conditions should not be returned */
 		nor?: Filter;
@@ -45,12 +46,12 @@ declare namespace MasterServer {
 
 		/** Return only servers on the specified IP address (port supported and optional) */
 		gameaddr?: string;
-		
+
 		/** Servers that are running game [appid] */
 		appid?: number;
 		/** Servers that are NOT running game [appid] */
 		napp?: number;
-		
+
 		/** Servers with all of the given tag(s) in sv_tags */
 		gametype?: string[];
 		/** Servers with all of the given tag(s) in their 'hidden' tags (L4D2) */
@@ -61,7 +62,7 @@ declare namespace MasterServer {
 
 	/** Options to initialize the master server to query. */
 	interface Options{
-		/** Ip address or hostname to the master server to query */
+		/** Ip address or hostname to the master server to query, default: `'hl1master.steampowered.com'` */
 		ip?: 'hl2master.steampowered.com' | 'hl1master.steampowered.com' | string;
 		/** Port to use to send data to the server */
 		port?: number | string;
@@ -69,24 +70,29 @@ declare namespace MasterServer {
 		timeout?: number;
 		/** Whenether to show or not the incoming and outcoming packages, default: `false` */
 		debug?: boolean;
-		/** Minimum quantity of servers to retrieve  */
-		quantity?: number;
-		/** Filter of the servers to retrieve */
-		filter?: Filter;
+		/** Whenether to show or not some warnings, default: `true`  */
+		enableWarns?: boolean;
+		/** Number of attempts to make a query to the server, default: `3` */
+		retries?: number;
+
+		/** Minimum quantity of servers to retrieve, default: `200`  */
+		quantity?: number | 'all';
 		/** Region of the servers to retrieve */
-		region?: 
-			'US_EAST' | 
-			'US_WEST' | 
-			'SOUTH_AMERICA' | 
-			'EUROPE' | 
-			'ASIA' | 
-			'AUSTRALIA' | 
-			'MIDDLE_EAST' | 
-			'AFRICA' | 
-			'OTHER' | 
-			'ALL';
+		region?:
+			'US_EAST' |
+			'US_WEST' |
+			'SOUTH_AMERICA' |
+			'EUROPE' |
+			'ASIA' |
+			'AUSTRALIA' |
+			'MIDDLE_EAST' |
+			'AFRICA' |
+			'OTHER';
+
+		// /** Filter of the servers to retrieve */
+		// filter?: Filter;
 	}
-	
+
 	/** Get the source and goldsource master servers ip's */
 	export function getIPS(): Promise<{
 		/** GoldSource master servers ip's */
@@ -102,7 +108,7 @@ declare namespace Server {
 		hours: number;
 		minutes: number;
 		seconds: number;
-		
+
 		/** Since when is counting. */
 		start: Date;
 		/** The number of miliseconds that the player has been connected to the server */
@@ -234,86 +240,58 @@ declare namespace Server {
 		ip: string;
 		/** Port to use to send data to the server, default: `27015` */
 		port?: number | string;
-		/** Maximum time (in miliseconds) to wait a server response, default: `1000` */
+		/** Maximum time (in miliseconds) to wait a server response, default: `2000` */
 		timeout?: number;
 		/** Whenether to show or not the incoming and outcoming packages, default: `false` */
 		debug?: boolean;
+		/** Whenether to show or not some warnings, default: `true`  */
+		enableWarns?: boolean;
+		/** Number of attempts to make a query to the server, default: `3` */
+		retries?: number;
 	}
-	
-	export class Server {
-		/**
-		 * @param options Options to initialize the server
-		 */
-		constructor(options?: Options);
 
-		/** Retrieves info from the server */
-		getInfo(): Promise<Info>;
+	export function getInfo(options: Server.Options): Promise<Server.Info>
+}
 
-		/** Retrieves a list of players in the servers */
-		getPlayers(): Promise<PlayerInfo[]>;
+interface Server{
+	/** Retrieves info from the server */
+	getInfo(): Promise<Server.Info>;
 
-		/** Retrieves a list of the rules in the servers (aka: config) */
-		getRules(): Promise<Rules>;
+	/** Retrieves a list of players in the servers */
+	getPlayers(): Promise<Server.PlayerInfo[]>;
 
-		/**
-		 * Ejecutes the A2A_PING request to the server
-		 * This method is deprecated, you should use the `getInfo` method instead
-		 * @deprecated
-		 */
-		ping(): Promise<number>;
+	/** Retrieves a list of the rules in the servers (aka: config) */
+	getRules(): Promise<Server.Rules>;
 
-			
-		/**
-		 * Connects to a server
-		 * returns a promise that is resolved when the connection is complete
-		 */
-		connect(options: Server.Options): Promise<void>;
-			
-		/** Disconnects the server */
-		disconnect(): void;
+	/**
+	 * Ejecutes the A2A_PING request to the server
+	 * This method is deprecated, you should use the `getInfo` method instead
+	 * @deprecated
+	 */
+	ping(): Promise<number>;
 
-		static init(options?: Server.Options): Server;
+	/**
+	 * Connects to a server
+	 * returns a promise that is resolved when the connection is complete
+	 */
+	connect(options: Server.Options): Promise<this>;
 
-		static getInfo(options: Server.Options): Promise<Server.Info>;
-	}
+	/** Disconnects the server */
+	disconnect(): void;
 }
 
 /** Make queries to a server running a valve game */
-declare function Server(): Server.Server;
+declare function Server(): Server;
 /** Make queries to a server running a valve game */
-declare function Server(options: Server.Options): Promise<Server.Server>;
+declare function Server(options: Server.Options): Promise<Server>;
+
 /**
  * Method to query valve master servers
  * @param options options for the query
  */
 declare function MasterServer(options?: MasterServer.Options): Promise<address[]>;
-/**
- * If the value is false, the socket will not keep the node.js process alive
- * @param value Whenether to ref or not the socket
- */
-declare function setSocketRef(value: boolean): Exports;
-
-interface Exports{
-	/** Make queries to a server running a valve game */
-	Server(): Server.Server,
-	/** Make queries to a server running a valve game */
-	Server(options: Server.Options): Promise<Server.Server>,
-	
-	/**
-	 * Method to query valve master servers
-	 * @param options options for the query
-	 */
-	MasterServer(options?: MasterServer.Options): Promise<address[]>,
-	
-	/**
-	 * If the value is false, the socket will not keep the node.js process alive
-	 * @param value Whenether to ref or not the socket
-	 */
-	setSocketRef(value: boolean): Exports,
-}
 
 export {
 	Server,
-	MasterServer,
-	setSocketRef
-}
+	MasterServer
+};

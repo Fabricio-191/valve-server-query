@@ -89,9 +89,10 @@
 	},
 	"DEFAULT_OPTIONS": { 
 		"port": 27015,
-		"timeout": 1000,
+		"timeout": 2000,
 		"debug": false,
-		"disableWarns": false
+		"enableWarns": true,
+		"retries": 3
 	},
 	"REGION_CODES": {
 		"US_EAST":       0,

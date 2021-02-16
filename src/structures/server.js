@@ -15,11 +15,8 @@ class Server{
 		if(!this.connection) throw new Error('server is not connected to anything');
 		await this.connection;
 
-		await this.connection.send(constants.COMMANDS.INFO);
-		const start = Date.now();
-
 		const requests = [
-			this.connection.awaitPacket(0x49)
+			this.connection.query(constants.COMMANDS.INFO, 0x49)
 		];
 
 		if(this._meta.infoIsGoldSource) requests.push(
@@ -30,7 +27,6 @@ class Server{
 
 		return Object.assign({
 			address: this.connection.ip+':'+this.connection.port,
-			ping: Date.now() - start,
 		}, ...responses.map(parsers.serverInfo));
 	}
 
@@ -41,11 +37,8 @@ class Server{
 			return parsers.playersInfo(Buffer.from(key));
 		}
 
-		await this.connection.send(
-			constants.COMMANDS.PLAYERS.concat(...key.slice(1))
-		);
-
-		const response = await this.connection.awaitPacket(0x44);
+		const command = constants.COMMANDS.PLAYERS.concat(...key.slice(1));
+		const response = await this.connection.query(command, 0x44);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
 			throw new Error('Wrong server response');
@@ -61,11 +54,8 @@ class Server{
 			return parsers.serverRules(Buffer.from(key));
 		}
 
-		await this.connection.send(
-			constants.COMMANDS.RULES.concat(...key.slice(1))
-		);
-
-		const response = await this.connection.awaitPacket(0x45);
+		const command = constants.COMMANDS.RULES.concat(...key.slice(1));
+		const response = await this.connection.query(command, 0x45);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
 			throw new Error('Wrong server response');
@@ -74,19 +64,17 @@ class Server{
 		return parsers.serverRules(response);
 	}
 
-	async ping(){
+	async getPing(){
 		if(!this.connection) throw new Error('server is not connected to anything');
 		await this.connection;
 
-		if(!this.connection.disableWarns){
+		if(this.connection.enableWarns){
 			console.trace('A2A_PING request is a deprecated feature of source servers');
 		}
 
-		await this.connection.send(constants.COMMANDS.PING);
-		const start = Date.now();
+		await this.connection.query(constants.COMMANDS.PING, 0x6A);
 
-		await this.connection.awaitPacket(0x6A);
-		return Date.now() - start;
+		return this.ping;
 	}
 
 	async challenge(code){
@@ -102,9 +90,7 @@ class Server{
 		// 0x44 truncated rules response
 		// 0x45 truncated players response
 		const truncatedCode = code - 17;
-
-		await this.connection.send(command);
-		const response = await this.connection.awaitPacket(0x41, truncatedCode);
+		const response = await this.connection.query(command, 0x41, truncatedCode);
 
 		return Array.from(response);
 	}
@@ -112,7 +98,7 @@ class Server{
 	async connect(options){
 		if(this.connection) this.disconnect();
 		this.connection = (async () => {
-			const connection = await Connection.init(options, this);
+			const connection = await Connection(options, this);
 			const info = await _getInfo(connection);
 
 			Object.assign(this._meta, {
@@ -167,10 +153,10 @@ module.exports.getInfo = async options => {
 };
 
 async function _getInfo(connection){
-	await connection.send(Buffer.from(constants.COMMANDS.INFO));
-
 	const results = await Promise.allSettled([
-		connection.awaitPacket(0x49),
+		connection.query(
+			Buffer.from(constants.COMMANDS.INFO), 0x49
+		),
 		connection.awaitPacket(0x6d)
 	]);
 

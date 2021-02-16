@@ -44,6 +44,8 @@ If the IP entered is not IPv4 or IPv6, it will be treated as a hostname and an a
     port: 28015, //by default is 27015
     timeout: 3000, //by default is 2000 (2 seconds)
     debug: true, //by default is false (it shows incoming and outcoming buffers)
+    enableWarns: false, //by default is true (shows some warnings when necessary)
+    retries: 5 // by default is 3 (Number of attempts to make a query to a server)
 }
 ```
 
@@ -171,7 +173,7 @@ Server.getInfo({
 # Other example of use
 
 ```js
-let server = Server();
+const server = Server();
 
 server.connect({
     ip: '0.0.0.0',

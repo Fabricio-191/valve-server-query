@@ -60,11 +60,21 @@ async function parseOptions(options){
 		throw Error("'timeout' should be a number");
 	}else if(typeof options.debug !== 'boolean'){
 		throw Error("'debug' should be a boolean");
-	}else if(typeof options.disableWarns !== 'boolean'){
-		throw Error("'disableWarns' should be a boolean");
+	}else if(typeof options.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+	}else if(typeof options.retries !== 'number'){
+		throw Error("'retries' should be a number");
 	}
 
-	return options;
+	return {
+		ip: options.ip,
+		port: options.port,
+		options: {
+			debug: options.debug,
+			timeout: options.timeout,
+			retries: options.retries,
+		},
+	};
 }
 
 function debug(string, buffer){

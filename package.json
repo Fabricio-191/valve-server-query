@@ -32,6 +32,7 @@
   "scripts": {
     "test": "node test/test.js",
     "eslint": "npx eslint src --fix && npx eslint test --fix",
-    "eslintd": "npx eslint typings --fix"
+    "eslintd": "npx eslint typings --fix",
+    "git": "git add . && git commit -m - && git push"
   }
 }

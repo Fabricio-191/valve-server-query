@@ -2,18 +2,17 @@ const { parsers, decompressBZip, debug, parseOptions } = require('../utils/utils
 const dgram = require('dgram'), servers = {};
 
 const clients = {
-	_udp4: null,
-	get udp4(){
-		if(!this._udp4){
-			this._udp4 = dgram.createSocket('udp4').on('message', onMessage);
-		}
-
-		return this._udp4;
-	},
+	udp4: dgram
+		.createSocket('udp4')
+		.on('message', onMessage)
+		.unref(),
 	_udp6: null,
 	get udp6(){
 		if(!this._udp6){
-			this._udp6 = dgram.createSocket('udp6').on('message', onMessage);
+			this._udp6 = dgram
+				.createSocket('udp6')
+				.on('message', onMessage)
+				.unref();
 		}
 
 		return this._udp6;
@@ -25,7 +24,7 @@ function onMessage(buffer, rinfo){
 
 	const entry = servers[rinfo.address+':'+rinfo.port];
 	if(!entry) return;
-	if(entry.debug) debug('recieved:', buffer);
+	if(entry.options.debug) debug('recieved:', buffer);
 
 	const packet = packetHandler(buffer, entry);
 	if(!packet) return;
@@ -48,7 +47,7 @@ function packetHandler(buffer, connection){
 				buffer, _meta
 			);
 		}catch(e){
-			if(connection.debug){
+			if(connection.options.debug){
 				debug('cannot parse packet', buffer);
 			}
 			throw new Error('Cannot parse packet');
@@ -81,7 +80,9 @@ function packetHandler(buffer, connection){
 		);
 
 		if(queue[0].bzip){
-			if(connection.debug) debug(`BZip ${connection.ip}:${connection.port}`, buffer);
+			if(connection.options.debug){
+				debug(`BZip ${connection.ip}:${connection.port}`, buffer);
+			}
 			buffer = decompressBZip(buffer);
 		}
 		/*
@@ -102,17 +103,21 @@ class Connection{
 		this.server = server;
 		servers[this.ip+':'+this.port] = this;
 	}
+	protocol = 4;
 	ip = null;
 	port = null;
-	timeout = 2000;
-	debug = false;
+
+	options = {
+		debug: false,
+		timeout: 2000,
+		retries: 3,
+	}
 
 	server = null;
 	packetsQueues = {};
 
-	protocol = 4;
 	send(command){
-		if(this.debug) debug('sent:', command);
+		if(this.options.debug) debug('sent:', command);
 		return new Promise((res, rej) => {
 			clients['udp' + this.protocol]
 				.send(Buffer.from(command), this.port, this.ip, err => {
@@ -129,7 +134,7 @@ class Connection{
 		);
 	}
 
-	awaitPacket(packetHeaders){
+	awaitPacket(...packetHeaders){
 		return new Promise((res, rej) => {
 			const handler = buffer => {
 				if(!packetHeaders.includes(buffer[0])) return;
@@ -144,44 +149,46 @@ class Connection{
 			const timeout = setTimeout(() => {
 				this._rmCallback(handler);
 				rej(new Error('Response timeout.'));
-			}, this.timeout);
+			}, this.options.timeout);
 
 			this._callbacks.push(handler);
 		});
 	}
 
-	async query(command, ...responseHeaders){
-		const response = this.awaitPacket(responseHeaders)
-			.then(() => { response.fullfilled = true; });
+	query(command, ...responseHeaders){
+		return new Promise((res, rej) => {
+			let finished = false;
+			this.awaitPacket(...responseHeaders)
+				.then(res)
+				.catch(rej)
+				.finally(() => {
+					finished = true;
+				});
 
-		while(!response.fullfilled){
-			await this.send(command);
+			const retry = () => {
+				if(finished) return;
+				this.send(command)
+					.then(() => {
+						setTimeout(retry, this.options.timeout / this.options.retries);
+					})
+					.catch(rej);
+			};
 
-			await delay(this.timeout / this.retries);
-		}
-
-		return await response;
+			retry();
+		});
 	}
 
 	destroy(){
 		delete servers[this.ip+':'+this.port];
 	}
-
-	static async init(options, server){
-		return new Connection(
-			await parseOptions(options), server
-		);
-	}
 }
 
 module.exports = {
-	Connection,
+	async Connection(options, server){
+		return new Connection(
+			await parseOptions(options), server
+		);
+	},
 	servers,
 	clients,
 };
-
-function delay(timeout){
-	return new Promise(res => {
-		setTimeout(res, timeout);
-	});
-}
