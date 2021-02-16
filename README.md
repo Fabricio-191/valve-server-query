@@ -30,33 +30,17 @@ MasterServer({
 	})
 	.catch(console.error);
 
-let sv = new Server()
-	.connect({ 
-		ip: '0.0.0.0', 
-		port: 27015 
-	})
-	.then(() => {
-		//connected
-	})
-	.catch(console.error);
+Server({
+    ip: '0.0.0.0',
+    port: 27015,
+    timeout: 2000
+})
+  .then(async server => {
+    const info = await server.getInfo();
+    const players = await server.getPlayers();
+    const rules = await server.getRules();
 
-//These queries will not be done until the server is connected (this is handled internally)
-
-sv.getInfo()
-	.then(info => {
-		//...
-	})
-	.catch(console.error);
-
-sv.getPlayers()
-	.then(players => {
-		//...
-	})
-	.catch(console.error);
-
-sv.getRules()
-	.then(rules => {
-		//...
-	})
-	.catch(console.error);
+    console.log(info, players, rules);
+  })
+  .catch(console.error)
 ```
