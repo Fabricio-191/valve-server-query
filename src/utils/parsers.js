@@ -1,73 +1,126 @@
-const constants = require('./constants.json');
+/* eslint-disable no-multi-spaces */
+const OPERATIVE_SYSTEMS = {
+		l: 'linux',
+		w: 'windows',
+		m: 'mac',
+		o: 'mac',
+	},
+	SERVER_TYPES = {
+		d: 'dedicated',
+		l: 'non-dedicated',
+		p: 'source tv relay',
+	},
+	THE_SHIP_MODES = [
+		'hunt',
+		'elimination',
+		'duel',
+		'deathmatch',
+		'vip team',
+		'team elimination',
+	];
 
-function time(total){
-	if(!total || total === -1) return null;
+class Time{
+	constructor(raw){
+		const hours   = Math.floor(raw / 3600) 							|| 0;
+		const minutes = Math.floor(raw / 60) - hours * 60 				|| 0;
+		const seconds = Math.floor(raw) - minutes * 60 - hours * 3600 	|| 0;
 
-	const hours = Math.floor(total / 3600);
-	const minutes = Math.floor(total / 60) - hours * 60;
-	const seconds = Math.floor(total) - minutes * 60 - hours * 3600;
+		Object.assign(this, {
+			hours, minutes, seconds, raw,
+			start: new Date(Date.now() - raw),
+		});
+	}
 
-	return {
-		hours,
-		minutes,
-		seconds,
-		start: new Date(Date.now() - total),
-		raw: total,
-	};
+	hours = 0;
+	minutes = 0;
+	seconds = 0;
+	start = null;
+	raw = 0;
+
+	toString(){
+		return [this.hours, this.minutes, this.seconds]
+			.reduce((acc, value) => {
+				if(acc !== ''){
+					// @ts-ignore
+					if(value < 10) value = '0' + value;
+					acc += ':' + value;
+				}
+				else if(value !== 0){ acc += value; }
+
+
+				return acc;
+			}, '');
+	}
+
+	[Symbol.toPrimitive](hint){
+		if(hint === 'number'){
+			return this.raw;
+		}else if(hint === 'string'){
+			return this.toString();
+		}
+
+		return true;
+	}
+}
+
+function time(value){
+	if(!value || value === -1) return null;
+
+	return new Time(value);
 }
 
 class BufferParser{
 	constructor(buffer, offset = 0){
-		Object.assign(this, { buffer, offset });
+		Object.assign(this, { raw: buffer, offset });
 	}
-	buffer = null;
+	raw = null;
 	offset = 0;
 
 	byte(){
-		return this.buffer.readUInt8(this.offset++);
+		return this.raw.readUInt8(this.offset++);
 	}
 
 	short(unsigned = false, endianess = 'LE'){
 		this.offset += 2;
 		if(unsigned){
-			return this.buffer[`readUInt16${endianess}`](this.offset-2);
+			return this.raw[`readUInt16${endianess}`](this.offset-2);
 		}
 
-		return this.buffer[`readInt16${endianess}`](this.offset-2);
+		return this.raw[`readInt16${endianess}`](this.offset-2);
 	}
 
 	long(){
 		this.offset += 4;
-		return this.buffer.readInt32LE(this.offset-4);
+		return this.raw.readInt32LE(this.offset-4);
 	}
 
 	float(){
 		this.offset += 4;
-		return this.buffer.readFloatLE(this.offset-4);
+		return this.raw.readFloatLE(this.offset-4);
 	}
 
 	bigUInt(){// long long
 		this.offset += 8;
-		return this.buffer.readBigUInt64LE(this.offset-8);
+		return this.raw.readBigUInt64LE(this.offset-8);
 	}
 
 	string(){
-		const stringEndIndex = this.buffer.indexOf(0, this.offset);
-		const string = this.buffer.slice(this.offset, stringEndIndex).toString();
+		const stringEndIndex = this.raw.indexOf(0, this.offset);
+		const string = this.raw.slice(this.offset, stringEndIndex).toString();
 
 		this.offset += stringEndIndex - this.offset + 1;
 		return string;
 	}
 
 	char(){
-		return this.buffer.slice(
-			this.offset++, this.offset
+		return this.raw.slice(
+			this.offset++, this.offset,
 		).toString();
 	}
 
 
 	remaining(){
-		return this.buffer.slice(this.offset);
+		return this.raw.slice(this.offset);
 	}
 }
 
@@ -76,6 +129,8 @@ module.exports = {
 	serverInfo, playersInfo,
 	serverRules, serverList,
 	multiPacketResponse,
+
+	RCONPacket,
 };
 
 function serverInfo(buffer){
@@ -96,8 +151,8 @@ function serverInfo(buffer){
 			max: buffer.byte(),
 			bots: buffer.byte(),
 		},
-		type: constants.SERVER_TYPES[buffer.char()] || null,
-		OS: constants.OPERATIVE_SYSTEMS[buffer.char()],
+		type: SERVER_TYPES[buffer.char()] || null,
+		OS: OPERATIVE_SYSTEMS[buffer.char()],
 		visibility: buffer.byte() ?
 			'private' : 'public',
 		VAC: buffer.byte() === 1,
@@ -105,7 +160,7 @@ function serverInfo(buffer){
 
 	if(info.game === 'The Ship' || info.appID === 2400){
 		Object.assign(info, {
-			mode: constants.THE_SHIP_MODES[buffer.byte()],
+			mode: THE_SHIP_MODES[buffer.byte()],
 			witnesses: buffer.byte(),
 			duration: buffer.byte(),
 		});
@@ -144,10 +199,10 @@ function goldSourceServerInfo(buffer){
 		},
 		protocol: buffer.byte(),
 		goldSource: true,
-		type: constants.SERVER_TYPES[
+		type: SERVER_TYPES[
 			buffer.char().toLowerCase()
 		],
-		OS: constants.OPERATIVE_SYSTEMS[
+		OS: OPERATIVE_SYSTEMS[
 			buffer.char().toLowerCase()
 		],
 		visibility: buffer.byte() ?
@@ -156,6 +211,7 @@ function goldSourceServerInfo(buffer){
 	};
 
 	if(info.mod){
+		// @ts-ignore
 		info.mod = {
 			link: buffer.string(),
 			downloadLink: buffer.string(),
@@ -166,10 +222,8 @@ function goldSourceServerInfo(buffer){
 		Object.assign(info.mod, {
 			version: buffer.long(),
 			size: buffer.long(),
-			type: buffer.byte() ?
-				'multiplayer only mod' : 'single and multiplayer mod',
-			DLL: buffer.byte() ?
-				'it uses its own DLL' : 'it uses the Half-Life DLL',
+			multiplayerOnly: Boolean(buffer.byte()),
+			ownDLL: Boolean(buffer.byte()),
 		});
 	}
 
@@ -181,11 +235,9 @@ function goldSourceServerInfo(buffer){
 
 function playersInfo(buffer){
 	buffer = new BufferParser(buffer, 1);
-	// first byte = header
+
 	const playersCount = buffer.byte(), players = [];
 	for(let i = 0; i < playersCount; i++){
-		// 'bSlf'
-
 		players.push({
 			index: buffer.byte(),
 			name: buffer.string(),
@@ -194,13 +246,13 @@ function playersInfo(buffer){
 		});
 	}
 
-
-	if(buffer.remaining().length){
+	const remaining = buffer.remaining();
+	if(remaining.length){
 		if(
 			playersCount !== 255 &&
-			buffer.remaining().length === playersCount * 8
-		){
-			for(let i = 0; i < playersCount; i++){ // is the ship
+			remaining.length === playersCount * 8
+		){ // is the ship
+			for(let i = 0; i < playersCount; i++){
 				Object.assign(players[i], {
 					deaths: buffer.long(),
 					money: buffer.long(),
@@ -223,7 +275,6 @@ function playersInfo(buffer){
 
 function serverRules(buffer){
 	buffer = new BufferParser(buffer, 1);
-	// firstByte = header
 	const rulesQuantity = buffer.short(), rules = {};
 
 	for(let i=0; i < rulesQuantity; i++){
@@ -248,7 +299,6 @@ function serverRules(buffer){
 
 function multiPacketResponse(buffer, _meta){
 	buffer = new BufferParser(buffer, 4);
-
 	const ID = buffer.long(), packets = buffer.byte();
 
 	if(_meta.multiPacketResponseIsGoldSource){
@@ -260,7 +310,7 @@ function multiPacketResponse(buffer, _meta){
 			},
 			payload: buffer.remaining(),
 			goldSource: true,
-			raw: buffer.buffer,
+			raw: buffer.raw,
 		};
 	}
 	const info = {
@@ -270,12 +320,12 @@ function multiPacketResponse(buffer, _meta){
 			current: buffer.byte(),
 		},
 		goldSource: false,
-		raw: buffer.buffer,
+		raw: buffer.raw,
 	};
 
 	if(
-		!constants.APPS_IDS.PACKET_SIZE.includes(_meta.appID) &&
-		!(_meta.protocol === 7 && _meta.appID === 240)
+		![ 215, 17550, 17700 ].includes(_meta.appID) &&
+		!(_meta.appID === 240 && _meta.protocol === 7)
 	){
 		info.maxPacketSize = buffer.short();
 	}
@@ -301,11 +351,23 @@ function serverList(buffer){
 			buffer.byte(),
 			buffer.byte(),
 			buffer.byte(),
-			buffer.byte()
+			buffer.byte(),
 		].join('.');
 
 		servers.push(ip+':'+buffer.short(true, 'BE'));
 	}
 
 	return servers;
+}
+
+function RCONPacket(raw){
+	const buffer = new BufferParser(raw);
+
+	return {
+		size: buffer.long(),
+		ID: buffer.long(),
+		type: buffer.long(),
+		body: buffer.remaining(),
+		raw,
+	};
 }

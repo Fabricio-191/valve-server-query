@@ -1,4 +1,5 @@
 module.exports = {
-	Server: require('./structures/server.js'),
-	MasterServer: require('./structures/masterServer.js'),
+	Server: require('./main/server.js'),
+	MasterServer: require('./main/masterServer.js'),
+	RCON: require('./main/RCON/RCON.js'),
 };

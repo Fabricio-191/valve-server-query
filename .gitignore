@@ -1,2 +1,9 @@
 node_modules/
 package-lock.json
+
+jsconfig.json
+.npmignore
+.gitignore
+.eslintrc.js
+.eslintrc.json
+.babelrc

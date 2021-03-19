@@ -4,104 +4,6 @@
  */
 type address = string;
 
-declare namespace MasterServer {
-	/** Filter to use when querying a master server */
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface Filter{
-		/** A special filter, specifies that servers matching any of the following [x] conditions should not be returned */
-		nor?: Filter;
-
-		/** A special filter, specifies that servers matching all of the following [x] conditions should not be returned */
-		nand?: Filter;
-
-		/** Servers running dedicated */
-		dedicated?: boolean;
-		/** Servers using anti-cheat technology (VAC, but potentially others as well) */
-		secure?: boolean;
-		/** Servers running on a Linux platform */
-		linux?: boolean;
-		/** Servers that are password protected */
-		password?: boolean;
-		/** Servers that are not empty */
-		empty?: boolean;
-		/** Servers that are not full */
-		full?: boolean;
-		/** Servers that are spectator proxies */
-		proxy?: boolean;
-		/** Servers that are empty */
-		noplayers?: boolean;
-		/** Servers that are whitelisted */
-		white?: boolean;
-		/** Return only one server for each unique IP address matched */
-		collapse_addr_hash?: boolean;
-
-		/** Servers running the specified modification (ex. cstrike) */
-		gamedir?: string;
-		/** Servers running the specified map (ex. cs_italy) */
-		map?: string;
-		/** Servers with their hostname matching [hostname] (can use * as a wildcard) */
-		name_match?: string;
-		/** Servers running version [version] (can use * as a wildcard) */
-		version_match?: string;
-
-		/** Return only servers on the specified IP address (port supported and optional) */
-		gameaddr?: string;
-
-		/** Servers that are running game [appid] */
-		appid?: number;
-		/** Servers that are NOT running game [appid] */
-		napp?: number;
-
-		/** Servers with all of the given tag(s) in sv_tags */
-		gametype?: string[];
-		/** Servers with all of the given tag(s) in their 'hidden' tags (L4D2) */
-		gamedata?: string[];
-		/** Servers with any of the given tag(s) in their 'hidden' tags (L4D2) */
-		gamedataor?: string[];
-	}
-
-	/** Options to initialize the master server to query. */
-	interface Options{
-		/** Ip address or hostname to the master server to query, default: `'hl1master.steampowered.com'` */
-		ip?: 'hl2master.steampowered.com' | 'hl1master.steampowered.com' | string;
-		/** Port to use to send data to the server */
-		port?: number | string;
-		/** Maximum time (in miliseconds) to wait a server response, default: `1000` */
-		timeout?: number;
-		/** Whenether to show or not the incoming and outcoming packages, default: `false` */
-		debug?: boolean;
-		/** Whenether to show or not some warnings, default: `true`  */
-		enableWarns?: boolean;
-		/** Number of attempts to make a query to the server, default: `3` */
-		retries?: number;
-
-		/** Minimum quantity of servers to retrieve, default: `200`  */
-		quantity?: number | 'all';
-		/** Region of the servers to retrieve */
-		region?:
-			'US_EAST' |
-			'US_WEST' |
-			'SOUTH_AMERICA' |
-			'EUROPE' |
-			'ASIA' |
-			'AUSTRALIA' |
-			'MIDDLE_EAST' |
-			'AFRICA' |
-			'OTHER';
-
-		// /** Filter of the servers to retrieve */
-		// filter?: Filter;
-	}
-
-	/** Get the source and goldsource master servers ip's */
-	export function getIPS(): Promise<{
-		/** GoldSource master servers ip's */
-		goldSource: string[];
-		/** Source master servers ip's */
-		source: string[];
-	}>;
-}
-
 declare namespace Server {
 	/** An object representing time. */
 	interface Time {
@@ -125,10 +27,10 @@ declare namespace Server {
 		version: number;
 		/** Space (in bytes) the mod takes up. */
 		size: number;
-		/** Indicates the type of mod */
-		type: 'multiplayer only mod' | 'single and multiplayer mod';
-		/** Indicates whether mod uses its own DLL: */
-		DLL: 'it uses its own DLL' | 'it uses the Half-Life DLL';
+		/** Indicates the type if the mod is only for multiplayer or for single and multiplayer*/
+		multiplayerOnly: boolean;
+		/** Indicates whether mod uses its own DLL or Hald-Life DLL */
+		ownDLL: boolean;
 	}
 
 	/** Info from a player in the server. */
@@ -234,12 +136,8 @@ declare namespace Server {
 		[key: string]: string | boolean | number
 	}
 
-	/** Options to initialize the server. */
+	/** Data to initialize the server. */
 	interface Options {
-		/** Ip address or hostname to the server to connect */
-		ip: string;
-		/** Port to use to send data to the server, default: `27015` */
-		port?: number | string;
 		/** Maximum time (in miliseconds) to wait a server response, default: `2000` */
 		timeout?: number;
 		/** Whenether to show or not the incoming and outcoming packages, default: `false` */
@@ -250,10 +148,125 @@ declare namespace Server {
 		retries?: number;
 	}
 
-	export function getInfo(options: Server.Options): Promise<Server.Info>
+	/** Data to initialize the server. */
+	interface Data {
+		/** Ip address or hostname to the server to connect */
+		ip?: string;
+		/** Port to use to send data to the server, default: `27015` */
+		port?: number | string;
+		options?: Options;
+	}
+
+	export function getInfo(options: Data): Promise<Server.Info>;
 }
 
-interface Server{
+declare namespace MasterServer {
+	/** Filter to use when querying a master server */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	interface Filter{
+		/** A special filter, specifies that servers matching any of the following [x] conditions should not be returned */
+		nor?: Filter;
+
+		/** A special filter, specifies that servers matching all of the following [x] conditions should not be returned */
+		nand?: Filter;
+
+		/** Servers running dedicated */
+		dedicated?: boolean;
+		/** Servers using anti-cheat technology (VAC, but potentially others as well) */
+		secure?: boolean;
+		/** Servers running on a Linux platform */
+		linux?: boolean;
+		/** Servers that are password protected */
+		password?: boolean;
+		/** Servers that are not empty */
+		empty?: boolean;
+		/** Servers that are not full */
+		full?: boolean;
+		/** Servers that are spectator proxies */
+		proxy?: boolean;
+		/** Servers that are empty */
+		noplayers?: boolean;
+		/** Servers that are whitelisted */
+		white?: boolean;
+		/** Return only one server for each unique IP address matched */
+		collapse_addr_hash?: boolean;
+
+		/** Servers running the specified modification (ex. cstrike) */
+		gamedir?: string;
+		/** Servers running the specified map (ex. cs_italy) */
+		map?: string;
+		/** Servers with their hostname matching [hostname] (can use * as a wildcard) */
+		name_match?: string;
+		/** Servers running version [version] (can use * as a wildcard) */
+		version_match?: string;
+
+		/** Return only servers on the specified IP address (port supported and optional) */
+		gameaddr?: string;
+
+		/** Servers that are running game [appid] */
+		appid?: number;
+		/** Servers that are NOT running game [appid] */
+		napp?: number;
+
+		/** Servers with all of the given tag(s) in sv_tags */
+		gametype?: string[];
+		/** Servers with all of the given tag(s) in their 'hidden' tags (L4D2) */
+		gamedata?: string[];
+		/** Servers with any of the given tag(s) in their 'hidden' tags (L4D2) */
+		gamedataor?: string[];
+	}
+
+	/** Data to initialize the server. */
+	interface Options extends Server.Options{
+		/** Minimum quantity of servers to retrieve, default: `200`  */
+		quantity?: number | 'all';
+		/** Region of the servers to retrieve */
+		region?:
+			'US_EAST' |
+			'US_WEST' |
+			'SOUTH_AMERICA' |
+			'EUROPE' |
+			'ASIA' |
+			'AUSTRALIA' |
+			'MIDDLE_EAST' |
+			'AFRICA' |
+			'OTHER';
+	}
+
+	/** Data to query the master server. */
+	interface Data extends Server.Data, Options{
+		/** Ip address or hostname to the master server to query, default: `'hl1master.steampowered.com'` */
+		ip?: 'hl2master.steampowered.com' | 'hl1master.steampowered.com' | string;
+		// /** Filter of the servers to retrieve */
+		// filter?: Filter;
+	}
+
+	/** Get the source and goldsource master servers ip's */
+	export function getIPs(): Promise<{
+		/** GoldSource master servers ip's */
+		goldSource: string[];
+		/** Source master servers ip's */
+		source: string[];
+	}>;
+}
+
+declare namespace RCON {
+	/** Options to initialize the remote console. */
+	interface Data extends Server.Data{
+		/** Password of RCON */
+		password: string;
+	}
+
+	interface CLI{
+		enable(): void;
+		disable(): void;
+	}
+
+	type Command = string |
+		'_fov';
+}
+
+class Server{
 	/** Retrieves info from the server */
 	getInfo(): Promise<Server.Info>;
 
@@ -270,28 +283,25 @@ interface Server{
 	 */
 	ping(): Promise<number>;
 
-	/**
-	 * Connects to a server
-	 * returns a promise that is resolved when the connection is complete
-	 */
-	connect(options: Server.Options): Promise<this>;
-
 	/** Disconnects the server */
 	disconnect(): void;
 }
 
-/** Make queries to a server running a valve game */
-declare function Server(): Server;
-/** Make queries to a server running a valve game */
-declare function Server(options: Server.Options): Promise<Server>;
+/** An interface to use de remote console */
+interface RCON{
+	/** Method to execute a console command */
+	exec(command: RCON.Command): Promise<string>;
+	/** Method used to re-autenticate when rcon password is changed or connection is lost*/
+	autenticate(password?: string): Promise<void>;
+	/** Method to destroy the connection to the RCON */
+	destroy(): void;
+	/** A interface to the CLI */
+	cli: RCON.CLI;
+}
 
-/**
- * Method to query valve master servers
- * @param options options for the query
- */
-declare function MasterServer(options?: MasterServer.Options): Promise<address[]>;
-
-export {
-	Server,
-	MasterServer
-};
+/** Make queries to a server running a valve game */
+export function Server(data: Server.Data): Promise<Server>;
+/** Make a remote console to a server running a valve game */
+export function RCON(data?: RCON.Data): Promise<RCON>;
+/** Method to query valve master servers */
+export function MasterServer(data?: MasterServer.Data): Promise<address[]>;

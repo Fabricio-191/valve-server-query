@@ -1,8 +1,0 @@
-node_modules/
-package-lock.json
-
-.gitignore
-docs/
-test/
-.eslintrc.js
-.eslintrc.json

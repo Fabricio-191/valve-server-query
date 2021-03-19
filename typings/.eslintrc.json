@@ -17,6 +17,17 @@
         "ecmaVersion": 12
     },
     "rules": {
-        "no-useless-constructor": "off"
+        "brace-style": "off",
+        "no-unused-vars": "off",
+        "semi": "off",  
+        "quotes": "off",
+        "comma-dangle": "off",
+        "@typescript-eslint/brace-style": "error",
+        "@typescript-eslint/no-unused-vars": "error",
+        "@typescript-eslint/semi": [ "error", "always" ],
+        "@typescript-eslint/quotes": [ "error", "single" ],
+        "@typescript-eslint/comma-dangle": [
+            "error", "always-multiline", { "functions": "never" }
+        ]
     }
 }

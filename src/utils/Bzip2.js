@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable */
 
 // https://www.npmjs.com/package/bz2
