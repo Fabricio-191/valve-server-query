@@ -23,11 +23,38 @@ class CLI{
 
 		process.stdin.once('data', buffer => {
 			if(!this.enabled) return;
-			const command = buffer.toString().trim();
+			const command = buffer.toString()
+				.trim()
+				.split('\n')
+				.pop();
 
 			this.rcon.exec(command)
 				.then(result => {
 					process.stdout.write(result);
+				})
+				.catch(console.error)
+				.finally(() => {
+					console.log('\n');
+					this.awaitCommand();
+				});
+		});
+	}
+
+	async awaitPassword(){
+		this.enabled = false;
+		await this.rcon.connection;
+
+		process.stdout.write('\x1B[31mpassword > \x1B[0m');
+
+		process.stdin.once('data', buffer => {
+			const password = buffer.toString()
+				.trim()
+				.split('\n')
+				.pop();
+
+			this.rcon.authenticate(password)
+				.then(() => {
+					this.enabled = true;
 				})
 				.catch(console.error)
 				.finally(() => {

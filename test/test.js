@@ -48,7 +48,17 @@ async function testRCON(address, password){
 
 testRCON('186.159.120.21:27015', '3o3wcdmn')
 	.catch(console.error);
-
+	MasterServer({
+		timeout: 3000,
+		quantity: 1000,
+		region: 'US_EAST',
+	})
+		.then(servers => {
+			console.log(servers)
+	
+			//servers is an array if 'ip:port' strings, see below
+		})
+		.catch(console.error);
 /*
 MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	.then(ips => {
