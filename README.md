@@ -1,18 +1,14 @@
-<!--
 <style>
 details summary {
-   font-size: 23px;
+   font-size: 15px;
 }
 </style>
--->
 
-<!--
-[![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
--->
 [![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
 [![Donate](https://img.shields.io/badge/donate-patreon-F96854.svg?style=for-the-badge)](https://www.patreon.com/fabricio_191)
 [![Discord](https://img.shields.io/discord/555535212461948936?style=for-the-badge&color=7289da)](https://discord.gg/zrESMn6)  
 <!--
+[![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
 [![NPM](https://nodei.co/npm/@fabricio-191/valve-server-query.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/@fabricio-191/valve-server-query)
 -->
 ## An implementation of valve protocols
@@ -26,7 +22,7 @@ This module allows you to:
 * Make queries to valve master servers
 * Use a remote console to control your server remotely
 
-Some valve games are:
+**Some** of the games where it works with are:
 
 * Counter-Strike: Global Offensive
 * Garry's Mod
@@ -46,30 +42,32 @@ Server({
 	port: 27015,
 	timeout: 2000
 })
-	.then(async server => {
-		const info = await server.getInfo();
-		const players = await server.getPlayers();
-		const rules = await server.getRules();
-
-		console.log(info, players, rules);
+	.then(server => {
+		//...
 	})
-	.catch(console.error)
+	.catch(err => {
+		//error while connecting 
+		//server may: never existed/offline/didn't respond to queries
+	});
 ```
 <details>
 <summary><code>getInfo()</code></summary>
-Returns a promise that is resolved in an object with the server information, example:
 
-```js  
+Performs an [A2S_INFO](https://developer.valvesoftware.com/wiki/Server_queries#A2S_INFO) query to the server
+
+```js
 server.getInfo()
 	.then(info => {
 		console.log(info);
 	})
 	.catch(err => {
-		//error getting the info
+		//...
 	});
+```
 
-//info can be something like this:
+Info can be something like this:
 
+```js
 {
 	address: '192.223.30.25:27015',
 	ping: 222, //i think ping is not working well
@@ -86,6 +84,7 @@ server.getInfo()
 	visibility: 'public',
 	VAC: true,
 	version: '1.37.6.9',
+	//data after this may not be present
 	port: 27015,
 	steamID: 85568392922144671n,
 	tv: {
@@ -110,58 +109,116 @@ server.getInfo()
 ```
 </details>
 
-
 <details>
 <summary><code>getPlayers()</code></summary>
-Returns a promise that is resolved in an array with the players in the server, example:
+
+Performs an [A2S_PLAYER](https://developer.valvesoftware.com/wiki/Server_queries#A2S_PLAYER) query to get the list of players in the server
+
+Example:
 
 ```js
 [
 	{
 		index: 0,
-		name: 'some name',
+		name: 'kritikal',
 		score: 0,
-		timeOnline: {
-			hours: 1,
-			minutes: 21,
-			seconds: 17,
-			start: 2020-10-06T02:03:29.520Z,
-			raw: 4877.6787109375
+		timeOnline: Time {
+			hours: 0,
+			minutes: 10,
+			seconds: 25,
+			start: 2021-03-20T02:46:28.267Z, //Date
+			raw: 625.2186279296875
 		}
 	},
 	{
 		index: 0,
-		name: 'some other name',
+		name: 'dmx;',
 		score: 0,
-		timeOnline: {
-			hours: 1,
-			minutes: 21,
-			seconds: 17,
-			start: 2020-10-06T02:03:29.520Z,
-			raw: 4877.6787109375
+		timeOnline: Time {
+			hours: 0,
+			minutes: 10,
+			seconds: 25,
+			start: 2021-03-20T02:46:28.267Z,
+			raw: 625.0791625976562
 		}
 	},
 	{
 		index: 0,
-		name: 'xd',
+		name: 'fenakz',
 		score: 0,
-		timeOnline: {
-			hours: 1,
-			minutes: 21,
-			seconds: 17,
-			start: 2020-10-06T02:03:29.520Z,
-			raw: 4877.6787109375
+		timeOnline: Time {
+			hours: 0,
+			minutes: 10,
+			seconds: 21,
+			start: 2021-03-20T02:46:28.271Z,
+			raw: 621.9488525390625
+		}
+	},
+	{
+		index: 0,
+		name: '[JC] Master-cba',
+		score: 0,
+		timeOnline: Time {
+			hours: 0,
+			minutes: 10,
+			seconds: 15,
+			start: 2021-03-20T02:46:28.278Z,
+			raw: 615.4395751953125
+		}
+	},
+	{
+		index: 0,
+		name: 'sAIONARAH34! [pw] ⚓✵♣',
+		score: 1,
+		timeOnline: Time {
+			hours: 0,
+			minutes: 10,
+			seconds: 1,
+			start: 2021-03-20T02:46:28.292Z,
+			raw: 601.7681274414062
+		}
+	},
+	{
+		index: 0,
+		name: 'INFRA-',
+		score: 0,
+		timeOnline: Time {
+			hours: 0,
+			minutes: 9,
+			seconds: 50,
+			start: 2021-03-20T02:46:28.303Z,
+			raw: 590.30859375
+		}
+	},
+	{
+		index: 0,
+		name: 'Agente86',
+		score: 1,
+		timeOnline: Time {
+			hours: 0,
+			minutes: 9,
+			seconds: 0,
+			start: 2021-03-20T02:46:28.353Z,
+			raw: 540.4190063476562
 		}
 	}
 ]
 ```
-</details>
 
+If the game is `The Ship` every player will have 2 extra properties `deaths` and `money`
+
+> The `time` class has an personalized `toString()` and `@@toPrimitive` methods
+
+</details>
 
 <details>
 <summary><code>getRules()</code></summary>
-Returns a promise that is resolved in an object with the server rules.
-(you should better see it in console, to see what it's)
+
+Makes an [A2S_RULES](https://developer.valvesoftware.com/wiki/Server_queries#A2S_RULES) query to the server
+
+(this changes a lot between servers)
+
+Example:
 
 ```js
 {
@@ -274,14 +331,20 @@ Returns a promise that is resolved in an object with the server rules.
 
 <details>
 <summary><code>ping()</code></summary>
-Returns a promise that is resolved in a number (the ping in miliseconds)
-This is a deprecated feature of source servers, may not work
+
+Performs an [A2A_PING](https://developer.valvesoftware.com/wiki/Server_queries#A2A_PING) query into the server
+
 The `getInfo` response contains the server ping, so this is not necessary
 
+> This is a deprecated feature of source servers, may not work
+
+A warn in console will be shown (you can disable it by using `{ enableWarns: false }`, see [below](#options))
 
 ```js
 server.ping()
-	.then(console.log)
+	.then(ping => {
+		console.log(ping); // 214
+	})
 	.catch(console.error)
 ```
 </details>
@@ -310,11 +373,11 @@ Server.getInfo({
 
 # MasterServer
 
+Later i will add the 'filter' to the options
+
 ## Warns: 
-* If the quantity is `Infinity` or `'all'`, it will try to get all the servers, but most likely it will end up giving an warning.  
-  The master server stops responding at a certain point
-* Gold source master servers may not work  
-  The reason is unknown, the servers simply do not respond to queries
+* If the quantity is `Infinity` or `'all'`, it will try to get all the servers, but most likely it will end up giving an warning. The master server stops responding at a certain point
+* Gold source master servers may not work. The reason is unknown, the servers simply do not respond to queries
 
 ```js
 MasterServer({
@@ -330,7 +393,7 @@ MasterServer({
     .catch(console.error)
 ```
 <details>
-<summary>Response example</summary>
+<summary><code>Response example</code></summary>
 
 ```js
 [
@@ -374,8 +437,7 @@ MasterServer({
 </details>
 
 <details>
-<summary>Others</summary>
-
+<summary><code>getIPS()</code></summary>
 
 ```js
 MasterServer.getIPS()
@@ -393,8 +455,8 @@ Returns an object with the master servers ips, like this:
 
 See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master_servers
 
-> The port used in `hl2master.steampowered.com` ip's is `27011` but one of them is using a different port: `27015`  
-> The port numbers used by `hl1master.steampowered.com` can be anything between `27010` and `27013`.
+> The port used in `hl2master.steampowered.com` (source) ip's is `27011` but one of them is using a different port: `27015`  
+> The port numbers used by `hl1master.steampowered.com` (goldSource) can be anything between `27010` and `27013`.
 </details>
 
 <br/>
@@ -405,8 +467,6 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master
 * Executting `cvarlist` or `status` may interfere with other queries and it can throw an incomplete output (the cvarlist command above all)
 * Some commands may cause an server-side error (`sv_gravity 0` for example) and the connection will be ended (will show a warn in console), but the module is going to attempt to reconnect
 
-Later i will add the 'filter' to the options
-
 ```js
 RCON({
     ip: '0.0.0.0',
@@ -416,8 +476,11 @@ RCON({
 		timeout: 2000,
 	}
 })
-    .then(async rcon => {
-		await rcon.exec('sv_gravity 1000');
+    .then(rcon => {
+		rcon.exec('sv_gravity 1000')
+			.catch(err => {
+				// error executing the command
+			});
 
 		rcon.cli.enable(); //now you can execute commands in console
 	})
@@ -429,6 +492,7 @@ RCON({
 <details>
 <summary><code>exec(command)</code></summary>
 
+This will work well with `server.getRules()`
 ```js
 setInterval(() => {
 	const value = Math.floor(Math.random() * 10000) - 3000;
@@ -443,7 +507,29 @@ setInterval(() => {
 </details>
 
 
+<details>
+<summary><code>authenticate(password)</code></summary>
+
+```js
+
+```
+</details>
+
+<details>
+<summary><code>cli</code></summary>
+
+```js
+rcon.cli.enable();
+
+rcon.cli.disable();
+```
+</details>
+
+</br>
+
 # Options
+
+These are the detault values
 
 ```js
 {
@@ -456,10 +542,12 @@ setInterval(() => {
 		retries: 3,
 
 		//Master server
-		region: 'OTHER',
 		quantity: 200,
+		region: 'OTHER',
 	},
     //RCON
     password: 'The RCON password', // hasn't a default value
 }
 ```
+
+Also: all options can be outside the options object (like in [MasterServer](#masterserver) example)

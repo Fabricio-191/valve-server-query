@@ -357,6 +357,7 @@ function serverList(buffer){
 		servers.push(ip+':'+buffer.short(true, 'BE'));
 	}
 
+
 	return servers;
 }
 

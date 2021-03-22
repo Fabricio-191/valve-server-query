@@ -51,21 +51,21 @@ class CLI{
 
 class RCON{
 	constructor(connection){
-		this.#connection = connection;
+		this.connection = connection;
 		this.cli = new CLI(this);
 	}
-	#connection = null;
+	connection = null;
 	cli = null;
 
 	async exec(command){
-		if(!this.#connection) throw new Error('RCON has been destroyed');
-		await this.#connection;
+		if(!this.connection) throw new Error('RCON has been destroyed');
+		await this.connection;
 
-		const response = await this.#connection.query(command);
+		const response = await this.connection.query(command);
 		const chunks = [response.body];
 
 		if(response.body.length > 500){
-			const packets = await this.#connection.awaitMultipleResponse();
+			const packets = await this.connection.awaitMultipleResponse();
 
 			chunks.push(...packets);
 		}
@@ -75,23 +75,23 @@ class RCON{
 			.toString('ascii');
 	}
 
-	autenticate(password = this.#connection.password){
+	autenticate(password = this.connection.password){
 		if(password === ''){
 			throw new Error('RCON password cannot be an empty string');
 		}else if(typeof password !== 'string'){
 			throw new Error('RCON password must be a string');
 		}
 
-		if(password !== this.#connection.password){
-			this.#connection.password = password;
+		if(password !== this.connection.password){
+			this.connection.password = password;
 		}
 
-		return authenticate(this.#connection);
+		return authenticate(this.connection);
 	}
 
 	destroy(){
-		this.#connection.client.destroy();
-		this.#connection = null;
+		this.connection.client.destroy();
+		this.connection = null;
 		if(this.cli.enabled) this.cli.disable();
 	}
 }
@@ -146,6 +146,3 @@ function onEnd(rcon, connection){
 		}
 	})();
 }
-
-/*
-*/

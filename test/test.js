@@ -3,6 +3,7 @@ const { Server, MasterServer, RCON } = require('../');
 const debug = true;
 
 async function test(address){
+	console.log(address);
 	const [ip, port] = address.split(':');
 
 	const server = await Server({
@@ -13,11 +14,11 @@ async function test(address){
 		},
 	});
 
-	const data = await Promise.all([
-		server.getInfo(),
-		server.getPlayers(),
-		server.getRules(),
-	]);
+	const data = [
+		await server.getInfo(),
+		await server.getPlayers(),
+		await server.getRules().catch(e => { /* nothing */ }),
+	];
 
 	server.disconnect();
 
@@ -45,19 +46,18 @@ async function testRCON(address, password){
 	rcon.cli.enable();
 }
 
+testRCON('186.159.120.21:27015', '3o3wcdmn')
+	.catch(console.error);
+
+/*
 MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	.then(ips => {
-		console.log(ips);
 		const ip = ips[Math.floor(Math.random() * ips.length)];
 
 		test(ip)
 			.then(console.log)
 			.catch(console.error);
 	})
-	.catch(console.error);
-
-/*
-testRCON('186.159.120.21:27015', '3o3wcdmn')
 	.catch(console.error);
 
 Soporte sobre cualquier cosa de __cualquier lenguaje__ (excepto JavaScript).

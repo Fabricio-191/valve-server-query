@@ -18,7 +18,7 @@ class Connection{
 	}
 
 	send(command){
-		if(this.options.debug) debug('RCON', 'sent:', command);
+		if(this.options.debug) debug('RCON', 'sending:', command);
 
 		return new Promise((res, rej) => {
 			this.client.on('error', rej);
@@ -34,22 +34,24 @@ class Connection{
 
 	awaitResponse(ID, responseType){
 		return new Promise((res, rej) => {
-			const clear = this._await(
-				'packet', 'Response timeout.',
-				(err, packet) => {
-					if(err){
-						rej(err);
-						clear();
-					}
+			const clear = this._await('packet', 'Response timeout.', handler);
 
-					if(packet.type !== responseType) return;
-					if(packet.ID !== ID && packet.ID !== -1) return;
-
+			function handler(err, packet){
+				if(err){
+					rej(err);
 					clear();
+				}
 
-					res(packet);
-				},
-			);
+				if(
+					!packet ||
+					packet.type !== responseType ||
+					packet.ID !== ID && packet.ID !== -1
+				) return;
+
+				clear();
+
+				res(packet);
+			}
 		});
 	}
 
@@ -79,17 +81,16 @@ class Connection{
 
 	_await(event, timeoutErr, callback){ // callback(err, ...args);
 		const err = new Error(timeoutErr);
-		// eslint-disable-next-line prefer-const
-		let clear;
-
-		const timeout = setTimeout(callback, this.options.timeout, clear, err);
 		const eventCallback = callback.bind(this, null);
 
-		clear = () => {
+		const clear = () => {
 			this.client.off(event, eventCallback);
 			this.client.off('error', callback);
+			// eslint-disable-next-line no-use-before-define
 			clearTimeout(timeout);
 		};
+
+		const timeout = setTimeout(callback, this.options.timeout, err);
 
 		this.client.on(event, eventCallback);
 		this.client.on('error', callback);
