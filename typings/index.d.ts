@@ -295,8 +295,8 @@ interface RCON{
 	autenticate(password?: string): Promise<void>;
 	/** Method to destroy the connection to the RCON */
 	destroy(): void;
-	/** A interface to the CLI */
-	cli: RCON.CLI;
+	// /** A interface to the CLI */
+	// cli: RCON.CLI;
 }
 
 /** Make queries to a server running a valve game */

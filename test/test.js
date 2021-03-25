@@ -39,27 +39,13 @@ async function testRCON(address, password){
 
 	setInterval(() => {
 		const value = Math.floor(Math.random() * 10000) - 3000;
+
 		rcon.exec(`sv_gravity ${value}`)
+			.then(console.log)
 			.catch(console.error);
 	}, 5000);
-
-	rcon.cli.enable();
 }
 
-testRCON('186.159.120.21:27015', '3o3wcdmn')
-	.catch(console.error);
-	MasterServer({
-		timeout: 3000,
-		quantity: 1000,
-		region: 'US_EAST',
-	})
-		.then(servers => {
-			console.log(servers)
-	
-			//servers is an array if 'ip:port' strings, see below
-		})
-		.catch(console.error);
-/*
 MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	.then(ips => {
 		const ip = ips[Math.floor(Math.random() * ips.length)];
@@ -69,7 +55,17 @@ MasterServer({ debug, region: 'SOUTH_AMERICA' })
 			.catch(console.error);
 	})
 	.catch(console.error);
+/*
+testRCON('213.239.207.78:33045', 'test')
+	.catch(console.error);
 
-Soporte sobre cualquier cosa de __cualquier lenguaje__ (excepto JavaScript).
-Aunque no este relacionado con bots de Discord
+MasterServer({ debug, region: 'SOUTH_AMERICA' })
+	.then(ips => {
+		const ip = ips[Math.floor(Math.random() * ips.length)];
+
+		test(ip)
+			.then(console.log)
+			.catch(console.error);
+	})
+	.catch(console.error);
 */

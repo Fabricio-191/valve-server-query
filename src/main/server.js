@@ -18,27 +18,27 @@ const COMMANDS = {
 
 class Server{
 	constructor(connection){
-		this.#connection = connection;
+		this.connection = connection;
 	}
-	#connection = null;
+	connection = null;
 
 	async getInfo(){
-		if(!this.#connection) throw new Error('server is not connected to anything');
+		if(!this.connection) throw new Error('server is not connected to anything');
 
 		let command = COMMANDS.INFO();
-		if(this.#connection._meta.info.challenge){
-			const response = this.#connection.query(command, 0x41);
+		if(this.connection._meta.info.challenge){
+			const response = this.connection.query(command, 0x41);
 			const key = response.slice(-4);
 
 			command = COMMANDS.INFO(key);
 		}
 
 		const requests = [
-			this.#connection.query(command, 0x49),
+			this.connection.query(command, 0x49),
 		];
 
-		if(this.#connection._meta.info.goldSource) requests.push(
-			this.#connection.awaitResponse(0x6D),
+		if(this.connection._meta.info.goldSource) requests.push(
+			this.connection.awaitResponse(0x6D),
 		);
 
 		const start = Date.now();
@@ -46,7 +46,7 @@ class Server{
 		const ping = Date.now() - start;
 
 		return Object.assign({
-			address: this.#connection.ip+':'+this.#connection.port,
+			address: this.connection.ip+':'+this.connection.port,
 			ping,
 		}, ...responses.map(parsers.serverInfo));
 	}
@@ -61,7 +61,7 @@ class Server{
 		const command = Buffer.from([
 			...BIG_F, 0x55, ...key.slice(1),
 		]);
-		const response = await this.#connection.query(command, 0x44);
+		const response = await this.connection.query(command, 0x44);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
 			throw new Error('Wrong server response');
@@ -80,7 +80,7 @@ class Server{
 		const command = Buffer.from([
 			...BIG_F, 0x56, ...key.slice(1),
 		]);
-		const response = await this.#connection.query(command, 0x45);
+		const response = await this.connection.query(command, 0x45);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
 			throw new Error('Wrong server response');
@@ -90,25 +90,25 @@ class Server{
 	}
 
 	async getPing(){
-		if(!this.#connection) throw new Error('server is not connected to anything');
-		await this.#connection;
+		if(!this.connection) throw new Error('server is not connected to anything');
+		await this.connection;
 
-		if(this.#connection.options.enableWarns){
+		if(this.connection.options.enableWarns){
 			console.trace('A2A_PING request is a deprecated feature of source servers');
 		}
 
 		const start = Date.now();
-		await this.#connection.query(COMMANDS.PING, 0x6A);
+		await this.connection.query(COMMANDS.PING, 0x6A);
 
 		return Date.now() - start;
 	}
 
 	async challenge(code){
-		if(!this.#connection) throw new Error('server is not connected to anything');
+		if(!this.connection) throw new Error('server is not connected');
 
 		const command = COMMANDS.CHALLENGE();
 		if(
-			![ 17510, 17530, 17740, 17550, 17700 ].includes(this.#connection._meta.appID)
+			![ 17510, 17530, 17740, 17550, 17700 ].includes(this.connection._meta.appID)
 		){
 			command[4] = code;
 		}
@@ -117,15 +117,15 @@ class Server{
 		// 0x44 truncated rules response
 		// 0x45 truncated players response
 		const truncatedCode = code - 17;
-		const response = await this.#connection.query(command, 0x41, truncatedCode);
+		const response = await this.connection.query(command, 0x41, truncatedCode);
 
 		return Array.from(response);
 	}
 
 	disconnect(){
-		this.#connection.destroy();
+		this.connection.destroy();
 
-		this.#connection = null;
+		this.connection = null;
 	}
 }
 
@@ -174,7 +174,7 @@ async function _getInfo(connection, needsChallenge){
 
 	let command = COMMANDS.INFO();
 	if(needsChallenge){
-		const response = connection.query(command, 0x41);
+		const response = await connection.query(command, 0x41);
 		const key = response.slice(-4);
 
 		command = COMMANDS.INFO(key);

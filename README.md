@@ -34,13 +34,42 @@ This module allows you to:
 
 </br>
 
+
+# Options
+
+These are the detault values
+
+```js
+{
+    ip: 'localhost', //in MasterServer is 'hl2master.steampowered.com'
+    port: 27015, //in MasterServer is 27011
+	options: {
+		timeout: 2000,
+		debug: false,
+		enableWarns: true,
+		retries: 3,
+
+		//Master server
+		quantity: 200,
+		region: 'OTHER',
+	},
+    //RCON
+    password: 'The RCON password', // hasn't a default value
+}
+```
+
+Also: all options can be outside the options object (like in [MasterServer](#masterserver) example)
+
 # Server
 
 ```js
 Server({
 	ip: '0.0.0.0',
 	port: 27015,
-	timeout: 2000
+	options: {
+		timeout: 3000,
+		retries: 5
+	}
 })
 	.then(server => {
 		//...
@@ -133,9 +162,9 @@ server.getPlayers()
 	.catch(console.error);
 ```
 
-Example:
-
 > The `time` class has an personalized `toString()` and `@@toPrimitive()` methods
+
+Example:
 
 ```js
 [
@@ -369,7 +398,7 @@ Performs an [A2A_PING](https://developer.valvesoftware.com/wiki/Server_queries#A
 
 > This is a deprecated feature of source servers, may not work. The `getInfo` response contains the server ping, so this is not necessary
 
-A warn in console will be shown (you can disable it by using `{ enableWarns: false }`, see [below](#options))
+A warn in console will be shown (you can disable it by using `{ enableWarns: false }`, see [Options](#options))
 
 ```js
 server.ping()
@@ -381,6 +410,32 @@ server.ping()
 </br>
 </details>
 
+
+<details>
+<summary><code>disconnect()</code></summary>
+</br>
+
+Disconnect the server and destroy the socket
+
+```js
+server.disconnect();
+```
+
+### Use example
+
+```js
+Server(...)
+	.then(async server => {
+		const players = await server.getPlayers();
+
+		server.disconnect();
+
+		//...
+	})
+	.catch(console.error);
+```
+
+</details>
 
 <details>
 <summary><code>static getInfo()</code></summary>
@@ -500,22 +555,22 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master
 * Executting `cvarlist` or `status` may interfere with other queries and it can throw an incomplete output (the cvarlist command above all)
 * Some commands may cause an server-side error (`sv_gravity 0` for example) and the connection will be ended (will show a warn in console), but the module is going to attempt to reconnect
 
+## To-do
+* A way so users can deal with password changes
+* A way so users can deal when connection is closed
+* A tiny optional CLI
+
 ```js
 RCON({
     ip: '0.0.0.0',
     port: 27015, //RCON port
-    password: 'your RCON password',
-	options: {
-		timeout: 2000,
-	}
+    password: 'your RCON password'
 })
     .then(rcon => {
 		rcon.exec('sv_gravity 1000')
 			.catch(err => {
 				// error executing the command
 			});
-
-		rcon.cli.enable(); //now you can execute commands in console
 	})
     .catch(err => {
 		//error while connecting
@@ -532,6 +587,13 @@ setInterval(() => {
 	//value will be a number between -3000 and 6999
 
 	rcon.exec(`sv_gravity ${value}`)
+		.then(response => {
+			console.log(respose);
+
+			/*
+			Response is always a string that is some kind of log of the server or it can be empty
+			*/
+		})
 		.catch(console.error);
 
 	//gravity will change randomly every 5 seconds
@@ -541,46 +603,11 @@ setInterval(() => {
 
 
 <details>
-<summary><code>authenticate(password)</code></summary>
+<summary><code>destroy()</code></summary>
+
+Destroys de RCON connection
 
 ```js
-
+rcon.destroy();
 ```
 </details>
-
-<details>
-<summary><code>cli</code></summary>
-
-```js
-rcon.cli.enable();
-
-rcon.cli.disable();
-```
-</details>
-
-</br>
-
-# Options
-
-These are the detault values
-
-```js
-{
-    ip: 'localhost', //in MasterServer is 'hl2master.steampowered.com'
-    port: 27015, //in MasterServer is 27011
-	options: {
-		timeout: 2000,
-		debug: false,
-		enableWarns: true,
-		retries: 3,
-
-		//Master server
-		quantity: 200,
-		region: 'OTHER',
-	},
-    //RCON
-    password: 'The RCON password', // hasn't a default value
-}
-```
-
-Also: all options can be outside the options object (like in [MasterServer](#masterserver) example)

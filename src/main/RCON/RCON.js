@@ -12,56 +12,55 @@ const RCON_TYPES = {
 	},
 };
 
+/*
 class CLI{
 	constructor(rcon){
 		this.rcon = rcon;
 	}
-	async awaitCommand(){
-		await this.rcon.connection;
 
-		process.stdout.write('\x1B[35m> \x1B[0m');
+	logError(err){
+		console.error(err.message);
+	}
 
-		process.stdin.once('data', buffer => {
-			if(!this.enabled) return;
-			const command = buffer.toString()
-				.trim()
-				.split('\n')
-				.pop();
+	awaitInput(div){
+		process.stdout.write(div || '\x1B[35m> \x1B[0m');
 
-			this.rcon.exec(command)
-				.then(result => {
-					process.stdout.write(result);
-				})
-				.catch(console.error)
-				.finally(() => {
-					console.log('\n');
-					this.awaitCommand();
-				});
+		return new Promise(res => {
+			process.stdin.once('data', buffer => {
+				if(!this.enabled) return;
+				const command = buffer.toString()
+					.trim()
+					.split('\n')
+					.pop();
+
+				res(command);
+			});
 		});
 	}
 
-	async awaitPassword(){
+	awaitCommand(){
+		this.awaitInput()
+			.then(command => this.rcon.exec(command))
+			.catch(this.logError)
+			.finally(() => {
+				console.log('\n');
+				this.awaitCommand();
+			});
+	}
+
+	awaitPassword(){
 		this.enabled = false;
-		await this.rcon.connection;
 
-		process.stdout.write('\x1B[31mpassword > \x1B[0m');
-
-		process.stdin.once('data', buffer => {
-			const password = buffer.toString()
-				.trim()
-				.split('\n')
-				.pop();
-
-			this.rcon.authenticate(password)
-				.then(() => {
-					this.enabled = true;
-				})
-				.catch(console.error)
-				.finally(() => {
-					console.log('\n');
-					this.awaitCommand();
-				});
-		});
+		this.awaitInput('\x1B[31mpassword > \x1B[0m')
+			.then(password => this.rcon.authenticate(password))
+			.then(() => {
+				this.enabled = true;
+			})
+			.catch(this.logError)
+			.finally(() => {
+				console.log('\n');
+				this.awaitCommand();
+			});
 	}
 
 	enabled = false;
@@ -75,17 +74,14 @@ class CLI{
 		this.enabled = false;
 	}
 }
+*/
 
 class RCON{
-	constructor(connection){
-		this.connection = connection;
-		this.cli = new CLI(this);
-	}
 	connection = null;
-	cli = null;
+	// cli = null;
 
 	async exec(command){
-		if(!this.connection) throw new Error('RCON has been destroyed');
+		if(!this.connection) throw new Error('RCON is not connected');
 		await this.connection;
 
 		const response = await this.connection.query(command);
@@ -102,6 +98,7 @@ class RCON{
 			.toString('ascii');
 	}
 
+	/*
 	autenticate(password = this.connection.password){
 		if(password === ''){
 			throw new Error('RCON password cannot be an empty string');
@@ -115,17 +112,19 @@ class RCON{
 
 		return authenticate(this.connection);
 	}
+	*/
 
 	destroy(){
 		this.connection.client.destroy();
 		this.connection = null;
-		if(this.cli.enabled) this.cli.disable();
+		// if(this.cli.enabled) this.cli.disable();
 	}
 }
 
 module.exports = async function createRCON(options){
 	const connection = await createConnection(options);
-	const rcon = new RCON(connection);
+	const rcon = new RCON;
+	rcon.connection = connection;
 
 	await authenticate(connection);
 
@@ -152,24 +151,32 @@ async function authenticate(connection){
 }
 
 function onEnd(rcon, connection){
+	if(connection.options.enableWarns || connection.options.debug){
+		debug('RCON', 'connection closed, reconnecting...');
+	}
+
 	rcon.connection = (async function(){
-		connection.connect();
+		connection.client.connect();
 
 		await new Promise((res, rej) => {
-			connection._await(
-				'connect', 'Connection closed.',
-				(clear, err) => {
-					clear();
-					if(err) rej(err);
-					res();
-				},
-			);
+			connection._await('connect', 'Connection closed.', (clear, err) => {
+				clear();
+				if(err){
+					rej(err);
+					connection = null;
+				}
+				res();
+			});
 		});
 
-		try{
-			await authenticate(connection);
-		}catch(e){
-			throw new Error('Password changed, connection closed');
+		if(connection !== null){
+			try{
+				await authenticate(connection);
+			}catch(e){
+				console.error(new Error('Password changed, connection closed'));
+			}
 		}
+
+		rcon.connection = connection;
 	})();
 }
