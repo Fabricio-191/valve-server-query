@@ -474,6 +474,18 @@ MasterServer({
   })
   .catch(console.error);
 ```
+
+### Valid regions are
+* US_EAST
+* US_WEST
+* SOUTH_AMERICA
+* EUROPE
+* ASIA
+* AUSTRALIA
+* MIDDLE_EAST
+* AFRICA
+* OTHER
+
 <details>
 <summary><code>Response example</code></summary>
 

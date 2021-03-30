@@ -17,7 +17,7 @@ async function test(address){
 	const data = [
 		await server.getInfo(),
 		await server.getPlayers(),
-		await server.getRules().catch(e => { /* nothing */ }),
+		await server.getRules(),
 	];
 
 	server.disconnect();
@@ -46,16 +46,19 @@ async function testRCON(address, password){
 	}, 5000);
 }
 
+test('160.20.247.46:30020');
+
+/*
+
 MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	.then(ips => {
 		const ip = ips[Math.floor(Math.random() * ips.length)];
 
 		test(ip)
 			.then(console.log)
-			.catch(console.error);
 	})
 	.catch(console.error);
-/*
+
 testRCON('213.239.207.78:33045', 'test')
 	.catch(console.error);
 
