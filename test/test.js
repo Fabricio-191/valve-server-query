@@ -1,3 +1,4 @@
+/* eslint-disable no-empty-function */
 /* eslint-disable no-unused-vars */
 const { Server, MasterServer, RCON } = require('../');
 const debug = true;
@@ -16,8 +17,8 @@ async function test(address){
 
 	const data = [
 		await server.getInfo(),
-		await server.getPlayers(),
-		await server.getRules(),
+		await server.getPlayers().catch(() => {}),
+		await server.getRules().catch(() => {}),
 	];
 
 	server.disconnect();
@@ -46,10 +47,7 @@ async function testRCON(address, password){
 	}, 5000);
 }
 
-test('160.20.247.46:30020');
-
 /*
-
 MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	.then(ips => {
 		const ip = ips[Math.floor(Math.random() * ips.length)];
@@ -72,3 +70,17 @@ MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	})
 	.catch(console.error);
 */
+
+Server({
+	ip: '164.132.207.129',
+	port: 28065,
+	options: {
+		timeout: 5000,
+		retries: 10,
+		debug: true,
+	},
+})
+	.then(async server => {
+		console.log(await server.getPlayers());
+	})
+	.catch(console.error);

@@ -29,9 +29,9 @@
   },
   "scripts": {
     "test": "node test/test.js",
-    "lint": "npx eslint src --fix || npx eslint test --fix || npx eslint typings --fix",
+    "lint": "npx eslint . --fix",
     "git": "git add . && git commit -m - && git push",
-    "all": "npm run eslint && npm run eslintd && npm run git && npm publish"
+    "all": "npm run eslint || npm run eslintd && npm run git && npm publish"
   },
   "keywords": [
     "valve",
