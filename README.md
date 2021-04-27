@@ -1,4 +1,8 @@
-<style>details summary{ font-size: 18px; }</style>
+<style>
+details summary { 
+	font-size: 18px; 
+}
+</style>
 
 [![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
 [![Donate](https://img.shields.io/badge/donate-patreon-F96854.svg?style=for-the-badge)](https://www.patreon.com/fabricio_191)
