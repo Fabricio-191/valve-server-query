@@ -5,6 +5,11 @@
 [![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
 [![NPM](https://nodei.co/npm/@fabricio-191/valve-server-query.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/@fabricio-191/valve-server-query)
 -->
+<style>
+details summary {
+   font-size: 18px
+}
+</style>
 ## An implementation of valve protocols
 
 ```js
@@ -28,8 +33,9 @@ This module allows you to:
 
 </br>
 
-
-# Options
+<details>
+<summary>Options</summary>
+</br>
 
 These are the detault values
 
@@ -53,6 +59,9 @@ These are the detault values
 ```
 
 Also: all options can be outside the options object (like in [MasterServer](#masterserver) example)
+</br>
+</details>
+</br>
 
 # Server
 
@@ -65,12 +74,26 @@ Server({
     retries: 5
   }
 })
-  .then(server => {
-    //...
+  .then(async server => {
+	// (the advantaje of this is that it makes al queries at once)
+	const [info, players, rules] = await Promise.all([
+		server.getInfo(),
+		server.getPlayers().catch(e => {}),
+		server.getRules().catch(e => {})
+	]);
+
+	/*
+	You could also do:
+	
+    const info = await server.getInfo();
+	const players = await server.getPlayers().catch(e => {});
+	const rules = await server.getRules().catch(e => {});
+	*/
+
+	console.log(info, players, rules);
   })
   .catch(err => {
-    //error while connecting 
-    //server may: never existed/offline/didn't respond to queries
+	  console.error(err);
   });
 ```
 
@@ -140,6 +163,8 @@ Info can be something like this:
 </br>
 
 Performs an [A2S_PLAYER](https://developer.valvesoftware.com/wiki/Server_queries#A2S_PLAYER) query to get the list of players in the server
+
+Some servers may have disable this query (very rare).
 
 ```js
 server.getPlayers()

@@ -1,6 +1,6 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "3.0.0-2",
+  "version": "3.0.0-3",
   "main": "./src/index.js",
   "types": "./typings/index.d.ts",
   "homepage": "https://github.com/Fabricio-191/valve-server-query#readme",
@@ -30,8 +30,7 @@
   "scripts": {
     "test": "node test/test.js",
     "lint": "npx eslint . --fix",
-    "git": "git add . && git commit -m - && git push",
-    "all": "npm run eslint || npm run eslintd && npm run git && npm publish"
+    "git": "git pull && git add . && git commit -m - && git push"
   },
   "keywords": [
     "valve",
