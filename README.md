@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
 [![NPM](https://nodei.co/npm/@fabricio-191/valve-server-query.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/@fabricio-191/valve-server-query)
 -->
-<style> details summary{ font-size: 18px; } </style>
+<style>details summary{ font-size: 18px; }</style>
 ## An implementation of valve protocols
 
 ```js
