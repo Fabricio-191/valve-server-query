@@ -1,3 +1,5 @@
+<style>details summary{ font-size: 18px; }</style>
+
 [![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
 [![Donate](https://img.shields.io/badge/donate-patreon-F96854.svg?style=for-the-badge)](https://www.patreon.com/fabricio_191)
 [![Discord](https://img.shields.io/discord/555535212461948936?style=for-the-badge&color=7289da)](https://discord.gg/zrESMn6)  
@@ -5,7 +7,6 @@
 [![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
 [![NPM](https://nodei.co/npm/@fabricio-191/valve-server-query.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/@fabricio-191/valve-server-query)
 -->
-<style>details summary{ font-size: 18px; }</style>
 ## An implementation of valve protocols
 
 ```js
@@ -57,7 +58,6 @@ These are the detault values
 Also: all options can be outside the options object (like in [MasterServer](#masterserver) example)
 </br>
 </details>
-</br>
 
 # Server
 
