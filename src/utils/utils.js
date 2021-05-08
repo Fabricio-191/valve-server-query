@@ -58,6 +58,8 @@ module.exports = {
 };
 
 async function parseData(data, type){
+	if(!data) data = {};
+
 	if(typeof data !== 'object'){
 		throw Error("'data' must be an object");
 	}

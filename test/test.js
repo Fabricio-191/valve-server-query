@@ -1,5 +1,6 @@
 /* eslint-disable no-empty-function */
 /* eslint-disable no-unused-vars */
+// @ts-ignore
 const { Server, MasterServer, RCON } = require('../');
 const debug = true;
 
