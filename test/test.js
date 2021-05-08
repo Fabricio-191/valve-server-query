@@ -48,18 +48,7 @@ async function testRCON(address, password){
 	}, 5000);
 }
 
-/*
-MasterServer({ debug, region: 'SOUTH_AMERICA' })
-	.then(ips => {
-		const ip = ips[Math.floor(Math.random() * ips.length)];
-
-		test(ip)
-			.then(console.log)
-	})
-	.catch(console.error);
-
-testRCON('213.239.207.78:33045', 'test')
-	.catch(console.error);
+// testRCON('213.239.207.78:33045', 'test').catch(console.error);
 
 MasterServer({ debug, region: 'SOUTH_AMERICA' })
 	.then(ips => {
@@ -68,20 +57,5 @@ MasterServer({ debug, region: 'SOUTH_AMERICA' })
 		test(ip)
 			.then(console.log)
 			.catch(console.error);
-	})
-	.catch(console.error);
-*/
-
-Server({
-	ip: '164.132.207.129',
-	port: 28065,
-	options: {
-		timeout: 5000,
-		retries: 10,
-		debug: true,
-	},
-})
-	.then(async server => {
-		console.log(await server.getPlayers());
 	})
 	.catch(console.error);
