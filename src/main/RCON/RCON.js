@@ -48,7 +48,7 @@ class CLI{
 			});
 	}
 
-	awaitPassword(){
+	_awaitPassword(){
 		this.enabled = false;
 
 		this.awaitInput('\x1B[31mpassword > \x1B[0m')

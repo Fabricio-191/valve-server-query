@@ -27,7 +27,7 @@ class Server{
 
 		let command = COMMANDS.INFO();
 		if(this.connection._meta.info.challenge){
-			const response = this.connection.query(command, 0x41);
+			const response = await this.connection.query(command, 0x41);
 			const key = response.slice(-4);
 
 			command = COMMANDS.INFO(key);
