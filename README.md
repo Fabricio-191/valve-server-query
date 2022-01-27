@@ -1,3 +1,25 @@
+<style>
+details {
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: .5em .5em 0;
+}
+
+summary {
+    font-weight: bold;
+    margin: -.5em -.5em 0;
+    padding: .5em;
+}
+
+details[open] {
+    padding: .5em;
+}
+
+details[open] summary {
+    border-bottom: 1px solid #aaa;
+    margin-bottom: .5em;
+}
+</style>
 [![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
 [![Donate](https://img.shields.io/badge/donate-patreon-F96854.svg?style=for-the-badge)](https://www.patreon.com/fabricio_191)
 [![Discord](https://img.shields.io/discord/555535212461948936?style=for-the-badge&color=7289da)](https://discord.gg/zrESMn6)  
@@ -18,41 +40,40 @@ This module allows you to:
 
 **Some** of the games where it works with are:
 
+* Counter-Strike
 * Counter-Strike: Global Offensive
 * Garry's Mod
 * Half-Life
 * Team Fortress 2
-* Counter-String
 * Day of Defeat
 * The ship
-
 
 <details>
 <summary>Options</summary>
 </br>
 
-These are the detault values
+These are the default values
 
 ```js
 {
   ip: 'localhost', //in MasterServer is 'hl2master.steampowered.com'
   port: 27015, //in MasterServer is 27011
+
+  //RCON
+  password: 'The RCON password', // hasn't a default value
+  
+  //Master server
+  quantity: 200,
+  region: 'OTHER',
+
   options: {
     timeout: 2000,
     debug: false,
     enableWarns: true,
     retries: 3,
-
-    //Master server
-    quantity: 200,
-    region: 'OTHER',
   },
-  //RCON
-  password: 'The RCON password', // hasn't a default value
 }
 ```
-
-Also: all options can be outside the options object (like in [MasterServer](#masterserver) example)
 </br>
 </details>
 </br>
@@ -60,35 +81,35 @@ Also: all options can be outside the options object (like in [MasterServer](#mas
 # Server
 
 ```js
-Server({
+const server = await Server({
   ip: '0.0.0.0',
   port: 27015,
   options: {
     timeout: 3000,
     retries: 5
   }
-})
-  .then(async server => {
-	// (the advantaje of this is that it makes al queries at once)
-	const [info, players, rules] = await Promise.all([
-		server.getInfo(),
-		server.getPlayers().catch(e => {}),
-		server.getRules().catch(e => {})
-	]);
+});
 
-	/*
-	You could also do:
-	
-    const info = await server.getInfo();
-	const players = await server.getPlayers().catch(e => {});
-	const rules = await server.getRules().catch(e => {});
-	*/
+const info = await server.getInfo();
+console.log(info);
 
-	console.log(info, players, rules);
-  })
-  .catch(err => {
-	  console.error(err);
-  });
+const info = await server.getPlayers();
+console.log(info);
+
+const info = await server.getRules();
+console.log(info);
+
+/*
+You can also do:
+
+const [info, players, rules] = await Promise.all([
+	server.getInfo(),
+	server.getPlayers().catch(e => {}),
+	server.getRules().catch(e => {})
+]);
+
+This make all queries in parallel
+*/
 ```
 
 <details>
@@ -287,7 +308,7 @@ server.getRules()
   .catch(() => {});
 ```
 
-(this changes a lot between servers)
+The response can change a lot between servers
 
 Example:
 
@@ -482,9 +503,11 @@ Later i will add the 'filter' to the options
 
 ```js
 MasterServer({
-  timeout: 3000,
   quantity: 1000,
   region: 'US_EAST',
+  options: {
+  	timeout: 3000,
+  }
 })
   .then(servers => {
     //do something...
@@ -576,30 +599,40 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master
 
 # RCON
 
+RCON options are the same as the ones used for `Server`, with the diference of `password`, see below.
+
 ### Warns: 
 * Executting `cvarlist` or `status` may interfere with other queries and it can throw an incomplete output (the cvarlist command above all)
-* Some commands may cause an server-side error (`sv_gravity 0` for example) and the connection will be ended (will show a warn in console), but the module is going to attempt to reconnect
-
-### To-do
-* A way so users can deal with password changes
-* A way so users can deal when connection is closed
-* A tiny optional CLI
+* Some commands may cause an server-side error (`sv_gravity 0` in some cases for example) and it will disconnect
 
 ```js
-RCON({
+const rcon = await RCON({
   ip: '0.0.0.0',
   port: 27015, //RCON port
   password: 'your RCON password'
-})
-  .then(rcon => {
-    rcon.exec('sv_gravity 1000')
-      .catch(err => {
-        // error executing the command
-      });
-  })
-  .catch(err => {
-    //error while connecting
-  })
+});
+
+rcon.on('disconnect', async (reason, reconnect) => {
+	console.log('disconnected', reason);
+	try{
+		await reconnect();
+	}catch{
+		console.log('reconnect failed');
+		// the server may be probably down or you internet is failing or other 100 reasons
+	}
+});
+
+rcon.on('passwordChange', async (handleAuth) => {
+	const password = await getNewPasswordSomehow();
+	try{
+		await handleAuth(password);
+	}catch(e){
+		console.error('Failed to authenticate with new password', e.message);
+	}
+});
+
+const response = await rcon.exec('sv_gravity 1000');
+// Response is always a string that is some kind of log of the server or it can be empty
 ``` 
 
 <details>
@@ -607,21 +640,15 @@ RCON({
 
 This will work well with `server.getRules()`
 ```js
+// gravity will change randomly every 5 seconds
+
 setInterval(() => {
   const value = Math.floor(Math.random() * 10000) - 3000;
   //value will be a number between -3000 and 6999
 
   rcon.exec(`sv_gravity ${value}`)
-    .then(response => {
-      console.log(respose);
-
-      /*
-      Response is always a string that is some kind of log of the server or it can be empty
-      */
-    })
     .catch(console.error);
 
-  //gravity will change randomly every 5 seconds
 }, 5000);
 ```
 </details>
@@ -630,7 +657,7 @@ setInterval(() => {
 <details>
 <summary><code>destroy()</code></summary>
 
-Destroys de RCON connection
+Destroys the RCON connection, this will not fire the `disconnect` event
 
 ```js
 rcon.destroy();

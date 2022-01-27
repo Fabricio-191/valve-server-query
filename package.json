@@ -1,7 +1,7 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "3.0.0-6",
-  "main": "./src/index.js",
+  "version": "3.2.0-0",
+  "main": "./lib/index.js",
   "typings": "./typings/index.d.ts",
   "homepage": "https://github.com/Fabricio-191/valve-server-query#readme",
   "repository": {
@@ -21,16 +21,13 @@
   "description": "An implementation of valve protocols",
   "deprecated": false,
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "4.13.0",
-    "@typescript-eslint/parser": "4.13.0",
     "babel-eslint": "10.1.0",
     "eslint": "7.17.0",
     "typescript": "4.1.3"
   },
   "scripts": {
     "test": "node test/test.js",
-    "lint": "npx eslint . --fix",
-    "git": "git pull && git add . && git commit -m - && git push"
+    "lint": "npx eslint . --fix"
   },
   "keywords": [
     "valve",
