@@ -20,26 +20,31 @@
   "license": "Apache License 2.0",
   "description": "An implementation of valve protocols",
   "deprecated": false,
-  "devDependencies": {
-    "babel-eslint": "10.1.0",
-    "eslint": "7.17.0",
-    "typescript": "4.1.3"
-  },
   "scripts": {
-    "test": "node test/test.js",
-    "lint": "npx eslint . --fix"
+    "lint": "npx eslint . --fix",
+    "test": "mocha test/mocha.js --slow 5000 --timeout 6000"
   },
   "keywords": [
-    "valve",
-    "source",
     "protocol",
-    "query",
+    "source",
     "server",
     "master",
-    "rcon"
+    "valve",
+    "query",
+    "rcon",
+    "info"
   ],
   "funding": {
     "type": "patreon",
     "url": "https://www.patreon.com/fabricio_191"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.16.12",
+    "@babel/eslint-parser": "^7.16.5",
+    "@babel/eslint-plugin": "^7.16.5",
+    "eslint": "^8.8.0",
+    "mocha": "^9.2.0",
+    "typescript": "^4.5.5",
+    "why-is-node-running": "^2.2.1"
   }
 }

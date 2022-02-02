@@ -20,13 +20,9 @@ details[open] summary {
     margin-bottom: .5em;
 }
 </style>
-[![Issues](https://img.shields.io/github/issues/Fabricio-191/valve-server-query?style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/issues)
-[![Donate](https://img.shields.io/badge/donate-patreon-F96854.svg?style=for-the-badge)](https://www.patreon.com/fabricio_191)
+<a href="https://www.buymeacoffee.com/Fabricio191" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="28" width="135"></a>
 [![Discord](https://img.shields.io/discord/555535212461948936?style=for-the-badge&color=7289da)](https://discord.gg/zrESMn6)  
-<!--
-[![License](https://img.shields.io/github/license/Fabricio-191/valve-server-query?color=white&style=for-the-badge)](https://github.com/Fabricio-191/valve-server-query/blob/master/LICENSE)
-[![NPM](https://nodei.co/npm/@fabricio-191/valve-server-query.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/@fabricio-191/valve-server-query)
--->
+
 ## An implementation of valve protocols
 
 ```js
@@ -58,6 +54,10 @@ These are the default values
 {
   ip: 'localhost', //in MasterServer is 'hl2master.steampowered.com'
   port: 27015, //in MasterServer is 27011
+  
+  timeout: 2000,
+  debug: false,
+  enableWarns: true,
 
   //RCON
   password: 'The RCON password', // hasn't a default value
@@ -65,13 +65,6 @@ These are the default values
   //Master server
   quantity: 200,
   region: 'OTHER',
-
-  options: {
-    timeout: 2000,
-    debug: false,
-    enableWarns: true,
-    retries: 3,
-  },
 }
 ```
 </br>
@@ -93,11 +86,14 @@ const server = await Server({
 const info = await server.getInfo();
 console.log(info);
 
-const info = await server.getPlayers();
-console.log(info);
+const players = await server.getPlayers();
+console.log(players);
 
-const info = await server.getRules();
-console.log(info);
+const rules = await server.getRules();
+console.log(rules);
+
+const ping = server.lastPing;
+console.log(ping);
 
 /*
 You can also do:
@@ -133,7 +129,7 @@ Info can be something like this:
 ```js
 {
   address: '192.223.30.25:27015',
-  ping: 222, //i think ping is not working well
+  ping: 222,
   protocol: 17,
   goldSource: false,
   name: '[Raidboss] Private KZ/Climb [GOKZ |Global | VIP/Whitelist Only]',
@@ -430,9 +426,11 @@ Performs an [A2A_PING](https://developer.valvesoftware.com/wiki/Server_queries#A
 
 
 
-> This is a deprecated feature of source servers, may not work. The `getInfo` response contains the server ping, so this is not necessary
+> This is a deprecated feature of source servers, may not work. The `server.lastPing` property contains the server ping, so this is not necessary
 
 A warn in console will be shown (you can disable it by using `{ enableWarns: false }`, see [Options](#options))
+
+It will return `-1` if the server did not respond to the query
 
 ```js
 server.ping()
@@ -495,19 +493,15 @@ Server.getInfo({
 
 # MasterServer
 
-Later i will add the 'filter' to the options
-
 ### Warns: 
-* If the quantity is `Infinity` or `'all'`, it will try to get all the servers, but most likely it will end up giving an warning. The master server stops responding at a certain point
 * Gold source master servers may not work. The reason is unknown, the servers simply do not respond to queries
+* If the quantity is `Infinity` or `'all'`, it will try to get all the servers, but most likely it will end up giving an warning (it will as many servers as possible). The master server stops responding at a certain point.
 
 ```js
 MasterServer({
-  quantity: 1000,
+  quantity: 1000, // or Infinity or 'all'
   region: 'US_EAST',
-  options: {
-  	timeout: 3000,
-  }
+  timeout: 3000,
 })
   .then(servers => {
     //do something...
@@ -573,6 +567,66 @@ MasterServer({
 </details>
 
 <details>
+<summary><code>filter</code></summary>
+
+```js
+MasterServer({
+	filter: {
+		nor: {
+			flags: ['secure']
+		}
+		flags: ['dedicated']
+		map: 'cs_italy',
+	}
+})
+  .then(console.log)
+  .catch(console.error)
+
+// Will return a list of ips that are dedicated servers, in the cs_italy map and that do not have an anti-cheat enabled
+```
+
+See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Filter
+
+Properties of the filter object:
+
+| Parameter          | Values  | Description                                                                   |
+| ------------------ | ------- | ----------------------------------------------------------------------------- |
+| name_match         | string  | Servers with their hostname matching that hostname (can use * as a wildcard)  |
+| version_match      | string  | Servers running version that version (can use * as a wildcard)                |
+| gameaddr           | string  | Return only servers on the specified IP address (port supported and optional) |
+| gamedir            | string  | Servers running the specified modification (ex. cstrike)                      |
+| map                | string  | Servers running the specified map (ex. cs_italy)                              |
+| appid              | number  | Servers that are running game with that [appid](https://developer.valvesoftware.com/wiki/Steam_Application_IDs) |
+| napp               | number  | Servers that are NOT running game with that [appid](https://developer.valvesoftware.com/wiki/Steam_Application_IDs) |
+| nor                | filter  | Another filter object, specifies that servers matching **any** of the conditions should in that filter should not be returned |
+| nand               | filter  | Another filter object, specifies that servers matching **all** of the conditions should in that filter should not be returned |
+| gametype           | array   | Servers with all of the given tag(s) in sv_tags                               |
+| gamedata           | array   | Servers with all of the given tag(s) in their 'hidden' tags (only in L4D2)    |
+| gamedataor         | array   | Servers with any of the given tag(s) in their 'hidden' tags (only in L4D2)    |
+| flags              | array   | See below                                                                     |
+
+Notes: 
+* all array's are of strings.
+* `flags` are not booleans. if you want to get the inverse of any of these flags, you should use `nor` or `nand`.
+
+Flags
+
+| Name       | Description                             |
+| ---------- | --------------------------------------- |
+| dedicated  | Servers that are dedicated servers      |
+| secure     | Servers using anti-cheat technology (VAC, but potentially others as well) |
+| linux      | Servers running on a Linux platform     |
+| password   | Servers that are not password protected |
+| noplayers  | Servers that are empty                  |
+| empty      | Servers that are not empty              |
+| full       | Servers that are not full               |
+| proxy      | Servers that are spectator proxies      |
+| white      | Servers that are whitelisted            |
+| collapse_addr_hash | Return only one server for each unique IP address matched |
+
+</details>
+
+<details>
 <summary><code>getIPS()</code></summary>
 
 ```js
@@ -599,11 +653,7 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master
 
 # RCON
 
-RCON options are the same as the ones used for `Server`, with the diference of `password`, see below.
-
-### Warns: 
-* Executting `cvarlist` or `status` may interfere with other queries and it can throw an incomplete output (the cvarlist command above all)
-* Some commands may cause an server-side error (`sv_gravity 0` in some cases for example) and it will disconnect
+Some commands will cause the server to disconnect, for example `sv_gravity 0` in some cases or `rcon_password newPassword` as it changes de password and needs to authenticate again.
 
 ```js
 const rcon = await RCON({
@@ -612,20 +662,19 @@ const rcon = await RCON({
   password: 'your RCON password'
 });
 
-rcon.on('disconnect', async (reason, reconnect) => {
+rcon.on('disconnect', async (reason) => {
 	console.log('disconnected', reason);
 	try{
-		await reconnect();
-	}catch{
-		console.log('reconnect failed');
-		// the server may be probably down or you internet is failing or other 100 reasons
+		await rcon.reconnect();
+	}catch(e){
+		console.log('reconnect failed', e.message);
 	}
 });
 
-rcon.on('passwordChange', async (handleAuth) => {
+rcon.on('passwordChanged', async () => {
 	const password = await getNewPasswordSomehow();
 	try{
-		await handleAuth(password);
+		await rcon.authenticate(password);
 	}catch(e){
 		console.error('Failed to authenticate with new password', e.message);
 	}
@@ -633,7 +682,7 @@ rcon.on('passwordChange', async (handleAuth) => {
 
 const response = await rcon.exec('sv_gravity 1000');
 // Response is always a string that is some kind of log of the server or it can be empty
-``` 
+```
 
 <details>
 <summary><code>exec(command)</code></summary>

@@ -1,3 +1,5 @@
+import EventEmitter from 'events';
+
 /* eslint-disable no-shadow */
 declare module '@fabricio-191/valve-server-query' {
 	/**
@@ -140,6 +142,10 @@ declare module '@fabricio-191/valve-server-query' {
 
 		/** Data to initialize the server. */
 		interface Options {
+			/** Ip address or hostname to the server to connect */
+			ip?: string;
+			/** Port to use to send data to the server, default: `27015` */
+			port?: number;
 			/** Maximum time (in miliseconds) to wait a server response, default: `2000` */
 			timeout?: number;
 			/** Whenether to show or not the incoming and outcoming packages, default: `false` */
@@ -150,47 +156,23 @@ declare module '@fabricio-191/valve-server-query' {
 			retries?: number;
 		}
 
-		/** Data to initialize the server. */
-		interface Data {
-			/** Ip address or hostname to the server to connect */
-			ip?: string;
-			/** Port to use to send data to the server, default: `27015` */
-			port?: number | string;
-			options?: Options;
-		}
-
-		export function getInfo(options: Data): Promise<Server.Info>;
+		export function getInfo(options: Options): Promise<Server.Info>;
 	}
 
 	namespace MasterServer {
+		type Flags = Array<
+			'dedicated' | 'secure' | 'linux' |
+			'password' | 'empty' | 'full' | 'proxy' |
+			'noplayers' | 'white' | 'collapse_addr_hash'
+		>;
+
 		/** Filter to use when querying a master server */
 		interface Filter{
+			flags?: Flags;
 			/** A special filter, specifies that servers matching any of the following [x] conditions should not be returned */
 			nor?: Filter;
-
 			/** A special filter, specifies that servers matching all of the following [x] conditions should not be returned */
 			nand?: Filter;
-
-			/** Servers running dedicated */
-			dedicated?: boolean;
-			/** Servers using anti-cheat technology (VAC, but potentially others as well) */
-			secure?: boolean;
-			/** Servers running on a Linux platform */
-			linux?: boolean;
-			/** Servers that are password protected */
-			password?: boolean;
-			/** Servers that are not empty */
-			empty?: boolean;
-			/** Servers that are not full */
-			full?: boolean;
-			/** Servers that are spectator proxies */
-			proxy?: boolean;
-			/** Servers that are empty */
-			noplayers?: boolean;
-			/** Servers that are whitelisted */
-			white?: boolean;
-			/** Return only one server for each unique IP address matched */
-			collapse_addr_hash?: boolean;
 
 			/** Servers running the specified modification (ex. cstrike) */
 			gamedir?: string;
@@ -200,7 +182,6 @@ declare module '@fabricio-191/valve-server-query' {
 			name_match?: string;
 			/** Servers running version [version] (can use * as a wildcard) */
 			version_match?: string;
-
 			/** Return only servers on the specified IP address (port supported and optional) */
 			gameaddr?: string;
 
@@ -217,8 +198,12 @@ declare module '@fabricio-191/valve-server-query' {
 			gamedataor?: string[];
 		}
 
-		/** Data to initialize the server. */
-		interface Options extends Server.Options{
+		/** Data to query the master server. */
+		interface Data extends Server.Options{
+			/** Ip address or hostname to the master server to query, default: `'hl1master.steampowered.com'` */
+			ip?: 'hl2master.steampowered.com' | 'hl1master.steampowered.com' | (string & {});
+			/** Port to use default: `27011` */
+			port?: number;
 			/** Minimum quantity of servers to retrieve, default: `200`  */
 			quantity?: number | 'all';
 			/** Region of the servers to retrieve */
@@ -232,16 +217,8 @@ declare module '@fabricio-191/valve-server-query' {
 				'MIDDLE_EAST' |
 				'AFRICA' |
 				'OTHER';
-		}
-
-		/** Data to query the master server. */
-		interface Data extends Options{
-			/** Ip address or hostname to the master server to query, default: `'hl1master.steampowered.com'` */
-			ip?: 'hl2master.steampowered.com' | 'hl1master.steampowered.com' | string;
-			// /** Filter of the servers to retrieve */
-			// filter?: Filter;
-			/** Port to use default: `27011` */
-			port?: number | string;
+			/** Filter of the servers to retrieve */
+			filter?: Filter;
 		}
 
 		/** Get the source and goldsource master servers ip's */
@@ -255,14 +232,9 @@ declare module '@fabricio-191/valve-server-query' {
 
 	namespace RCON {
 		/** Options to initialize the remote console. */
-		interface Data extends Server.Data{
+		interface Data extends Server.Options{
 			/** Password of RCON */
 			password: string;
-		}
-
-		interface CLI{
-			enable(): void;
-			disable(): void;
 		}
 
 		type Command = string;
@@ -290,17 +262,19 @@ declare module '@fabricio-191/valve-server-query' {
 	}
 
 	/** An interface to use de remote console */
-	interface RCON{
+	interface RCON extends EventEmitter{
 		/** Method to execute a console command */
 		exec(command: RCON.Command): Promise<string>;
-		/** Method used to re-autenticate when rcon password is changed or connection is lost*/
+		/** Method used to authenticate */
 		autenticate(password?: string): Promise<void>;
+		/** Method used to re-connect when rcon password is changed or connection is lost */
+		reconnect(): Promise<void>;
 		/** Method to destroy the connection to the RCON */
 		destroy(): void;
-		// /** A interface to the CLI */
-		// cli: RCON.CLI;
+		
+		on(event: 'disconnect', listener: (reason: string) => any): this;
+		on(event: 'passwordChange', listener: () => any): this;
 	}
-
 
 	/** Make queries to a server running a valve game */
 	export function Server(data?: Server.Data): Promise<Server>;
