@@ -1,6 +1,5 @@
 import EventEmitter from 'events';
 
-/* eslint-disable no-shadow */
 declare module '@fabricio-191/valve-server-query' {
 	/**
 	 * An string with the format 'ip:port', example:
@@ -259,6 +258,8 @@ declare module '@fabricio-191/valve-server-query' {
 
 		/** Disconnects the server */
 		disconnect(): void;
+		/** The ping of the last request to the server */
+		lastPing: number;
 	}
 
 	/** An interface to use de remote console */
@@ -266,7 +267,7 @@ declare module '@fabricio-191/valve-server-query' {
 		/** Method to execute a console command */
 		exec(command: RCON.Command): Promise<string>;
 		/** Method used to authenticate */
-		autenticate(password?: string): Promise<void>;
+		authenticate(password?: string): Promise<void>;
 		/** Method used to re-connect when rcon password is changed or connection is lost */
 		reconnect(): Promise<void>;
 		/** Method to destroy the connection to the RCON */

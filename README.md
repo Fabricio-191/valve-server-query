@@ -633,6 +633,8 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master
 
 Some commands will cause the server to disconnect, for example `sv_gravity 0` in some cases or `rcon_password newPassword` as it changes de password and needs to authenticate again.
 
+[Commands list](https://developer.valvesoftware.com/wiki/Console_Command_List) 
+
 ```js
 const rcon = await RCON({
   ip: '0.0.0.0',

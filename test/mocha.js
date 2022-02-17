@@ -4,10 +4,11 @@ const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
 const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
 
 // https://www.freegamehosting.eu/stats#garrysmod
-const [ip, port, password] =
-	'connect 213.239.207.78:33050 ; rcon_password cosas'
-		.match(/connect (\S+):(\d+) ; rcon_password (\S+)/)
-		.slice(1);
+const [ip, port, password] = `
+connect 213.239.207.78:33050 ; rcon_password cosas
+`.trim()
+	.match(/connect (\S+):(\d+) ; rcon_password (\S+)/)
+	.slice(1);
 
 const options = {
 	ip,
