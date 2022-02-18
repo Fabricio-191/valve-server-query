@@ -565,9 +565,13 @@ MasterServer({
 // Will return a list of ips that are dedicated servers, in the cs_italy map and that do not have an anti-cheat enabled
 ```
 
-See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Filter
+`add(key, value)` adds a condition to the filter.
+`addFlag(flag)` adds a flag to the filter.
+`addFlags([flag, flag, ...])` adds multiple flags to the filter.
+`addNOR(filter)` a special condition, specifies that servers matching any of the `filter` conditions should not be returned.
+`addNAND(filter)` a special condition, specifies that servers matching all of the `filter` conditions should not be returned.
 
-Properties of the filter object:
+See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Filter
 
 | Parameter          | Values  | Description                                                                   |
 | ------------------ | ------- | ----------------------------------------------------------------------------- |
@@ -578,12 +582,9 @@ Properties of the filter object:
 | map                | string  | Servers running the specified map (ex. cs_italy)                              |
 | appid              | number  | Servers that are running game with that [appid](https://developer.valvesoftware.com/wiki/Steam_Application_IDs) |
 | napp               | number  | Servers that are NOT running game with that [appid](https://developer.valvesoftware.com/wiki/Steam_Application_IDs) |
-| nor                | filter  | Another filter object, specifies that servers matching **any** of the conditions should in that filter should not be returned |
-| nand               | filter  | Another filter object, specifies that servers matching **all** of the conditions should in that filter should not be returned |
 | gametype           | array   | Servers with all of the given tag(s) in sv_tags                               |
 | gamedata           | array   | Servers with all of the given tag(s) in their 'hidden' tags (only in L4D2)    |
 | gamedataor         | array   | Servers with any of the given tag(s) in their 'hidden' tags (only in L4D2)    |
-| flags              | array   | See below                                                                     |
 
 Notes: 
 * all array's are of strings.

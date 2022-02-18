@@ -1,6 +1,6 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "main": "./lib/index.js",
   "typings": "./typings/index.d.ts",
   "homepage": "https://github.com/Fabricio-191/valve-server-query#readme",
