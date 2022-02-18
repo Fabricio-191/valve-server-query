@@ -55,10 +55,7 @@ These are the default values
 const server = await Server({
   ip: '0.0.0.0',
   port: 27015,
-  options: {
-    timeout: 3000,
-    retries: 5
-  }
+  timeout: 3000,
 });
 
 const info = await server.getInfo();
