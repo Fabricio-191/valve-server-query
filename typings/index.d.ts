@@ -159,42 +159,41 @@ declare module '@fabricio-191/valve-server-query' {
 	}
 
 	namespace MasterServer {
-		type Flags = Array<
-			'dedicated' | 'secure' | 'linux' |
+		type Flag = 'dedicated' | 'secure' | 'linux' |
 			'password' | 'empty' | 'full' | 'proxy' |
-			'noplayers' | 'white' | 'collapse_addr_hash'
-		>;
+			'noplayers' | 'white' | 'collapse_addr_hash';
 
-		/** Filter to use when querying a master server */
-		interface Filter{
-			flags?: Flags;
-			/** A special filter, specifies that servers matching any of the following [x] conditions should not be returned */
-			nor?: Filter;
-			/** A special filter, specifies that servers matching all of the following [x] conditions should not be returned */
-			nand?: Filter;
-
-			/** Servers running the specified modification (ex. cstrike) */
-			gamedir?: string;
-			/** Servers running the specified map (ex. cs_italy) */
-			map?: string;
-			/** Servers with their hostname matching [hostname] (can use * as a wildcard) */
-			name_match?: string;
-			/** Servers running version [version] (can use * as a wildcard) */
-			version_match?: string;
-			/** Return only servers on the specified IP address (port supported and optional) */
-			gameaddr?: string;
-
-			/** Servers that are running game [appid] */
-			appid?: number;
-			/** Servers that are NOT running game [appid] */
-			napp?: number;
-
-			/** Servers with all of the given tag(s) in sv_tags */
-			gametype?: string[];
-			/** Servers with all of the given tag(s) in their 'hidden' tags (L4D2) */
-			gamedata?: string[];
-			/** Servers with any of the given tag(s) in their 'hidden' tags (L4D2) */
-			gamedataor?: string[];
+		type key = 'gamedir' | 'map' | 'name_match' |
+			'version_match' | 'gameaddr' | 'appid' |
+			'napp' | 'gametype' | 'gamedata' | 'gamedataor';
+		
+		export class Filter{
+			/**
+			 * Adds a condition to the filter
+			 * @param key Key of the condition
+			 * @param value value of the condition
+			 */
+			add(key: key, value: number | boolean | string): Filter;
+			/**
+			 * Adds a condition with a constant value to the filter
+			 * @param flag The flag to add
+			 */
+			addFlag(flag: Flag): Filter;
+			/**
+			 * Adds multiple flags to the filter
+			 * @param flagsArr The flags to add
+			 */
+			addFlags(flagsArr: Flag[]): Filter;
+			/**
+			 * Adds a special filter, specifies that servers matching the any condition in the filter should not be returned 
+			 * @param filter The filter
+			 */
+			addNOR(filter: Filter): Filter;
+			/**
+			 * Adds a special filter, specifies that servers matching the all conditions in the filter should not be returned 
+			 * @param filter The filter
+			 */
+			addNAND(filter: Filter): Filter;
 		}
 
 		/** Data to query the master server. */

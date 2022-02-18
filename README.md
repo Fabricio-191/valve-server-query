@@ -548,14 +548,16 @@ MasterServer({
 <summary><code>filter</code></summary>
 
 ```js
+const filter = new MasterServer.Filter()
+	.addFlag('dedicated')
+	.add('map', 'cs_italy')
+	.addNOR(
+		new MasterServer.Filter()
+			.addFlag('secure')
+	);
+
 MasterServer({
-	filter: {
-		nor: {
-			flags: ['secure']
-		}
-		flags: ['dedicated']
-		map: 'cs_italy',
-	}
+	filter,
 })
   .then(console.log)
   .catch(console.error)

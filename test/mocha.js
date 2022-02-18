@@ -5,7 +5,7 @@ const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const [ip, port, password] = `
-connect 213.239.207.78:33050 ; rcon_password cosas
+connect 49.12.122.244:33027 ; rcon_password cosas
 `.trim()
 	.match(/connect (\S+):(\d+) ; rcon_password (\S+)/)
 	.slice(1);
@@ -16,7 +16,7 @@ const options = {
 	password,
 
 	enableWarns: false,
-	debug: false,
+	debug: true,
 };
 
 const result = {
@@ -60,15 +60,17 @@ describe('MasterServer', () => {
 	it('filter', async function(){
 		this.slow(14000);
 		this.timeout(15000);
+		const filter = new MasterServer.Filter()
+			.add('map', 'de_dust2')
+			.addFlag('linux')
+			.addNOR(
+				new MasterServer.Filter()
+					.addFlag('secure'),
+			);
+
 		const IPs = await MasterServer({
 			// debug: true,
-			filter: {
-				nor: {
-					flags:  ['secure'],
-				},
-				flags: ['linux'],
-				map: 'de_dust2',
-			},
+			filter,
 			quantity: 300,
 		});
 
@@ -167,7 +169,7 @@ describe('Server', () => {
 	});
 });
 
-describe('RCON', () => {
+describe.only('RCON', () => {
 	let rcon;
 	it('connect and authenticate', async function(){
 		this.retries(3);
