@@ -556,7 +556,10 @@ const filter = new MasterServer.Filter()
       .addFlag('secure')
   );
 
-MasterServer({
+MasterServer(
+  quantity: 1000,
+  region: 'EUROPE',
+  timeout: 3000,
   filter,
 })
   .then(console.log)
@@ -588,7 +591,7 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Filter
 
 Notes: 
 * all array's are of strings.
-* `flags` are not booleans. if you want to get the inverse of any of these flags, you should use `nor` or `nand`.
+* `flags` are not booleans. if you want to get the inverse of any of these flags, you should use `addNOR` or `addNAND`.
 
 Flags
 
