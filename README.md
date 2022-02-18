@@ -55,10 +55,7 @@ These are the default values
 const server = await Server({
   ip: '0.0.0.0',
   port: 27015,
-  options: {
-    timeout: 3000,
-    retries: 5
-  }
+  timeout: 3000,
 });
 
 const info = await server.getInfo();
@@ -77,9 +74,9 @@ console.log(ping);
 You can also do:
 
 const [info, players, rules] = await Promise.all([
-	server.getInfo(),
-	server.getPlayers().catch(e => {}),
-	server.getRules().catch(e => {})
+  server.getInfo(),
+  server.getPlayers().catch(e => {}),
+  server.getRules().catch(e => {})
 ]);
 
 This make all queries in parallel
@@ -549,15 +546,18 @@ MasterServer({
 
 ```js
 const filter = new MasterServer.Filter()
-	.addFlag('dedicated')
-	.add('map', 'cs_italy')
-	.addNOR(
-		new MasterServer.Filter()
-			.addFlag('secure')
-	);
+  .addFlag('dedicated')
+  .add('map', 'cs_italy')
+  .addNOR(
+    new MasterServer.Filter()
+      .addFlag('secure')
+  );
 
-MasterServer({
-	filter,
+MasterServer(
+  quantity: 1000,
+  region: 'EUROPE',
+  timeout: 3000,
+  filter,
 })
   .then(console.log)
   .catch(console.error)
@@ -565,9 +565,13 @@ MasterServer({
 // Will return a list of ips that are dedicated servers, in the cs_italy map and that do not have an anti-cheat enabled
 ```
 
-See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Filter
+`add(key, value)` adds a condition to the filter.
+`addFlag(flag)` adds a flag to the filter.
+`addFlags([flag, flag, ...])` adds multiple flags to the filter.
+`addNOR(filter)` a special condition, specifies that servers matching any of the `filter` conditions should not be returned.
+`addNAND(filter)` a special condition, specifies that servers matching all of the `filter` conditions should not be returned.
 
-Properties of the filter object:
+See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Filter
 
 | Parameter          | Values  | Description                                                                   |
 | ------------------ | ------- | ----------------------------------------------------------------------------- |
@@ -578,16 +582,13 @@ Properties of the filter object:
 | map                | string  | Servers running the specified map (ex. cs_italy)                              |
 | appid              | number  | Servers that are running game with that [appid](https://developer.valvesoftware.com/wiki/Steam_Application_IDs) |
 | napp               | number  | Servers that are NOT running game with that [appid](https://developer.valvesoftware.com/wiki/Steam_Application_IDs) |
-| nor                | filter  | Another filter object, specifies that servers matching **any** of the conditions should in that filter should not be returned |
-| nand               | filter  | Another filter object, specifies that servers matching **all** of the conditions should in that filter should not be returned |
 | gametype           | array   | Servers with all of the given tag(s) in sv_tags                               |
 | gamedata           | array   | Servers with all of the given tag(s) in their 'hidden' tags (only in L4D2)    |
 | gamedataor         | array   | Servers with any of the given tag(s) in their 'hidden' tags (only in L4D2)    |
-| flags              | array   | See below                                                                     |
 
 Notes: 
 * all array's are of strings.
-* `flags` are not booleans. if you want to get the inverse of any of these flags, you should use `nor` or `nand`.
+* `flags` are not booleans. if you want to get the inverse of any of these flags, you should use `addNOR` or `addNAND`.
 
 Flags
 
@@ -645,21 +646,21 @@ const rcon = await RCON({
 });
 
 rcon.on('disconnect', async (reason) => {
-	console.log('disconnected', reason);
-	try{
-		await rcon.reconnect();
-	}catch(e){
-		console.log('reconnect failed', e.message);
-	}
+  console.log('disconnected', reason);
+  try{
+    await rcon.reconnect();
+  }catch(e){
+    console.log('reconnect failed', e.message);
+  }
 });
 
 rcon.on('passwordChanged', async () => {
-	const password = await getNewPasswordSomehow();
-	try{
-		await rcon.authenticate(password);
-	}catch(e){
-		console.error('Failed to authenticate with new password', e.message);
-	}
+  const password = await getNewPasswordSomehow();
+  try{
+    await rcon.authenticate(password);
+  }catch(e){
+    console.error('Failed to authenticate with new password', e.message);
+  }
 });
 
 const response = await rcon.exec('sv_gravity 1000');
