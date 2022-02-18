@@ -77,9 +77,9 @@ console.log(ping);
 You can also do:
 
 const [info, players, rules] = await Promise.all([
-	server.getInfo(),
-	server.getPlayers().catch(e => {}),
-	server.getRules().catch(e => {})
+  server.getInfo(),
+  server.getPlayers().catch(e => {}),
+  server.getRules().catch(e => {})
 ]);
 
 This make all queries in parallel
@@ -549,15 +549,15 @@ MasterServer({
 
 ```js
 const filter = new MasterServer.Filter()
-	.addFlag('dedicated')
-	.add('map', 'cs_italy')
-	.addNOR(
-		new MasterServer.Filter()
-			.addFlag('secure')
-	);
+  .addFlag('dedicated')
+  .add('map', 'cs_italy')
+  .addNOR(
+    new MasterServer.Filter()
+      .addFlag('secure')
+  );
 
 MasterServer({
-	filter,
+  filter,
 })
   .then(console.log)
   .catch(console.error)
@@ -646,21 +646,21 @@ const rcon = await RCON({
 });
 
 rcon.on('disconnect', async (reason) => {
-	console.log('disconnected', reason);
-	try{
-		await rcon.reconnect();
-	}catch(e){
-		console.log('reconnect failed', e.message);
-	}
+  console.log('disconnected', reason);
+  try{
+    await rcon.reconnect();
+  }catch(e){
+    console.log('reconnect failed', e.message);
+  }
 });
 
 rcon.on('passwordChanged', async () => {
-	const password = await getNewPasswordSomehow();
-	try{
-		await rcon.authenticate(password);
-	}catch(e){
-		console.error('Failed to authenticate with new password', e.message);
-	}
+  const password = await getNewPasswordSomehow();
+  try{
+    await rcon.authenticate(password);
+  }catch(e){
+    console.error('Failed to authenticate with new password', e.message);
+  }
 });
 
 const response = await rcon.exec('sv_gravity 1000');
