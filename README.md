@@ -1,3 +1,4 @@
+<a href="https://www.buymeacoffee.com/Fabricio191" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="28" width="135"></a>
 [![Discord](https://img.shields.io/discord/555535212461948936?style=for-the-badge&color=7289da)](https://discord.gg/zrESMn6)  
 
 ## An implementation of valve protocols
@@ -547,14 +548,16 @@ MasterServer({
 <summary><code>filter</code></summary>
 
 ```js
+const filter = new MasterServer.Filter()
+	.addFlag('dedicated')
+	.add('map', 'cs_italy')
+	.addNOR(
+		new MasterServer.Filter()
+			.addFlag('secure')
+	);
+
 MasterServer({
-	filter: {
-		nor: {
-			flags: ['secure']
-		}
-		flags: ['dedicated']
-		map: 'cs_italy',
-	}
+	filter,
 })
   .then(console.log)
   .catch(console.error)
@@ -631,6 +634,8 @@ See https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Master
 # RCON
 
 Some commands will cause the server to disconnect, for example `sv_gravity 0` in some cases or `rcon_password newPassword` as it changes de password and needs to authenticate again.
+
+[Commands list](https://developer.valvesoftware.com/wiki/Console_Command_List) 
 
 ```js
 const rcon = await RCON({
