@@ -1,9 +1,11 @@
-const EventEmitter = require('events');
-const net = require('net');
-const utils = require('../utils/utils.js');
+import { EventEmitter } from 'events';
+import type { Socket } from 'net';
+import { debug, BufferWriter } from '../utils/utils';
+import { RCONPacket } from '../utils/parsers';
+import { createConnection } from 'net';
 
-const makeCommand = (ID, type, body = '') =>
-	new utils.BufferWriter()
+const makeCommand = (ID: number, type: number, body = ''): Buffer =>
+	new BufferWriter()
 		.long(Buffer.byteLength(body) + 10)
 		.long(ID)
 		.long(type)
@@ -11,57 +13,54 @@ const makeCommand = (ID, type, body = '') =>
 		.byte(0)
 		.end();
 
-function manageBuffer(connection, buffer){
-	if(connection.options.debug) utils.debug('RCON', 'recieved:', buffer);
-
-	if(connection.remaining === 0){
-		connection.remaining = buffer.readUInt32LE() + 4; // size field
-	}
-	connection.remaining -= buffer.length;
-
-	if(connection.remaining === 0){
-		// got the whole packet
-		connection.socket.emit('packet', utils.parsers.RCONPacket(
-			Buffer.concat(connection.buffers.concat(buffer)),
-		));
-
-		connection.buffers = [];
-		connection.remaining = 0;
-	}else if(connection.remaining > 0){
-		// needs more packets
-		connection.buffers.push(buffer);
-	}else if(connection.remaining < 0){
-		// got more than one packet
-		connection.socket.emit('packet', utils.parsers.RCONPacket(
-			Buffer.concat(connection.buffers.concat(
-				buffer.slice(0, connection.remaining),
-			)),
-		));
-
-		connection.buffers = [];
-		const excess = connection.remaining;
-		connection.remaining = 0;
-		connection.socket.emit('data', buffer.slice(excess));
-	}
-}
-
 class Connection{
 	constructor(options){
 		this.options = options;
 
-		this.socket = net
-			.createConnection(options.port, options.ip)
+		this.socket = createConnection(options.port, options.ip)
 			.unref()
-			.on('data', manageBuffer.bind(null, this));
+			.on('data', (buffer: Buffer) => {
+				if(this.options.debug) debug('RCON', 'recieved:', buffer);
+			
+				if(this.remaining === 0){
+					this.remaining = buffer.readUInt32LE() + 4; // size field
+				}
+				this.remaining -= buffer.length;
+			
+				if(this.remaining === 0){
+					// got the whole packet
+					this.socket.emit('packet', RCONPacket(
+						Buffer.concat(this.buffers.concat(buffer)),
+					));
+			
+					this.buffers = [];
+					this.remaining = 0;
+				}else if(this.remaining > 0){
+					// needs more packets
+					this.buffers.push(buffer);
+				}else if(this.remaining < 0){
+					// got more than one packet
+					this.socket.emit('packet', RCONPacket(
+						Buffer.concat(this.buffers.concat(
+							buffer.slice(0, this.remaining),
+						)),
+					));
+			
+					this.buffers = [];
+					const excess = this.remaining;
+					this.remaining = 0;
+					this.socket.emit('data', buffer.slice(excess));
+				}
+			});
 
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 	}
-	socket = null;
+	socket: Socket;
 	options = {};
-	_connected = null;
+	_connected: Promise<void> | null;
 
 	remaining = 0;
-	buffers = [];
+	buffers: Buffer[] = [];
 
 	async _ready(){
 		if(this._connected === null){
@@ -71,7 +70,7 @@ class Connection{
 
 	async send(command){
 		await this._ready();
-		if(this.options.debug) utils.debug('RCON', 'sending:', command);
+		if(this.options.debug) debug('RCON', 'sending:', command);
 
 		return await new Promise((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
@@ -81,7 +80,7 @@ class Connection{
 		});
 	}
 
-	async awaitResponse(type, ID){
+	async awaitResponse(type: number, ID: number){
 		await this._ready();
 
 		return await this.awaitEvent(
@@ -92,7 +91,7 @@ class Connection{
 		);
 	}
 
-	awaitEvent(event, timeoutMsg, filter){
+	awaitEvent(event, timeoutMsg, filter?: (packet: {}) => unknown): Promise<void> {
 		return new Promise((res, rej) => {
 			// eslint-disable-next-line prefer-const
 			let clear;
@@ -126,7 +125,7 @@ class RCON extends EventEmitter{
 		this.connection = new Connection(options);
 
 		const cb = err => {
-			if(this.connection.options.debug) utils.debug('RCON', 'disconnected.');
+			if(this.connection.options.debug) debug('RCON', 'disconnected.');
 
 			this.connection.buffers = [];
 			this.connection.remaining = 0;
@@ -195,7 +194,7 @@ class RCON extends EventEmitter{
 
 		// Tiny delay to avoid "Error: Already connected" while reconnecting
 		await new Promise(res => { setTimeout(res, 100); });
-		if(connection.options.debug) utils.debug('RCON', 'reconnecting...');
+		if(connection.options.debug) debug('RCON', 'reconnecting...');
 
 		connection._connected = connection.awaitEvent('connect', 'Connection timeout.');
 
@@ -205,7 +204,7 @@ class RCON extends EventEmitter{
 		).unref();
 
 		await connection._connected;
-		if(connection.options.debug) utils.debug('RCON', 'connected');
+		if(connection.options.debug) debug('RCON', 'connected');
 
 		try{
 			await this.authenticate(connection.options.password);
@@ -213,7 +212,7 @@ class RCON extends EventEmitter{
 			this._auth = null;
 			if(e.message !== 'RCON: wrong password') throw e;
 
-			if(connection.options.debug) utils.debug('RCON', 'password changed.');
+			if(connection.options.debug) debug('RCON', 'password changed.');
 			this.emit('passwordChange');
 		}
 	}
@@ -247,7 +246,7 @@ class RCON extends EventEmitter{
 		await this._auth;
 		this.connection.options.password = password;
 
-		if(this.connection.options.debug) utils.debug('RCON', 'autenticated');
+		if(this.connection.options.debug) debug('RCON', 'autenticated');
 	}
 
 	_lastID = 0x33333333;
@@ -257,14 +256,14 @@ class RCON extends EventEmitter{
 	}
 }
 
-module.exports = async function createRCON(options){
+export default async function createRCON(options){
 	const rcon = new RCON(
-		await utils.parseOptions(options),
+		await parseOptions(options),
 	);
-	if(rcon.connection.options.debug) utils.debug('RCON', 'connecting...');
+	if(rcon.connection.options.debug) debug('RCON', 'connecting...');
 
 	await rcon.connection._connected;
-	if(rcon.connection.options.debug) utils.debug('RCON', 'connected');
+	if(rcon.connection.options.debug) debug('RCON', 'connected');
 	await rcon.authenticate(options.password);
 
 	return rcon;

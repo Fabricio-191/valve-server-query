@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
+/* eslint-disable no-bitwise */
 const OPERATIVE_SYSTEMS = {
 		l: 'linux',
 		w: 'windows',
@@ -22,7 +24,7 @@ const OPERATIVE_SYSTEMS = {
 		2412, 2430,
 	];
 
-function time(raw){
+export function time(raw: number | null){
 	if(!raw || raw === -1) return null;
 
 	const hours = Math.floor(raw / 3600)								|| 0;
@@ -39,11 +41,10 @@ function time(raw){
 			return [this.hours, this.minutes, this.seconds]
 				.reduce((acc, value) => {
 					if(acc !== ''){
-						// @ts-ignore
+						// @ts-expect-error
 						if(value < 10) value = '0' + value;
 						acc += ':' + value;
-					}
-					else if(value !== 0) acc += value;
+					}else if(value !== 0) acc += value;
 
 					return acc;
 				}, '');
@@ -51,43 +52,42 @@ function time(raw){
 	};
 }
 
-class BufferParser{
-	constructor(buffer, offset = 0){
+export class BufferParser{
+	constructor(buffer: Buffer, offset = 0){
 		this.raw = buffer;
 		this.offset = offset;
 	}
-	raw = null;
-	offset = 0;
+	private readonly raw: Buffer;
+	private offset = 0;
 
-	byte(){
+	public byte(): number {
 		return this.raw.readUInt8(this.offset++);
 	}
 
-	short(unsigned = false, endianess = 'LE'){
+	public short(unsigned = false, endianess = 'LE'): number {
 		this.offset += 2;
-		if(unsigned){
-			return this.raw[`readUInt16${endianess}`](this.offset-2);
-		}
 
-		return this.raw[`readInt16${endianess}`](this.offset-2);
+		return this.raw[
+			`read${unsigned ? 'U' : ''}Int16${endianess}`
+		](this.offset - 2) as number;
 	}
 
-	long(){
+	public long(): number {
 		this.offset += 4;
-		return this.raw.readInt32LE(this.offset-4);
+		return this.raw.readInt32LE(this.offset - 4);
 	}
 
-	float(){
+	public float(): number {
 		this.offset += 4;
-		return this.raw.readFloatLE(this.offset-4);
+		return this.raw.readFloatLE(this.offset - 4);
 	}
 
-	bigUInt(){// long long
+	public bigUInt(): bigint {// long long
 		this.offset += 8;
-		return this.raw.readBigUInt64LE(this.offset-8);
+		return this.raw.readBigUInt64LE(this.offset - 8);
 	}
 
-	string(encoding = 'ascii'){
+	public string(encoding: BufferEncoding = 'ascii'): string {
 		const stringEndIndex = this.raw.indexOf(0, this.offset);
 		if(stringEndIndex === -1) throw new Error('string not terminated');
 
@@ -99,27 +99,19 @@ class BufferParser{
 		return string;
 	}
 
-	char(){
+	public char(): string {
 		return this.raw.slice(
-			this.offset++, this.offset,
+			this.offset++, this.offset
 		).toString();
 	}
 
-	remaining(){
+	public remaining(): Buffer {
 		return this.raw.slice(this.offset);
 	}
 }
 
-module.exports = {
-	BufferParser,
-	serverInfo, playersInfo,
-	serverRules, serverList,
-	multiPacketResponse,
-	RCONPacket,
-};
-
-function serverInfo(buffer){
-	buffer = new BufferParser(buffer);
+export function serverInfo(raw: Buffer){
+	const buffer = new BufferParser(raw);
 
 	if(buffer.byte() === 0x6D) return goldSourceServerInfo(buffer);
 
@@ -171,7 +163,7 @@ function serverInfo(buffer){
 	return info;
 }
 
-function goldSourceServerInfo(buffer){
+export function goldSourceServerInfo(buffer: BufferParser){
 	const info = {
 		address: buffer.string(),
 		name: buffer.string().trim(),
@@ -196,7 +188,7 @@ function goldSourceServerInfo(buffer){
 	};
 
 	if(info.mod){
-		// @ts-ignore
+		// @ts-expect-error
 		info.mod = {
 			link: buffer.string(),
 			downloadLink: buffer.string(),
@@ -218,30 +210,27 @@ function goldSourceServerInfo(buffer){
 	return info;
 }
 
-function playersInfo(buffer, { appID }){
-	buffer = new BufferParser(buffer, 1);
-
+export function playersInfo(raw: Buffer, { appID }: { appID: number }){
+	const buffer = new BufferParser(raw, 1);
 	const playersCount = buffer.byte(), players = [];
 
-	for(let i = 0; i < playersCount; i++){
-		players.push({
-			index: buffer.byte(),
-			name: buffer.string(),
-			score: buffer.long(),
-			timeOnline: time(buffer.float()),
-		});
-	}
-
 	if(THE_SHIP_IDS.includes(appID)){
+		for(let i = 0; i < playersCount; i++){
+			players.push({
+				index: buffer.byte(),
+				name: buffer.string(),
+				score: buffer.long(),
+				timeOnline: time(buffer.float()),
+			});
+		}
+
 		for(const player of players){
 			Object.assign(player, {
 				deaths: buffer.long(),
 				money: buffer.long(),
 			});
 		}
-	}
-
-	while(buffer.remaining().length){
+	}else while(buffer.remaining().length){
 		players.push({
 			index: buffer.byte(),
 			name: buffer.string(),
@@ -253,8 +242,8 @@ function playersInfo(buffer, { appID }){
 	return players;
 }
 
-function serverRules(buffer){
-	buffer = new BufferParser(buffer, 1);
+export function serverRules(raw: Buffer): Promise<Record<string, boolean | number | string>> {
+	const buffer = new BufferParser(raw, 1);
 	const rulesQty = buffer.short(), rules = {};
 
 	for(let i = 0; i < rulesQty; i++){
@@ -264,6 +253,7 @@ function serverRules(buffer){
 			rules[key] = true;
 		}else if(value === 'False'){
 			rules[key] = false;
+		// @ts-expect-error using isNaN to check if the string is a number
 		}else if(isNaN(value)){
 			rules[key] = value;
 		}else{
@@ -274,8 +264,9 @@ function serverRules(buffer){
 	return rules;
 }
 
-function multiPacketResponse(buffer, _meta){
-	buffer = new BufferParser(buffer, 4);
+const MPS_IDS = [ 215, 17550, 17700 ];
+export function multiPacketResponse(raw: Buffer, _meta){
+	const buffer = new BufferParser(raw, 4);
 	const ID = buffer.long(), packets = buffer.byte();
 
 	if(_meta.multiPacketResponseIsGoldSource){
@@ -301,7 +292,7 @@ function multiPacketResponse(buffer, _meta){
 	};
 
 	if(
-		![ 215, 17550, 17700 ].includes(_meta.appID) &&
+		!MPS_IDS.includes(_meta.appID) &&
 		!(_meta.appID === 240 && _meta.protocol === 7)
 	){
 		info.maxPacketSize = buffer.short();
@@ -319,8 +310,8 @@ function multiPacketResponse(buffer, _meta){
 	return info;
 }
 
-function serverList(buffer){
-	buffer = new BufferParser(buffer, 2);
+export function serverList(raw: Buffer){
+	const buffer = new BufferParser(raw, 2);
 	const servers = [];
 
 	while(buffer.remaining().length){
@@ -331,13 +322,13 @@ function serverList(buffer){
 			buffer.byte(),
 		].join('.');
 
-		servers.push(ip+':'+buffer.short(true, 'BE'));
+		servers.push(ip + ':' + buffer.short(true, 'BE'));
 	}
 
 	return servers;
 }
 
-function RCONPacket(raw){
+export function RCONPacket(raw: Buffer){
 	const buffer = new BufferParser(raw);
 
 	return {

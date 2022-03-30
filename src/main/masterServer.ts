@@ -1,5 +1,68 @@
-const utils = require('../utils/utils.js');
-const createConnection = require('./connection.js');
+import { BufferWriter, BufferLike } from '../utils/utils'
+import { serverList } from '../utils/parsers'
+import createConnection from './connection'
+
+const MASTER_SERVER = {
+	REGIONS: {
+		US_EAST: 0,
+		US_WEST: 1,
+		SOUTH_AMERICA: 2,
+		EUROPE: 3,
+		ASIA: 4,
+		AUSTRALIA: 5,
+		MIDDLE_EAST: 6,
+		AFRICA: 7,
+		OTHER: 255,
+	},
+	DEFAULT_OPTIONS: {
+		ip: 'hl2master.steampowered.com',
+		port: 27011,
+		timeout: 5000,
+		debug: false,
+		enableWarns: true,
+		quantity: 200,
+		region: 'OTHER',
+	},
+};
+
+async function parseOptions(options = {}, isMasterServer = false){
+	if(typeof options !== 'object'){
+		throw Error("'options' must be an object");
+	}
+
+	if(isMasterServer){
+		options = Object.assign({}, MASTER_SERVER.DEFAULT_OPTIONS, options);
+
+		if(options.quantity === 'all') options.quantity = Infinity;
+
+		if(typeof options.quantity !== 'number' || isNaN(options.quantity) || options.quantity <= 0){
+			throw Error("'quantity' must be a number greater than zero");
+		}else if(options.region in MASTER_SERVER.REGIONS){
+			options.region = MASTER_SERVER.REGIONS[options.region];
+		}else{
+			throw Error('The specified region is not valid');
+		}
+	}else{
+		options = Object.assign({}, DEFAULT_OPTIONS, options);
+	}
+
+	if(
+		typeof options.port !== 'number' || isNaN(options.port) ||
+		options.port < 0 || options.port > 65535
+	){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof options.debug !== 'boolean'){
+		throw Error("'debug' should be a boolean");
+	}else if(typeof options.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+	}else if(isNaN(options.timeout) || options.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}
+
+	options.ip = await resolveIP(options.ip);
+
+	return options;
+}
 
 // # region filter
 const flags = {
@@ -15,10 +78,10 @@ const flags = {
 	password: '\\password\\0',
 };
 
-class Filter{
-	filters = [];
+export class Filter{
+	filters: string[] = [];
 
-	add(key, value){
+	add(key: string, value: string | number | string[]){
 		switch(key){
 			case 'gametype':
 			case 'gamedata':
@@ -51,7 +114,7 @@ class Filter{
 
 		return this;
 	}
-	addFlag(flag){
+	addFlag(flag: string){
 		if(!(flag in flags)){
 			throw new Error(`unknown flag: ${flag}`);
 		}
@@ -59,13 +122,13 @@ class Filter{
 		this.filters.push(flags[flag]);
 		return this;
 	}
-	addFlags(flagsArr){
+	addFlags(flagsArr: string[]){
 		for(const flag of flagsArr){
 			this.addFlag(flag);
 		}
 		return this;
 	}
-	addNOR(filter){
+	addNOR(filter: Filter){
 		if(!(filter instanceof Filter)){
 			throw new Error('filter must be an instance of MasterServer.Filter');
 		}
@@ -76,7 +139,7 @@ class Filter{
 		);
 		return this;
 	}
-	addNAND(filter){
+	addNAND(filter: Filter){
 		if(!(filter instanceof Filter)){
 			throw new Error('filter must be an instance of MasterServer.Filter');
 		}
@@ -91,7 +154,7 @@ class Filter{
 }
 // # endregion
 
-async function MasterServer(options){
+export default async function MasterServer(options){
 	const connection = await createConnection(options);
 	// eslint-disable-next-line prefer-destructuring
 	options = connection.options;
@@ -102,20 +165,20 @@ async function MasterServer(options){
 		}else throw new Error('filter must be an instance of MasterServer.Filter');
 	}else options.filter = '';
 
-	const servers = [];
+	const servers: string[] = [];
 
 	while(options.quantity > servers.length){
 		const last = servers.pop(); // it's returned again in the next payload
 
 		if(last === '0.0.0.0:0') break;
 
-		const command = new utils.BufferWriter()
+		const command = new BufferWriter()
 			.byte(0x31, options.region)
 			.string(last || '0.0.0.0:0')
 			.string(options.filter)
 			.end();
 
-		let buffer;
+		let buffer: Buffer;
 		try{
 			buffer = await connection.query(command, 0x66);
 		}catch(e){
@@ -124,20 +187,9 @@ async function MasterServer(options){
 			break;
 		}
 
-		servers.push(...utils.parsers.serverList(buffer));
+		servers.push(...serverList(buffer));
 	}
 
 	connection.destroy();
 	return servers;
 }
-
-module.exports = MasterServer;
-module.exports.Filter = Filter;
-module.exports.getIPs = async function getIPs(){
-	const [goldSource, source] = await Promise.all([
-		'hl1master.steampowered.com',
-		'hl2master.steampowered.com',
-	].map(utils.resolveHostname));
-
-	return { goldSource, source };
-};

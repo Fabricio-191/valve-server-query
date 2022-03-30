@@ -1,9 +1,18 @@
-const utils = require('../utils/utils.js');
-const EventEmitter = require('events');
-const dgram = require('dgram'), servers = {};
+import { debug, decompressBZip, type BufferLike } from '../utils/utils';
+import { multiPacketResponse } from '../utils/parsers';
+import { EventEmitter } from 'events';
+import { createSocket } from 'dgram';
 
-const client = dgram
-	.createSocket('udp4')
+export interface BaseOptions {
+	ip: string;
+	port: number;
+	timeout: number;
+	debug: boolean;
+	enableWarns: boolean;
+};
+
+const servers = {};
+const client = createSocket('udp4')
 	.on('message', (buffer, rinfo) => {
 		if(buffer.length === 0) return;
 
@@ -12,7 +21,7 @@ const client = dgram
 		const connection = servers[address];
 		if(!connection) return;
 
-		if(connection.options.debug) utils.debug(connection._meta ? 'SERVER' : 'MASTER_SERVER', 'recieved:', buffer);
+		if(connection.options.debug) debug(connection._meta ? 'SERVER' : 'MASTER_SERVER', 'recieved:', buffer);
 
 		const packet = packetHandler(buffer, connection);
 		if(!packet) return;
@@ -21,7 +30,7 @@ const client = dgram
 	})
 	.unref();
 
-function packetHandler(buffer, connection){
+function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 	if(buffer.readInt32LE() === -2){
 		const { _meta, packetsQueues, options } = connection;
 
@@ -32,9 +41,9 @@ function packetHandler(buffer, connection){
 
 		let packet;
 		try{
-			packet = utils.parsers.multiPacketResponse(buffer, _meta);
+			packet = multiPacketResponse(buffer, _meta);
 		}catch(e){
-			if(options.debug) utils.debug('SERVER', 'cannot parse packet', buffer);
+			if(options.debug) debug('SERVER', 'cannot parse packet', buffer);
 			if(connection.options.enableWarns){
 				console.error(new Error('Warning: a packet couln\'t be handled'));
 			}
@@ -52,7 +61,7 @@ function packetHandler(buffer, connection){
 		if(queue.length !== packet.packets.total) return;
 
 		if(_meta.multiPacketResponseIsGoldSource && queue.some(p => !p.goldSource)){
-			queue = queue.map(p => utils.parsers.multiPacketResponse(p.raw, _meta));
+			queue = queue.map(p => multiPacketResponse(p.raw, _meta));
 		}
 
 		queue = queue
@@ -64,8 +73,8 @@ function packetHandler(buffer, connection){
 		buffer = Buffer.concat(queue);
 
 		if(queue[0].bzip){
-			if(options.debug) utils.debug('SERVER', `BZip ${connection.ip}:${connection.port}`, buffer);
-			buffer = utils.decompressBZip(buffer);
+			if(options.debug) debug('SERVER', `BZip ${connection.ip}:${connection.port}`, buffer);
+			buffer = decompressBZip(buffer);
 		}
 		/*
 		I never tried bzip decompression, if you are having trouble with this, contact me on discord
@@ -91,15 +100,15 @@ class Connection extends EventEmitter{
 
 		client.setMaxListeners(client.getMaxListeners() + 20);
 	}
-	address = null;
-	options = {};
+	address: string;
+	options: BaseOptions;
 
 	_meta = null;
 	packetsQueues = {};
 	lastPing = -1;
 
-	send(command){
-		if(this.options.debug) utils.debug(this._meta ? 'SERVER' : 'MASTER_SERVER', 'sent:', command);
+	send(command: BufferLike): Promise<void> {
+		if(this.options.debug) debug(this._meta ? 'SERVER' : 'MASTER_SERVER', 'sent:', command);
 
 		return new Promise((res, rej) => {
 			client.send(
@@ -114,16 +123,20 @@ class Connection extends EventEmitter{
 		});
 	}
 
-	awaitResponse(responseHeaders){
+	awaitResponse(responseHeaders: number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			// eslint-disable-next-line prefer-const
-			let clear;
+			const clear = () => {
+				this.off('packet', onPacket);
+				client.off('error', onError);
+				clearTimeout(timeout);
+			};
 
-			const onError = err => { clear(); rej(err); };
-			const onPacket = (buffer, address) => {
+			const onError = (err: unknown) => { clear(); rej(err); };
+			const onPacket = (buffer: Buffer, address: string) => {
 				if(
 					this.address !== address ||
-					!responseHeaders.includes(buffer[0])
+					!responseHeaders.includes(buffer[0] as number)
 				) return;
 
 				clear(); res(buffer);
@@ -133,16 +146,10 @@ class Connection extends EventEmitter{
 
 			this.on('packet', onPacket);
 			client.on('error', onError);
-
-			clear = () => {
-				this.off('packet', onPacket);
-				client.off('error', onError);
-				clearTimeout(timeout);
-			};
 		});
 	}
 
-	async query(command, ...responseHeaders){
+	async query(command: BufferLike, ...responseHeaders: number[]): Promise<Buffer> {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
@@ -164,7 +171,4 @@ class Connection extends EventEmitter{
 	}
 }
 
-module.exports = async (data, _meta) => new Connection(
-	await utils.parseOptions(data, !_meta),
-	_meta,
-);
+export default Connection;

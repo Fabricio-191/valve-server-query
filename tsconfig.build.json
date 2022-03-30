@@ -1,0 +1,20 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"types": ["node"],
+	
+		"rootDir": "./src",
+		"outDir":  "./lib",
+	
+		"declaration": true,
+		"declarationDir": "./lib/typings",
+		
+		"sourceMap": false,
+		"inlineSourceMap": true,
+		// "mapRoot": "",
+
+		// "listEmittedFiles": true
+	},
+	"include": ["src"],
+}

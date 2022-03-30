@@ -333,4 +333,4 @@ function decompress(bytes, checkCRC = false){
 	return out.subarray(0, outIndex);
 }
 
-module.exports = decompress;
+export default decompress;

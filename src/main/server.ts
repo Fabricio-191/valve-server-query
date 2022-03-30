@@ -1,5 +1,6 @@
-const { parsers, debug } = require('../utils/utils.js');
-const createConnection = require('./connection.js');
+import { debug } from '../utils/utils';
+import { serverInfo, serverRules, playersInfo } from '../utils/parsers';
+import Connection from './connection';
 
 const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF];
 const INFO_S = [
@@ -7,6 +8,7 @@ const INFO_S = [
 	...Buffer.from('Source Engine Query\0'),
 ];
 
+const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ];
 const COMMANDS = {
 	INFO(key = BIG_F){
 		return Buffer.from([ ...INFO_S, ...key ]);
@@ -17,11 +19,16 @@ const COMMANDS = {
 	PING: Buffer.from([ ...BIG_F, 0x69 ]),
 };
 
+const DEFAULT_OPTIONS = {
+	ip: 'localhost',
+	port: 27015,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+}
+
 class Server{
-	constructor(connection){
-		this.connection = connection;
-	}
-	connection = null;
+	connection!: Connection | null;
 
 	async getInfo(){
 		if(!this.connection) throw new Error('server is not connected to anything');
@@ -46,14 +53,14 @@ class Server{
 
 		return Object.assign({
 			address: this.connection.options.ip + ':' + this.connection.options.port,
-		}, ...responses.map(parsers.serverInfo));
+		}, ...responses.map(serverInfo));
 	}
 
 	async getPlayers(){
 		const key = await this.challenge(0x55);
 
 		if(key[0] === 0x44 && key.length > 5){
-			return parsers.playersInfo(Buffer.from(key), this.connection._meta);
+			return playersInfo(Buffer.from(key), this.connection._meta);
 		}
 
 		const command = Buffer.from([
@@ -65,14 +72,14 @@ class Server{
 			throw new Error('Wrong server response');
 		}
 
-		return parsers.playersInfo(response, this.connection._meta);
+		return playersInfo(response, this.connection._meta);
 	}
 
 	async getRules(){
 		const key = await this.challenge(0x56);
 
 		if(key[0] === 0x45 && key.length > 5){
-			return parsers.serverRules(Buffer.from(key));
+			return serverRules(Buffer.from(key));
 		}
 
 		const command = Buffer.from([
@@ -84,11 +91,11 @@ class Server{
 			throw new Error('Wrong server response');
 		}
 
-		return parsers.serverRules(response);
+		return serverRules(response);
 	}
 
 	get lastPing(){
-		return this.connection.lastPing;
+		return this.connection ? this.connection.lastPing : -1;
 	}
 
 	async getPing(){
@@ -108,13 +115,11 @@ class Server{
 		}
 	}
 
-	async challenge(code){
+	async challenge(code: number){
 		if(!this.connection) throw new Error('server is not connected');
 
 		const command = COMMANDS.CHALLENGE();
-		if(
-			![ 17510, 17520, 17740, 17550, 17700 ].includes(this.connection._meta.appID)
-		){
+		if(!CHALLENGE_IDS.includes(this.connection._meta.appID)){
 			command[4] = code;
 		}
 
@@ -128,12 +133,11 @@ class Server{
 
 	disconnect(){
 		this.connection.destroy();
-
 		this.connection = null;
 	}
 }
 
-module.exports = async function init(options){
+export default async function init(options){
 	const _meta = {};
 
 	const connection = await createConnection(options, _meta);
@@ -153,7 +157,7 @@ module.exports = async function init(options){
 	return new Server(connection);
 };
 
-module.exports.getInfo = async options => {
+export async function getInfo(options): Promise<ServerInfo> {
 	const connection = await createConnection(options, {});
 	const info = await _getInfo(connection);
 
@@ -161,7 +165,7 @@ module.exports.getInfo = async options => {
 	return info;
 };
 
-async function _getInfo(connection, challenge){
+async function _getInfo(connection, challenge?: Buffer): Promise<object> {
 	const command = challenge ?
 		COMMANDS.INFO(challenge.slice(-4)) :
 		COMMANDS.INFO();
@@ -180,7 +184,7 @@ async function _getInfo(connection, challenge){
 
 	return Object.assign({
 		address: connection.options.ip + ':' + connection.options.port,
-		challenge: Boolean(challenge),
+		needsChallenge: Boolean(challenge),
 		ping: connection.lastPing,
-	}, ...responses.map(parsers.serverInfo));
+	}, ...responses.map(serverInfo));
 }
