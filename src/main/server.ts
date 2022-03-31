@@ -1,6 +1,5 @@
 import { debug } from '../utils/utils';
-import { serverInfo, serverRules, playersInfo } from '../utils/parsers';
-import Connection from './connection';
+import type Connection from './connection';
 
 const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF];
 const INFO_S = [
@@ -25,13 +24,13 @@ const DEFAULT_OPTIONS = {
 	timeout: 5000,
 	debug: false,
 	enableWarns: true,
-}
+};
 
 class Server{
 	connection!: Connection | null;
 
 	async getInfo(){
-		if(!this.connection) throw new Error('server is not connected to anything');
+		if(this.connection == null) throw new Error('server is not connected to anything');
 
 		let command = COMMANDS.INFO();
 		if(this.connection._meta.info.challenge){
@@ -46,7 +45,7 @@ class Server{
 		];
 
 		if(this.connection._meta.info.goldSource) requests.push(
-			this.connection.awaitResponse([0x6D]),
+			this.connection.awaitResponse([0x6D])
 		);
 
 		const responses = await Promise.all(requests);
@@ -95,11 +94,11 @@ class Server{
 	}
 
 	get lastPing(){
-		return this.connection ? this.connection.lastPing : -1;
+		return this.connection != null ? this.connection.lastPing : -1;
 	}
 
 	async getPing(){
-		if(!this.connection) throw new Error('server is not connected to anything');
+		if(this.connection == null) throw new Error('server is not connected to anything');
 
 		if(this.connection.options.enableWarns){
 			console.trace('A2A_PING request is a deprecated feature of source servers');
@@ -116,7 +115,7 @@ class Server{
 	}
 
 	async challenge(code: number){
-		if(!this.connection) throw new Error('server is not connected');
+		if(this.connection == null) throw new Error('server is not connected');
 
 		const command = COMMANDS.CHALLENGE();
 		if(!CHALLENGE_IDS.includes(this.connection._meta.appID)){
@@ -155,7 +154,7 @@ export default async function init(options){
 	});
 
 	return new Server(connection);
-};
+}
 
 export async function getInfo(options): Promise<ServerInfo> {
 	const connection = await createConnection(options, {});
@@ -163,12 +162,12 @@ export async function getInfo(options): Promise<ServerInfo> {
 
 	connection.destroy();
 	return info;
-};
+}
 
-async function _getInfo(connection, challenge?: Buffer): Promise<object> {
-	const command = challenge ?
-		COMMANDS.INFO(challenge.slice(-4)) :
-		COMMANDS.INFO();
+async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<object> {
+	const command = challenge === null ?
+		COMMANDS.INFO() :
+		COMMANDS.INFO(challenge.slice(-4));
 
 	const responses = [];
 	connection.awaitResponse([0x6d])
@@ -183,8 +182,8 @@ async function _getInfo(connection, challenge?: Buffer): Promise<object> {
 	responses.push(INFO);
 
 	return Object.assign({
-		address: connection.options.ip + ':' + connection.options.port,
+		address: `${connection.options.ip}:${connection.options.port}`,
 		needsChallenge: Boolean(challenge),
 		ping: connection.lastPing,
-	}, ...responses.map(serverInfo));
+	}, ...responses.map(serverInfo)) as ServerInfo;
 }

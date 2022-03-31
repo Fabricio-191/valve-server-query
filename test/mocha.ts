@@ -1,13 +1,11 @@
-// @ts-nocheck
-const { Server, RCON, MasterServer } = require('../');
+import { Server, RCON, MasterServer } from '../src';
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
 const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
 
 // https://www.freegamehosting.eu/stats#garrysmod
-const [ip, port, password] = `
+const [ip, port, password] = (/connect (\S+):(\d+) ; rcon_password (\S+)/).exec(`
 connect 49.12.122.244:33027 ; rcon_password cosas
-`.trim()
-	.match(/connect (\S+):(\d+) ; rcon_password (\S+)/)
+`.trim())
 	.slice(1);
 
 const options = {
@@ -65,7 +63,7 @@ describe('MasterServer', () => {
 			.addFlag('linux')
 			.addNOR(
 				new MasterServer.Filter()
-					.addFlag('secure'),
+					.addFlag('secure')
 			);
 
 		const IPs = await MasterServer({
@@ -83,7 +81,7 @@ describe('MasterServer', () => {
 					ip,
 					port: parseInt(port),
 				});
-			}),
+			})
 		);
 
 		results = results
@@ -93,7 +91,7 @@ describe('MasterServer', () => {
 		if(!results.every(x =>
 			x.OS === 'linux' &&
 			x.map === 'de_dust2' &&
-			!x.VAC,
+			!x.VAC
 		)){
 			throw new Error('Filter is not working well');
 		}
@@ -268,8 +266,8 @@ after(() => {
 				if(typeof value === 'bigint') return value.toString() + 'n';
 				return value;
 			},
-			'\t',
-		),
+			'\t'
+		)
 	);
 });
 
@@ -280,7 +278,9 @@ function shouldFireEvent(obj, event, time){
 	return new Promise((res, rej) => {
 		// eslint-disable-next-line prefer-const
 		let clear;
-		const onEvent = () => { clear(); res(); };
+		const onEvent = () => {
+			clear(); res();
+		};
 
 		const timeout = setTimeout(() => {
 			clear();

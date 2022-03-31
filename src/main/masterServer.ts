@@ -1,6 +1,5 @@
-import { BufferWriter, BufferLike } from '../utils/utils'
-import { serverList } from '../utils/parsers'
-import createConnection from './connection'
+import { BufferWriter, BufferReader } from '../utils/utils';
+import createConnection from './connection';
 
 const MASTER_SERVER = {
 	REGIONS: {
@@ -77,11 +76,13 @@ const flags = {
 	collapse_addr_hash: '\\collapse_addr_hash\\1',
 	password: '\\password\\0',
 };
+type Flag = keyof typeof flags;
+type FilterKey = 'appid' | 'gameaddr' | 'gamedata' | 'gamedataor' | 'gamedir' | 'gametype' | 'map' | 'name_match' | 'napp' | 'version_match';
 
 export class Filter{
-	filters: string[] = [];
+	public readonly filters: string[] = [];
 
-	add(key: string, value: string | number | string[]){
+	public add(key: FilterKey, value: string[] | number | string): this {
 		switch(key){
 			case 'gametype':
 			case 'gamedata':
@@ -114,7 +115,7 @@ export class Filter{
 
 		return this;
 	}
-	addFlag(flag: string){
+	public addFlag(flag: Flag): this {
 		if(!(flag in flags)){
 			throw new Error(`unknown flag: ${flag}`);
 		}
@@ -122,31 +123,31 @@ export class Filter{
 		this.filters.push(flags[flag]);
 		return this;
 	}
-	addFlags(flagsArr: string[]){
+	public addFlags(flagsArr: Flag[]): this {
 		for(const flag of flagsArr){
 			this.addFlag(flag);
 		}
 		return this;
 	}
-	addNOR(filter: Filter){
+	public addNOR(filter: Filter): this {
 		if(!(filter instanceof Filter)){
 			throw new Error('filter must be an instance of MasterServer.Filter');
 		}
 
 		this.filters.push(
 			`\\nor\\${filter.filters.length}`,
-			...filter.filters,
+			...filter.filters
 		);
 		return this;
 	}
-	addNAND(filter: Filter){
+	public addNAND(filter: Filter): this {
 		if(!(filter instanceof Filter)){
 			throw new Error('filter must be an instance of MasterServer.Filter');
 		}
 
 		this.filters.push(
 			`\\nand\\${filter.filters.length}`,
-			...filter.filters,
+			...filter.filters
 		);
 
 		return this;
@@ -154,9 +155,8 @@ export class Filter{
 }
 // # endregion
 
-export default async function MasterServer(options){
+export default async function MasterServer(options): Promise<string[]> {
 	const connection = await createConnection(options);
-	// eslint-disable-next-line prefer-destructuring
 	options = connection.options;
 
 	if('filter' in options){
@@ -174,7 +174,7 @@ export default async function MasterServer(options){
 
 		const command = new BufferWriter()
 			.byte(0x31, options.region)
-			.string(last || '0.0.0.0:0')
+			.string(last ?? '0.0.0.0:0')
 			.string(options.filter)
 			.end();
 
@@ -191,5 +191,23 @@ export default async function MasterServer(options){
 	}
 
 	connection.destroy();
+	return servers;
+}
+
+export function serverList(buffer: Buffer): string[] {
+	const reader = new BufferReader(buffer, 2);
+	const servers = [];
+
+	while(reader.remaining().length){
+		const ip = [
+			reader.byte(),
+			reader.byte(),
+			reader.byte(),
+			reader.byte(),
+		].join('.');
+
+		servers.push(ip + ':' + reader.short(true, 'BE'));
+	}
+
 	return servers;
 }

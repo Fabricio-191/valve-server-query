@@ -58,10 +58,70 @@ export class BufferWriter{
 	}
 }
 
+export class BufferReader{
+	constructor(bufferParser: Buffer, offset = 0){
+		this.raw = bufferParser;
+		this.offset = offset;
+	}
+	private readonly raw: Buffer;
+	private offset = 0;
+
+	public byte(): number {
+		return this.raw.readUInt8(this.offset++);
+	}
+
+	public short(unsigned = false, endianess = 'LE'): number {
+		this.offset += 2;
+
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+		return this.raw[
+			`read${unsigned ? 'U' : ''}Int16${endianess}`
+		](this.offset - 2) as number;
+	}
+
+	public long(): number {
+		this.offset += 4;
+		return this.raw.readInt32LE(this.offset - 4);
+	}
+
+	public float(): number {
+		this.offset += 4;
+		return this.raw.readFloatLE(this.offset - 4);
+	}
+
+	public bigUInt(): bigint {// long long
+		this.offset += 8;
+		return this.raw.readBigUInt64LE(this.offset - 8);
+	}
+
+	public string(encoding: BufferEncoding = 'ascii'): string {
+		const stringEndIndex = this.raw.indexOf(0, this.offset);
+		if(stringEndIndex === -1) throw new Error('string not terminated');
+
+		const string = this.raw.slice(this.offset, stringEndIndex)
+			.toString(encoding);
+
+		this.offset = stringEndIndex + 1;
+
+		return string;
+	}
+
+	public char(): string {
+		return this.raw.slice(
+			this.offset++, this.offset
+		).toString();
+	}
+
+	public remaining(): Buffer {
+		return this.raw.slice(this.offset);
+	}
+}
+
+export type BufferLike = Buffer | number[] | string;
 export function debug(
 	type: string,
 	string: string,
-	thing?: Buffer | string
+	thing?: BufferLike
 ): void {
 	string = `\x1B[33m${type} ${string}\x1B[0m`;
 	if(thing instanceof Buffer){
@@ -98,4 +158,3 @@ export function debug(
 }
 
 export { default as decompressBZip } from './Bzip2';
-export type BufferLike = Buffer | number[] | string;
