@@ -1,5 +1,5 @@
 import { createConnection, type Socket } from 'net';
-import { BufferReader, debug } from '../utils/utils';
+import { BufferReader, debug } from '../utils';
 
 interface RCONPacket {
 	size: number;
@@ -41,7 +41,6 @@ export default class Connection{
 					));
 
 					this.buffers = [];
-					this.remaining = 0;
 				}else if(this.remaining > 0){
 					// needs more packets
 					this.buffers.push(buffer);
@@ -53,10 +52,12 @@ export default class Connection{
 						))
 					));
 
+					const excess = buffer.slice(this.remaining);
+
 					this.buffers = [];
-					const excess = this.remaining;
 					this.remaining = 0;
-					this.socket.emit('data', buffer.slice(excess));
+
+					this.socket.emit('data', excess);
 				}
 			});
 
@@ -64,7 +65,7 @@ export default class Connection{
 	}
 	public socket: Socket;
 	public options = {};
-	public _connected: Promise<void> | null;
+	public _connected: Promise<unknown> | null;
 
 	private remaining = 0;
 	private buffers: Buffer[] = [];
@@ -97,6 +98,7 @@ export default class Connection{
 		) as RCONPacket;
 	}
 
+	/* eslint-disable @typescript-eslint/no-use-before-define */
 	public awaitEvent(
 		event: string,
 		timeoutMsg: string,
@@ -126,4 +128,5 @@ export default class Connection{
 				.on('error', onError);
 		});
 	}
+	/* eslint-enable @typescript-eslint/no-use-before-define */
 }

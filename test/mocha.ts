@@ -1,12 +1,15 @@
+/* eslint-env mocha */
 import { Server, RCON, MasterServer } from '../src';
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
 const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
 
 // https://www.freegamehosting.eu/stats#garrysmod
-const [ip, port, password] = (/connect (\S+):(\d+) ; rcon_password (\S+)/).exec(`
-connect 49.12.122.244:33027 ; rcon_password cosas
-`.trim())
-	.slice(1);
+const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
+
+const [ip, port, password] = (regex.exec(
+	'connect 49.12.122.244:33027 ; rcon_password cosas'.trim()
+) as RegExpExecArray)
+	.slice(1) as [string, string, string];
 
 const options = {
 	ip,
@@ -17,14 +20,17 @@ const options = {
 	debug: true,
 };
 
-const result = {
+const result: {
+	MasterServer: MasterServer;
+	Server: Server;
+	RCON: RCON;
+} = {
 	MasterServer: null,
-	'MasterServer.getIPs()': null,
 	server: {},
 	RCON: {},
 };
 
-function MyError(message, stack = ''){
+function MyError(message: string, stack = ''): Error {
 	const err = new Error(message);
 	err.stack = stack;
 
@@ -95,16 +101,6 @@ describe('MasterServer', () => {
 		)){
 			throw new Error('Filter is not working well');
 		}
-	});
-
-	it('getIPs()', async () => {
-		const IPs = await MasterServer.getIPs();
-
-		if([...IPs.goldSource, ...IPs.source].some(str => !ipv4Regex.test(str))){
-			throw new Error('Some ips are not valid');
-		}
-
-		result['MasterServer.getIPs()'] = IPs;
 	});
 });
 

@@ -1,8 +1,12 @@
-/* eslint-disable no-console */
 import { resolve as resolveDNS } from 'dns';
 import { isIP } from 'net';
 
-export async function resolveIP(str: string): Promise<string> {
+interface ResolvedIP {
+	ip: string;
+	format: number;
+}
+
+export async function resolveIP(str: string): Promise<ResolvedIP> {
 	if(typeof str !== 'string'){
 		throw Error("'options.ip' must be a string");
 	}else if(isIP(str) === 0){
@@ -22,13 +26,9 @@ export async function resolveIP(str: string): Promise<string> {
 	const ipFormat = isIP(str);
 	if(ipFormat === 0){
 		throw Error('Invalid IP/Hostname');
-	}else if(ipFormat === 6){
-		console.log('IPv6 is easy to support, but i decided to not support it for now, cause i have never seen an ipv6 server');
-		console.log('If you need it, you can create an issue on github');
-		throw new Error('IPv6 is not supported');
 	}
 
-	return str;
+	return { ip: str, format: ipFormat };
 }
 
 export class BufferWriter{
@@ -59,46 +59,47 @@ export class BufferWriter{
 }
 
 export class BufferReader{
-	constructor(bufferParser: Buffer, offset = 0){
-		this.raw = bufferParser;
+	constructor(buffer: Buffer, offset = 0){
+		this.length = buffer.length;
+		this.buffer = buffer;
 		this.offset = offset;
 	}
-	private readonly raw: Buffer;
-	private offset = 0;
+	private readonly length: number;
+	private readonly buffer: Buffer;
+	public offset = 0;
 
 	public byte(): number {
-		return this.raw.readUInt8(this.offset++);
+		return this.buffer.readUInt8(this.offset++);
 	}
 
-	public short(unsigned = false, endianess = 'LE'): number {
+	public short(unsigned = false, endianess: 'BE' | 'LE' = 'LE'): number {
 		this.offset += 2;
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-		return this.raw[
+		return this.buffer[
 			`read${unsigned ? 'U' : ''}Int16${endianess}`
-		](this.offset - 2) as number;
+		](this.offset - 2);
 	}
 
 	public long(): number {
 		this.offset += 4;
-		return this.raw.readInt32LE(this.offset - 4);
+		return this.buffer.readInt32LE(this.offset - 4);
 	}
 
 	public float(): number {
 		this.offset += 4;
-		return this.raw.readFloatLE(this.offset - 4);
+		return this.buffer.readFloatLE(this.offset - 4);
 	}
 
 	public bigUInt(): bigint {// long long
 		this.offset += 8;
-		return this.raw.readBigUInt64LE(this.offset - 8);
+		return this.buffer.readBigUInt64LE(this.offset - 8);
 	}
 
 	public string(encoding: BufferEncoding = 'ascii'): string {
-		const stringEndIndex = this.raw.indexOf(0, this.offset);
+		const stringEndIndex = this.buffer.indexOf(0, this.offset);
 		if(stringEndIndex === -1) throw new Error('string not terminated');
 
-		const string = this.raw.slice(this.offset, stringEndIndex)
+		const string = this.buffer.slice(this.offset, stringEndIndex)
 			.toString(encoding);
 
 		this.offset = stringEndIndex + 1;
@@ -107,17 +108,28 @@ export class BufferReader{
 	}
 
 	public char(): string {
-		return this.raw.slice(
+		return this.buffer.slice(
 			this.offset++, this.offset
 		).toString();
 	}
 
+	public addOffset(offset: number): this {
+		this.offset += offset;
+		return this;
+	}
+
+	public get hasRemaining(): boolean {
+		return this.offset === this.length;
+	}
+
 	public remaining(): Buffer {
-		return this.raw.slice(this.offset);
+		return this.buffer.slice(this.offset);
 	}
 }
 
 export type BufferLike = Buffer | number[] | string;
+
+/* eslint-disable no-console */
 export function debug(
 	type: string,
 	string: string,
@@ -156,5 +168,3 @@ export function debug(
 		console.log(string, '\n');
 	}
 }
-
-export { default as decompressBZip } from './Bzip2';

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { debug, BufferWriter } from '../utils/utils';
+import { debug, BufferWriter } from '../utils';
 import Connection from './connection';
 
 function makeCommand(ID: number, type: number, body = ''): Buffer {
@@ -46,7 +46,7 @@ class RCON extends EventEmitter{
 		}else await this._auth;
 	}
 
-	public async exec(command, multiPacket = false): Promise<string> {
+	public async exec(command: string, multiPacket = false): Promise<string> {
 		await this._ready();
 
 		const ID = this._getID();
@@ -111,7 +111,7 @@ class RCON extends EventEmitter{
 		}
 	}
 
-	public async authenticate(password): Promise<void> {
+	public async authenticate(password: string): Promise<void> {
 		if(this._auth !== null) return await this._auth;
 		await this.connection._ready();
 

@@ -1,16 +1,16 @@
-import { BufferReader } from '../utils/utils';
+import { BufferReader } from '../utils';
 
 const OPERATIVE_SYSTEMS = {
 		l: 'linux',
 		w: 'windows',
 		m: 'mac',
 		o: 'mac',
-	},
+	} as const,
 	SERVER_TYPES = {
 		d: 'dedicated',
 		l: 'non-dedicated',
 		p: 'source tv relay',
-	},
+	} as const,
 	THE_SHIP_MODES = [
 		'hunt',
 		'elimination',
@@ -18,144 +18,90 @@ const OPERATIVE_SYSTEMS = {
 		'deathmatch',
 		'vip team',
 		'team elimination',
-	],
+	] as const,
 	THE_SHIP_IDS = [
-		2400, 2401, 2402, 2403, 2405, 2406,
+		2400, 2401, 2402,
+		2403, 2405, 2406,
 		2412, 2430,
-	];
+	] as readonly number[];
 
+type ValuesIn<T> = T[keyof T];
+type ServerType = ValuesIn<typeof SERVER_TYPES>;
+type OS = ValuesIn<typeof OPERATIVE_SYSTEMS>;
 
-/** An object representing time. */
-interface Time {
-	hours: number;
-	minutes: number;
-	seconds: number;
-
-	/** Since when is counting. */
-	start: Date;
-	/** The number of miliseconds that the player has been connected to the server */
-	raw: number;
-}
-
-export function time(raw: number | null): Time | null {
-	if(!raw || raw === -1) return null;
-
-	const hours = Math.floor(raw / 3600)								|| 0;
-	const minutes = Math.floor(raw / 60) - hours * 60					|| 0;
-	const seconds = Math.floor(raw)		 - hours * 3600 - minutes * 60	|| 0;
-
-	return {
-		hours,
-		minutes,
-		seconds,
-		raw,
-		start: new Date(Date.now() - raw),
-	};
-}
-
-/** An object with the server info */
-export interface ServerInfo {
-	/** Ip and port from the server */
+// #region server info
+interface ServerInfo {
 	address: string;
-	/** Response delay from the server (in miliseconds). */
 	ping: number;
-	/** Protocol version used by the server. */
 	protocol: number;
-	/** Whether the server uses a goldsource engine. */
 	goldSource: boolean;
-	/** Name of the server. */
 	name: string;
-	/** Map the server has currently loaded. */
 	map: string;
-	/** Name of the folder containing the game files. */
 	folder: string;
-	/** Full name of the game. */
 	game: string;
-	/** Steam Application ID of game. */
-	appID: bigint | number;
-
-	/** An object with info from the players in the server. */
+	appID: number;
 	players: {
-		/** Number of players on the server. */
 		online: number;
-		/** Maximum number of players the server reports it can hold. */
 		max: number;
-		/** Number of bots on the server. */
 		bots: number;
 	};
-
-	/** Indicates the type of server (dedicated, non-dedicated or source tv relay/HLTV) */
-	type: 'dedicated' | 'non-dedicated' | 'source tv relay' | null;
-	/** Indicates the operating system of the server (windows, linux or mac) */
-	OS: 'linux' | 'mac' | 'windows';
-	/** Indicates whether the server requires a password */
+	type: ServerType | null;
+	OS: OS;
 	visibility: 'private' | 'public';
-	/** Specifies whether the server uses VAC */
 	VAC: boolean;
-	/** If the game hasn't a mod it is `false`, otherwise it's the mod info */
-	mod?: Mod | false;
-
-	/**
-			 * This field only exist in a response if the server is running The Ship
-			 * Indicates the game mode (hunt, elimination, duel, deathmatch, vip team, team elimination)
-			*/
-	mode?: 'deathmatch' | 'duel' | 'elimination' | 'hunt' | 'team elimination' | 'vip team';
-	/**
-			 * This field only exist in a response if the server is running The Ship
-			 * The number of witnesses necessary to have a player arrested.
-			*/
-	witnesses?: number;
-	/**
-			 * This field only exist in a response if the server is running The Ship
-			 * Time (in seconds) before a player is arrested while being witnessed.
-			*/
-	duration?: number;
-
-	/** Version of the game installed on the server. */
+	// EDF
 	version?: string;
-
-	/** The server's game port number. (provided in the server response) */
 	port?: number;
-	/** Server's SteamID. */
 	steamID?: bigint;
-
-	/** SourceTV data */
 	tv?: {
-		/** Spectator port number for SourceTV. */
 		port: number;
-		/** Name of the spectator server for SourceTV. */
 		name: string;
 	};
-
-	/** Tags that describe the game according to the server. */
 	keywords?: string[];
-
-	/** The server's 64-bit GameID. If this is present, the appID is more accurate */
 	gameID?: bigint;
 }
 
-/** Info from a mod from the game in the server. */
-interface Mod {
-	/** URL to mod website. */
-	link: string;
-	/** URL to download the mod. */
-	downloadLink: string;
-	/** Version of mod installed on server. */
-	version: number;
-	/** Space (in bytes) the mod takes up. */
-	size: number;
-	/** Indicates the type if the mod is only for multiplayer or for single and multiplayer*/
-	multiplayerOnly: boolean;
-	/** Indicates whether mod uses its own DLL or Hald-Life DLL */
-	ownDLL: boolean;
+interface TheShipServerInfo extends ServerInfo {
+	mode: 'deathmatch' | 'duel' | 'elimination' | 'hunt' | 'team elimination' | 'vip team';
+	witnesses: number;
+	duration: number;
 }
 
-export function serverInfo(buffer: Buffer): ServerInfo {
+interface GoldSourceServerInfo {
+	address: string;
+	name: string;
+	map: string;
+	folder: string;
+	game: string;
+	players: {
+		online: number;
+		max: number;
+		bots: number;
+	};
+	protocol: number;
+	goldSource: boolean;
+	type: ServerType;
+	OS: OS;
+	visibility: string;
+	mod: false | {
+		link: string;
+		downloadLink: string;
+		version: number;
+		size: number;
+		multiplayerOnly: boolean;
+		ownDLL: boolean;
+	};
+	VAC: boolean;
+}
+export type FServerInfo = ServerInfo | TheShipServerInfo | (GoldSourceServerInfo & (ServerInfo | TheShipServerInfo));
+
+export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
 	if(reader.byte() === 0x6D) return goldSourceServerInfo(reader);
 
-	const info = {
+	// @ts-expect-error missing properties will be added later
+	const info: ServerInfo = {
 		protocol: reader.byte(),
 		goldSource: false,
 		name: reader.string().trim(),
@@ -168,10 +114,9 @@ export function serverInfo(buffer: Buffer): ServerInfo {
 			max: reader.byte(),
 			bots: reader.byte(),
 		},
-		type: SERVER_TYPES[reader.char()] || null,
-		OS: OPERATIVE_SYSTEMS[reader.char()],
-		visibility: reader.byte() ?
-			'private' : 'public',
+		type: SERVER_TYPES[reader.char()] as ServerType || null,
+		OS: OPERATIVE_SYSTEMS[reader.char()] as OS,
+		visibility: reader.byte() ? 'private' : 'public',
 		VAC: reader.byte() === 1,
 	};
 
@@ -185,7 +130,7 @@ export function serverInfo(buffer: Buffer): ServerInfo {
 
 	info.version = reader.string();
 
-	if(reader.remaining().length === 0) return info;
+	if(reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
 	if(EDF & 0x80) info.port = reader.short(true);
@@ -197,19 +142,20 @@ export function serverInfo(buffer: Buffer): ServerInfo {
 	if(EDF & 0x20) info.keywords = reader.string().trim().split(',');
 	if(EDF & 0x01){
 		info.gameID = reader.bigUInt();
-		info.appID = info.gameID & 0xFFFFFFn;
+		info.appID = Number(info.gameID & 0xFFFFFFn);
 	}
 
 	return info;
 }
 
-export function goldSourceServerInfo(reader: BufferReader): ServerInfo {
-	const info = {
+function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
+	const info: GoldSourceServerInfo = {
 		address: reader.string(),
 		name: reader.string().trim(),
 		map: reader.string(),
 		folder: reader.string(),
 		game: reader.string(),
+		// @ts-expect-error bots property is added later
 		players: {
 			online: reader.byte(),
 			max: reader.byte(),
@@ -218,109 +164,113 @@ export function goldSourceServerInfo(reader: BufferReader): ServerInfo {
 		goldSource: true,
 		type: SERVER_TYPES[
 			reader.char().toLowerCase()
-		],
+		] as ServerType,
 		OS: OPERATIVE_SYSTEMS[
 			reader.char().toLowerCase()
-		],
-		visibility: reader.byte() ?
-			'private' : 'public',
-		mod: reader.byte() === 1,
-	};
-
-	if(info.mod){
-		info.mod = {
+		] as OS,
+		visibility: reader.byte() ? 'private' : 'public',
+		mod: reader.byte() ? {
 			link: reader.string(),
 			downloadLink: reader.string(),
-		};
-
-		reader.byte(); // null byte
-
-		Object.assign(info.mod, {
-			version: reader.long(),
+			version: reader.addOffset(1).long(), // null byte
 			size: reader.long(),
-			multiplayerOnly: Boolean(reader.byte()),
-			ownDLL: Boolean(reader.byte()),
-		});
-	}
+			multiplayerOnly: reader.byte() === 1,
+			ownDLL: reader.byte() === 1,
+		} : false,
+		VAC: reader.byte() === 1,
+	};
 
-	info.VAC = reader.byte() === 1;
 	info.players.bots = reader.byte();
 
 	return info;
 }
+// #endregion
 
+// #region players
 /** Info from a player in the server. */
-export interface PlayerInfo {
+interface Player {
 /* Index of the player. */
 	index: number;
 	/** Name of the player. */
 	name: string;
 	/** Player's score (usually "frags" or "kills"). */
 	score: number;
-	/** Time that the player has been connected to the server. */
-	timeOnline: Time | null;
-
-	/** Player's deaths (Only for "the ship" servers). */
-	deaths?: number;
-	/** Player's money (Only for "the ship" servers). */
-	money?: number;
+	/** Time in miliseconds that the player has been connected to the server. */
+	timeOnline: number;
 }
 
-export function playersInfo(buffer: Buffer, { appID }: { appID: number }): PlayerInfo[] {
+interface TheShipPlayer extends Player{
+	/** Player's deaths (Only for "the ship" servers). */
+	deaths: number;
+	/** Player's money (Only for "the ship" servers). */
+	money: number;
+}
+
+export type Players = Player[] | TheShipPlayer[];
+export function players(buffer: Buffer, { appID }: { appID: number }): Players {
 	const reader = new BufferReader(buffer, 1);
-	const playersCount = reader.byte(), players = [];
+	const playerList: Player[] = [];
 
 	if(THE_SHIP_IDS.includes(appID)){
+		const playersCount = reader.byte();
+
 		for(let i = 0; i < playersCount; i++){
-			players.push({
+			playerList.push({
 				index: reader.byte(),
 				name: reader.string(),
 				score: reader.long(),
-				timeOnline: time(reader.float()),
+				timeOnline: reader.float(),
 			});
 		}
 
-		for(const player of players){
+		for(const player of playerList){
 			Object.assign(player, {
 				deaths: reader.long(),
 				money: reader.long(),
 			});
 		}
-	}else while(reader.remaining().length){
-		players.push({
-			index: reader.byte(),
-			name: reader.string(),
-			score: reader.long(),
-			timeOnline: time(reader.float()),
-		});
+	}else{
+		reader.offset += 1;
+
+		while(reader.hasRemaining){
+			playerList.push({
+				index: reader.byte(),
+				name: reader.string(),
+				score: reader.long(),
+				timeOnline: reader.float(),
+			});
+		}
 	}
 
-	return players;
+	return playerList;
 }
+// #endregion
 
+// #region rules
 /** An object with server's rules */
 export interface Rules {
 	[key: string]: boolean | number | string;
 }
 
-export function serverRules(buffer: Buffer): Rules {
+export function rules(buffer: Buffer): Rules {
 	const reader = new BufferReader(buffer, 1);
-	const rulesQty = reader.short(), rules: Rules = {};
+	const rulesQty = reader.short(), obj: Rules = {};
 
 	for(let i = 0; i < rulesQty; i++){
 		const key = reader.string(), value = reader.string();
 
 		if(value === 'True'){
-			rules[key] = true;
+			obj[key] = true;
 		}else if(value === 'False'){
-			rules[key] = false;
+			obj[key] = false;
 		// @ts-expect-error using isNaN to check if the string is a number
 		}else if(isNaN(value)){
-			rules[key] = value;
+			obj[key] = value;
 		}else{
-			rules[key] = parseFloat(value);
+			obj[key] = parseFloat(value);
 		}
 	}
 
-	return rules;
+	return obj;
 }
+// #endregion

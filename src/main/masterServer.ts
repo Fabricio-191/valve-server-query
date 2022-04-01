@@ -1,69 +1,7 @@
-import { BufferWriter, BufferReader } from '../utils/utils';
-import createConnection from './connection';
+import { BufferWriter, BufferReader } from '../utils';
+import Connection, { type BaseOptions } from './connection';
 
-const MASTER_SERVER = {
-	REGIONS: {
-		US_EAST: 0,
-		US_WEST: 1,
-		SOUTH_AMERICA: 2,
-		EUROPE: 3,
-		ASIA: 4,
-		AUSTRALIA: 5,
-		MIDDLE_EAST: 6,
-		AFRICA: 7,
-		OTHER: 255,
-	},
-	DEFAULT_OPTIONS: {
-		ip: 'hl2master.steampowered.com',
-		port: 27011,
-		timeout: 5000,
-		debug: false,
-		enableWarns: true,
-		quantity: 200,
-		region: 'OTHER',
-	},
-};
-
-async function parseOptions(options = {}, isMasterServer = false){
-	if(typeof options !== 'object'){
-		throw Error("'options' must be an object");
-	}
-
-	if(isMasterServer){
-		options = Object.assign({}, MASTER_SERVER.DEFAULT_OPTIONS, options);
-
-		if(options.quantity === 'all') options.quantity = Infinity;
-
-		if(typeof options.quantity !== 'number' || isNaN(options.quantity) || options.quantity <= 0){
-			throw Error("'quantity' must be a number greater than zero");
-		}else if(options.region in MASTER_SERVER.REGIONS){
-			options.region = MASTER_SERVER.REGIONS[options.region];
-		}else{
-			throw Error('The specified region is not valid');
-		}
-	}else{
-		options = Object.assign({}, DEFAULT_OPTIONS, options);
-	}
-
-	if(
-		typeof options.port !== 'number' || isNaN(options.port) ||
-		options.port < 0 || options.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof options.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(isNaN(options.timeout) || options.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}
-
-	options.ip = await resolveIP(options.ip);
-
-	return options;
-}
-
-// # region filter
+// #region filter
 const flags = {
 	dedicated: '\\dedicated\\1',
 	secure: '\\secure\\1',
@@ -75,7 +13,8 @@ const flags = {
 	white: '\\white\\1',
 	collapse_addr_hash: '\\collapse_addr_hash\\1',
 	password: '\\password\\0',
-};
+} as const;
+
 type Flag = keyof typeof flags;
 type FilterKey = 'appid' | 'gameaddr' | 'gamedata' | 'gamedataor' | 'gamedir' | 'gametype' | 'map' | 'name_match' | 'napp' | 'version_match';
 
@@ -109,6 +48,7 @@ export class Filter{
 				break;
 			}
 			default:{
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				throw new Error(`${key} is not a valid key`);
 			}
 		}
@@ -153,60 +93,116 @@ export class Filter{
 		return this;
 	}
 }
-// # endregion
+// #endregion
 
-export default async function MasterServer(options): Promise<string[]> {
-	const connection = await createConnection(options);
-	options = connection.options;
+const REGIONS = {
+	US_EAST: 0,
+	US_WEST: 1,
+	SOUTH_AMERICA: 2,
+	EUROPE: 3,
+	ASIA: 4,
+	AUSTRALIA: 5,
+	MIDDLE_EAST: 6,
+	AFRICA: 7,
+	OTHER: 255,
+} as const;
 
-	if('filter' in options){
-		if(options.filter instanceof Filter){
-			options.filter = options.filter.filters.join('');
-		}else throw new Error('filter must be an instance of MasterServer.Filter');
-	}else options.filter = '';
+// #region options
+interface Options extends BaseOptions {
+	quantity: number | 'all';
+	region: number;
+	filter: string;
+}
+interface RawOptions extends Partial<Options>{
+	region: string;
+	filter: Filter;
+}
 
+const DEFAULT_OPTIONS: Options = {
+	ip: 'hl2master.steampowered.com',
+	port: 27011,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+	quantity: 200,
+	region: 255,
+	filter: '',
+} as const;
+
+async function parseOptions(options: RawOptions = {}): Promise<Options> {
+	if(typeof options !== 'object'){
+		throw Error("'options' must be an object");
+	}
+
+	options = Object.assign({}, DEFAULT_OPTIONS, options);
+
+	if(options.quantity === 'all') options.quantity = Infinity;
+
+	if(typeof options.quantity !== 'number' || isNaN(options.quantity) || options.quantity <= 0){
+		throw Error("'quantity' must be a number greater than zero");
+	}else if(options.region in REGIONS){
+		options.region = REGIONS[options.region];
+	}else{
+		throw Error('The specified region is not valid');
+	}
+	if(opts.filter instanceof Filter){
+		opts.filter = opts.filter.filters.join('');
+	}else throw new Error('filter must be an instance of MasterServer.Filter');
+
+	return options;
+}
+// #endregion
+
+export default async function MasterServer(options: RawOptions): Promise<string[]> {
+	const opts = await parseOptions(options);
+	const connection = new Connection(opts);
 	const servers: string[] = [];
 
-	while(options.quantity > servers.length){
+	while(opts.quantity > servers.length){
 		const last = servers.pop(); // it's returned again in the next payload
 
 		if(last === '0.0.0.0:0') break;
 
 		const command = new BufferWriter()
-			.byte(0x31, options.region)
+			.byte(0x31, opts.region)
 			.string(last ?? '0.0.0.0:0')
-			.string(options.filter)
+			.string(opts.filter)
 			.end();
 
+		// eslint-disable-next-line @typescript-eslint/init-declarations
 		let buffer: Buffer;
 		try{
 			buffer = await connection.query(command, 0x66);
 		}catch(e){
 			if(servers.length === 0) throw e;
-			if(options.enableWarns) console.error(new Error('cannot get full list of servers'));
+			// eslint-disable-next-line no-console
+			if(opts.enableWarns) console.error(new Error('cannot get full list of servers'));
 			break;
 		}
 
-		servers.push(...serverList(buffer));
+		servers.push(...parseServerList(buffer));
 	}
 
 	connection.destroy();
 	return servers;
 }
 
-export function serverList(buffer: Buffer): string[] {
+export function parseServerList(buffer: Buffer): string[] {
 	const reader = new BufferReader(buffer, 2);
 	const servers = [];
 
-	while(reader.remaining().length){
-		const ip = [
-			reader.byte(),
-			reader.byte(),
-			reader.byte(),
-			reader.byte(),
-		].join('.');
-
-		servers.push(ip + ':' + reader.short(true, 'BE'));
+	while(reader.hasRemaining){
+		servers.push(`${
+			reader.byte()
+		}.${
+			reader.byte()
+		}.${
+			reader.byte()
+		}.${
+			reader.byte()
+		}:${
+			reader.short(true, 'BE')
+		}`);
 	}
 
 	return servers;

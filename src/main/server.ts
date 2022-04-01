@@ -1,15 +1,17 @@
-import { debug } from '../utils/utils';
-import type Connection from './connection';
+/* eslint-disable new-cap */
+import { debug } from '../utils';
+import Connection from './connection';
+import * as parsers from './serverParsers';
 
-const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF];
+const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 const INFO_S = [
 	...BIG_F, 0x54,
 	...Buffer.from('Source Engine Query\0'),
-];
+] as const;
 
-const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ];
+const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
-	INFO(key = BIG_F){
+	INFO(key: Buffer | number[] = BIG_F){
 		return Buffer.from([ ...INFO_S, ...key ]);
 	},
 	CHALLENGE(code = 0x57, key = BIG_F){
@@ -24,16 +26,17 @@ const DEFAULT_OPTIONS = {
 	timeout: 5000,
 	debug: false,
 	enableWarns: true,
-};
+} as const;
 
 class Server{
-	connection!: Connection | null;
+	constructor(options: Options){
+		this.connection = new Connection(options);
+	}
+	private readonly connection: Connection;
 
-	async getInfo(){
-		if(this.connection == null) throw new Error('server is not connected to anything');
-
+	public async getInfo(): Promise<parsers.FServerInfo> {
 		let command = COMMANDS.INFO();
-		if(this.connection._meta.info.challenge){
+		if(this.connection.meta.info.challenge){
 			const response = await this.connection.query(command, 0x41);
 			const key = response.slice(-4);
 
@@ -44,22 +47,22 @@ class Server{
 			this.connection.query(command, 0x49),
 		];
 
-		if(this.connection._meta.info.goldSource) requests.push(
+		if(this.connection.meta.info.goldSource) requests.push(
 			this.connection.awaitResponse([0x6D])
 		);
 
 		const responses = await Promise.all(requests);
 
 		return Object.assign({
-			address: this.connection.options.ip + ':' + this.connection.options.port,
-		}, ...responses.map(serverInfo));
+			address: this.connection.address,
+		}, ...responses.map(parse.serverInfo));
 	}
 
-	async getPlayers(){
+	public async getPlayers(): Promise<parsers.Players> {
 		const key = await this.challenge(0x55);
 
 		if(key[0] === 0x44 && key.length > 5){
-			return playersInfo(Buffer.from(key), this.connection._meta);
+			return parsers.players(Buffer.from(key), this.connection.meta);
 		}
 
 		const command = Buffer.from([
@@ -71,14 +74,14 @@ class Server{
 			throw new Error('Wrong server response');
 		}
 
-		return playersInfo(response, this.connection._meta);
+		return parsers.players(response, this.connection.meta);
 	}
 
-	async getRules(){
+	public async getRules(): Promise<parsers.Rules>{
 		const key = await this.challenge(0x56);
 
 		if(key[0] === 0x45 && key.length > 5){
-			return serverRules(Buffer.from(key));
+			return parsers.rules(Buffer.from(key));
 		}
 
 		const command = Buffer.from([
@@ -90,17 +93,16 @@ class Server{
 			throw new Error('Wrong server response');
 		}
 
-		return serverRules(response);
+		return parsers.rules(response);
 	}
 
-	get lastPing(){
-		return this.connection != null ? this.connection.lastPing : -1;
+	public get lastPing(): number {
+		return this.connection === null ? -1 : this.connection.lastPing;
 	}
 
-	async getPing(){
-		if(this.connection == null) throw new Error('server is not connected to anything');
-
+	public async getPing(): Promise<number> {
 		if(this.connection.options.enableWarns){
+			// eslint-disable-next-line no-console
 			console.trace('A2A_PING request is a deprecated feature of source servers');
 		}
 
@@ -114,11 +116,9 @@ class Server{
 		}
 	}
 
-	async challenge(code: number){
-		if(this.connection == null) throw new Error('server is not connected');
-
+	public async challenge(code: number): Promise<number[]> {
 		const command = COMMANDS.CHALLENGE();
-		if(!CHALLENGE_IDS.includes(this.connection._meta.appID)){
+		if(!CHALLENGE_IDS.includes(this.connection.meta.appID)){
 			command[4] = code;
 		}
 
@@ -130,20 +130,19 @@ class Server{
 		return Array.from(response);
 	}
 
-	disconnect(){
+	public disconnect(): void {
 		this.connection.destroy();
-		this.connection = null;
 	}
 }
 
-export default async function init(options){
-	const _meta = {};
+export default async function init(options): Promise<Server> {
+	const meta = {};
 
-	const connection = await createConnection(options, _meta);
+	const connection = await createConnection(options, meta);
 	const info = await _getInfo(connection);
 	if(connection.options.debug) debug('SERVER', 'connected');
 
-	Object.assign(_meta, {
+	Object.assign(meta, {
 		info: {
 			challenge: info.challenge,
 			goldSource: info.goldSource,
@@ -156,8 +155,8 @@ export default async function init(options){
 	return new Server(connection);
 }
 
-export async function getInfo(options): Promise<ServerInfo> {
-	const connection = await createConnection(options, {});
+export async function getInfo(options): Promise<parsers.FServerInfo> {
+	const connection = new Connection(await parseOptions(options), {});
 	const info = await _getInfo(connection);
 
 	connection.destroy();

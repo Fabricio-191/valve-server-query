@@ -1,9 +1,0 @@
-{
-	"MasterServer": null,
-	"MasterServer.getIPs()": null,
-	"server": {},
-	"RCON": {
-		"exec('sv_gravity')": "\"sv_gravity\" = \"600\"\n game notify replicated\n - World gravity.\n",
-		"exec('status')": "hostname: Fabricio\nversion : 2021.12.15/24 8482 insecure\nudp/ip  : 213.239.207.78:33051  (public ip: 213.239.207.78)\nmap     : gm_flatgrass at: 0 x, 0 y, 0 z\nplayers : 0 (2 max)\n\n# userid name                uniqueid            connected ping loss state  adr\n"
-	}
-}
