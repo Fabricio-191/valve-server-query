@@ -168,3 +168,4 @@ export function debug(
 		console.log(string, '\n');
 	}
 }
+/* eslint-disable no-multiple-empty-lines */

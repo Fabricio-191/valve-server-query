@@ -163,15 +163,15 @@ export async function getInfo(options): Promise<parsers.FServerInfo> {
 	return info;
 }
 
-async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<object> {
+async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<parsers.FServerInfo> {
 	const command = challenge === null ?
 		COMMANDS.INFO() :
 		COMMANDS.INFO(challenge.slice(-4));
 
 	const responses = [];
 	connection.awaitResponse([0x6d])
-		.then(responses.push)
-		.catch(() => {});
+		.then(buf => responses.push(buf))
+		.catch(() => { /* do nothing */ });
 
 	const INFO = await connection.query(command, 0x49, 0x41);
 	if(INFO[0] === 0x41){
@@ -184,5 +184,5 @@ async function _getInfo(connection: Connection, challenge: Buffer | null = null)
 		address: `${connection.options.ip}:${connection.options.port}`,
 		needsChallenge: Boolean(challenge),
 		ping: connection.lastPing,
-	}, ...responses.map(serverInfo)) as ServerInfo;
+	}, ...responses.map(parsers.serverInfo)) as parsers.FServerInfo;
 }

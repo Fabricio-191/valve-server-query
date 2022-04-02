@@ -68,9 +68,8 @@ const client = createSocket('udp4')
 // #region Packet Handlers
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
-	const { options } = connection;
-	if(buffer.readInt32LE() === -2){
-		const { meta, packetsQueues } = connection;
+	if(connection.meta !== null && buffer.readInt32LE() === -2){
+		const { meta, options, packetsQueues } = connection;
 
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
 			// only valid in the first packet
@@ -121,7 +120,7 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 
 		if(queue[0].bzip){
 			if(options.debug) debug('SERVER', `BZip ${options.ip}:${options.port}`, buffer);
-			buffer = decompressBZip(buffer);
+			throw new Error('BZip is not supported');
 		}
 		/*
 		I never tried bzip decompression, if you are having trouble with this, contact me on discord
@@ -131,6 +130,7 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 
 	if(buffer.readInt32LE() === -1) return buffer.slice(4);
 
+	const { options } = connection;
 	if(options.debug) debug('SERVER', 'cannot parse packet', buffer);
 	if(options.enableWarns){
 		// eslint-disable-next-line no-console
@@ -214,7 +214,7 @@ export default class Connection extends EventEmitter{
 	public readonly address: string;
 	public readonly options: BaseOptions;
 
-	public readonly meta: MetaData;
+	public readonly meta: MetaData | null;
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 

@@ -109,13 +109,14 @@ const REGIONS = {
 
 // #region options
 interface Options extends BaseOptions {
-	quantity: number | 'all';
+	quantity: number;
 	region: number;
 	filter: string;
 }
-interface RawOptions extends Partial<Options>{
-	region: string;
-	filter: Filter;
+interface RawOptions extends Partial<BaseOptions> {
+	quantity?: number | 'all';
+	region?: keyof typeof REGIONS;
+	filter?: Filter;
 }
 
 const DEFAULT_OPTIONS: Options = {
@@ -134,14 +135,13 @@ async function parseOptions(options: RawOptions = {}): Promise<Options> {
 		throw Error("'options' must be an object");
 	}
 
-	options = Object.assign({}, DEFAULT_OPTIONS, options);
+	const opts = Object.assign({}, DEFAULT_OPTIONS, options);
 
-	if(options.quantity === 'all') options.quantity = Infinity;
-
-	if(typeof options.quantity !== 'number' || isNaN(options.quantity) || options.quantity <= 0){
+	if(opts.quantity === 'all') opts.quantity = Infinity;
+	if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
 		throw Error("'quantity' must be a number greater than zero");
-	}else if(options.region in REGIONS){
-		options.region = REGIONS[options.region];
+	}else if(opts.region in REGIONS){
+		opts.region = REGIONS[opts.region];
 	}else{
 		throw Error('The specified region is not valid');
 	}
