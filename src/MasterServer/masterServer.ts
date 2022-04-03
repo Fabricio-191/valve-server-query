@@ -1,5 +1,5 @@
 import { BufferWriter, BufferReader, type ValueIn } from '../utils';
-import Connection, { type BaseOptions, parseBaseOptions } from '../Server/connection';
+import Connection, { type BaseOptions } from './connection';
 
 // #region filter
 const flags = {
@@ -110,7 +110,7 @@ const REGIONS = {
 // #region options
 interface Options extends BaseOptions {
 	quantity: number;
-	region: number;
+	region: ValueIn<typeof REGIONS>;
 	filter: string;
 }
 interface RawOptions extends Partial<BaseOptions> {
@@ -130,8 +130,8 @@ const DEFAULT_OPTIONS: Required<RawOptions> = {
 	filter: '',
 } as const;
 
-async function parseOptions(options: RawOptions = {}): Promise<Options> {
-	if(typeof options !== 'object'){
+async function parseOptions(options: unknown = {}): Promise<Options> {
+	if(typeof options !== 'object' && options !== null){
 		throw Error("'options' must be an object");
 	}
 

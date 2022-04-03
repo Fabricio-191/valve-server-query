@@ -1,15 +1,7 @@
-import { debug, type BufferLike } from '../utils';
+import { debug, type BufferLike, type BaseOptions as Options } from '../utils';
 import { BufferReader } from '../utils';
 import { EventEmitter } from 'events';
 import { createSocket } from 'dgram';
-
-export interface Options {
-	ip: string;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
-}
 
 export interface MetaData {
 	appID: number;

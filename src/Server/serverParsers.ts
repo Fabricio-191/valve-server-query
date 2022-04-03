@@ -23,7 +23,7 @@ const OPERATIVE_SYSTEMS = {
 		2400, 2401, 2402,
 		2403, 2405, 2406,
 		2412, 2430,
-	] as readonly number[];
+	] as const;
 
 type ServerType = ValueIn<typeof SERVER_TYPES>;
 type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
@@ -119,6 +119,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 		VAC: reader.byte() === 1,
 	};
 
+	// @ts-expect-error ts got stupid
 	if(THE_SHIP_IDS.includes(info.appID)){
 		Object.assign(info, {
 			mode: THE_SHIP_MODES[reader.byte()],
@@ -210,6 +211,7 @@ export function players(buffer: Buffer, { appID }: { appID: number }): Players {
 	const reader = new BufferReader(buffer, 1);
 	const playerList: Player[] = [];
 
+	// @ts-expect-error ts got stupid
 	if(THE_SHIP_IDS.includes(appID)){
 		const playersCount = reader.byte();
 

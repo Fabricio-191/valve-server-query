@@ -1,36 +1,5 @@
-import { resolve as resolveDNS } from 'dns';
+import { promises as dnsPromises, type RecordWithTtl } from 'dns';
 import { isIP } from 'net';
-export type ValueIn<T extends object> = T[keyof T];
-
-interface ResolvedIP {
-	ip: string;
-	format: number;
-}
-
-export async function resolveIP(str: string): Promise<ResolvedIP> {
-	if(typeof str !== 'string'){
-		throw Error("'options.ip' must be a string");
-	}else if(isIP(str) === 0){
-		const error = new Error('Invalid IP/Hostname');
-
-		[str] = await new Promise((res, rej) => {
-			resolveDNS(str, (err, addresses) => {
-				if(err !== null || addresses.length === 0){
-					return rej(error);
-				}
-
-				res(addresses as [string]);
-			});
-		});
-	}
-
-	const ipFormat = isIP(str);
-	if(ipFormat === 0){
-		throw Error('Invalid IP/Hostname');
-	}
-
-	return { ip: str, format: ipFormat };
-}
 
 export class BufferWriter{
 	private readonly buffer: number[] = [];
@@ -129,6 +98,62 @@ export class BufferReader{
 }
 
 export type BufferLike = Buffer | number[] | string;
+
+
+export interface BaseOptions {
+	ip: string;
+	port: number;
+	timeout: number;
+	debug: boolean;
+	enableWarns: boolean;
+}
+
+export type ValueIn<T> = T[keyof T];
+export type UnknownValues<T> = {
+	[P in keyof T]: unknown;
+};
+
+export async function checkBaseOptions(options: UnknownValues<BaseOptions>): Promise<void> {
+	if(typeof options !== 'object' || options === null){
+		throw Error("'options' must be an object");
+	}
+
+	if(
+		typeof options.port !== 'number' || isNaN(options.port) ||
+		options.port < 0 || options.port > 65535
+	){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof options.debug !== 'boolean'){
+		throw Error("'debug' should be a boolean");
+	}else if(typeof options.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+		// @ts-expect-error using isNaN to check if the value is a number
+	}else if(isNaN(options.timeout) || options.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}else if(typeof options.ip !== 'string'){
+		throw Error("'ip' should be a string");
+	}else if(isIP(options.ip) === 0){
+		options.ip = await resolveHostname(options.ip);
+	}
+}
+
+async function resolveHostname(str: string): Promise<string> {
+	const addresses = await dnsPromises.resolveAny(str);
+	const ip = addresses.find(x => x.type === 'A' || x.type === 'AAAA') as RecordWithTtl || null;
+
+	if(ip === null){
+		throw Error('Invalid IP/Hostname');
+	}
+
+	if(isIP(ip.address) === 6){
+		// eslint-disable-next-line no-console
+		console.error('IPv6 is not supported but i could do it if someone ask me to.');
+		throw Error('IPv6 is not supported');
+	}
+
+	return ip.address;
+}
+
 
 /* eslint-disable no-console */
 export function debug(

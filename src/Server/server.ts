@@ -1,10 +1,10 @@
 /* eslint-disable new-cap */
-import { debug } from '../utils';
-import Connection, { type Options } from './connection';
+import { debug, type BaseOptions as Options, parseBaseOptions } from '../utils';
+import Connection from './connection';
 import * as parsers from './serverParsers';
 
 // #region Options
-const DEFAULT_OPTIONS: Options = {
+const DEFAULT_OPTIONS = {
 	ip: 'localhost',
 	port: 27015,
 	timeout: 5000,
@@ -12,7 +12,7 @@ const DEFAULT_OPTIONS: Options = {
 	enableWarns: true,
 } as const;
 
-async function parseOptions(options: Partial<Options>): Promise<Options> {
+async function parseOptions(options: unknown): Promise<Options> {
 	if(typeof options !== 'object'){
 		throw Error("'options' must be an object");
 	}
@@ -20,10 +20,8 @@ async function parseOptions(options: Partial<Options>): Promise<Options> {
 	const opts = Object.assign({}, DEFAULT_OPTIONS, options);
 
 	if(
-		typeof opts.port !== 'number' ||
-		isNaN(opts.port) ||
-		opts.port < 0 ||
-		opts.port > 65535
+		typeof opts.port !== 'number' || isNaN(opts.port) ||
+		opts.port < 0 || opts.port > 65535
 	){
 		throw Error('The port to connect should be a number between 0 and 65535');
 	}else if(typeof opts.debug !== 'boolean'){
@@ -46,8 +44,9 @@ const INFO_S = [
 	...Buffer.from('Source Engine Query\0'),
 ] as const;
 
-const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as readonly number[];
+const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
+	// @ts-expect-error ts got stupid
 	INFO(key: Buffer | number[] = BIG_F){
 		return Buffer.from([ ...INFO_S, ...key ]);
 	},
@@ -147,6 +146,7 @@ class Server{
 
 	public async challenge(code: number): Promise<number[]> {
 		const command = COMMANDS.CHALLENGE();
+		// @ts-expect-error ts got stupid
 		if(!CHALLENGE_IDS.includes(this.connection.meta.appID)){
 			command[4] = code;
 		}

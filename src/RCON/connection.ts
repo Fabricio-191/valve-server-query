@@ -20,8 +20,16 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 	// there is an extra null byte that doesn't matter
 }
 
+export interface BaseOptions {
+	ip: string;
+	port: number;
+	timeout: number;
+	debug: boolean;
+	enableWarns: boolean;
+}
+
 export default class Connection{
-	constructor(options){
+	constructor(options: BaseOptions){
 		this.options = options;
 
 		this.socket = createConnection(options.port, options.ip)
@@ -64,11 +72,11 @@ export default class Connection{
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 	}
 	public socket: Socket;
-	public options = {};
+	public options: BaseOptions;
 	public _connected: Promise<unknown> | null;
 
-	private remaining = 0;
-	private buffers: Buffer[] = [];
+	public remaining = 0;
+	public buffers: Buffer[] = [];
 
 	public async _ready(): Promise<void> {
 		if(this._connected === null){
@@ -76,7 +84,7 @@ export default class Connection{
 		}else await this._connected;
 	}
 
-	public async send(command): Promise<void> {
+	public async send(command: string): Promise<void> {
 		await this._ready();
 		if(this.options.debug) debug('RCON sending:', command);
 

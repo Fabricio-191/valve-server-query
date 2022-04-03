@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { debug, BufferWriter } from '../utils';
-import Connection from './connection';
+import Connection, { type BaseOptions } from './connection';
 
 function makeCommand(ID: number, type: number, body = ''): Buffer {
 	return new BufferWriter()
@@ -150,13 +150,25 @@ class RCON extends EventEmitter{
 	}
 }
 
-export default async function createRCON(options): Promise<RCON> {
-	const rcon = new RCON(await parseOptions(options));
-	if(rcon.connection.options.debug) debug('RCON connecting...');
+export default async function createRCON(options: RawOptions): Promise<RCON> {
+	const opts = await parseOptions(options);
+	const rcon = new RCON(opts);
+	if(opts.debug) debug('RCON connecting...');
 
 	await rcon.connection._connected;
-	if(rcon.connection.options.debug) debug('RCON connected');
+	if(opts.debug) debug('RCON connected');
 	await rcon.authenticate(options.password);
 
 	return rcon;
+}
+
+interface Options extends BaseOptions{
+	password: string;
+}
+type RawOptions = Partial<Options> & {
+	password: string;
+};
+
+async function parseOptions(options: RawOptions): Promise<Options> {
+
 }
