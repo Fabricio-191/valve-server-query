@@ -1,7 +1,7 @@
 import { createConnection, type Socket } from 'net';
-import { BufferReader, debug } from '../utils';
+import { BufferReader, debug, type BaseOptions } from '../utils';
 
-interface RCONPacket {
+export interface RCONPacket {
 	size: number;
 	ID: number;
 	type: number;
@@ -20,16 +20,12 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 	// there is an extra null byte that doesn't matter
 }
 
-export interface BaseOptions {
-	ip: string;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
+export interface Options extends BaseOptions{
+	password: string;
 }
 
 export default class Connection{
-	constructor(options: BaseOptions){
+	constructor(options: Options){
 		this.options = options;
 
 		this.socket = createConnection(options.port, options.ip)
@@ -72,7 +68,7 @@ export default class Connection{
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 	}
 	public socket: Socket;
-	public options: BaseOptions;
+	public options: Options;
 	public _connected: Promise<unknown> | null;
 
 	public remaining = 0;
@@ -84,7 +80,7 @@ export default class Connection{
 		}else await this._connected;
 	}
 
-	public async send(command: string): Promise<void> {
+	public async send(command: Buffer): Promise<void> {
 		await this._ready();
 		if(this.options.debug) debug('RCON sending:', command);
 

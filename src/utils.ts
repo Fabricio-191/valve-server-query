@@ -1,5 +1,12 @@
-import { promises as dnsPromises, type RecordWithTtl } from 'dns';
+import { promises as dnsPromises } from 'dns';
+import type { AnyARecord, AnyAaaaRecord } from 'dns';
 import { isIP } from 'net';
+
+export type ValueIn<T> = T[keyof T];
+export type UnknownValues<T> = {
+	[P in keyof T]: unknown;
+};
+
 
 export class BufferWriter{
 	private readonly buffer: number[] = [];
@@ -97,8 +104,6 @@ export class BufferReader{
 	}
 }
 
-export type BufferLike = Buffer | number[] | string;
-
 
 export interface BaseOptions {
 	ip: string;
@@ -108,57 +113,60 @@ export interface BaseOptions {
 	enableWarns: boolean;
 }
 
-export type ValueIn<T> = T[keyof T];
-export type UnknownValues<T> = {
-	[P in keyof T]: unknown;
-};
+const DEFAULT_OPTIONS = {
+	ip: 'localhost',
+	port: 27015,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+} as const;
 
-export async function checkBaseOptions(options: UnknownValues<BaseOptions>): Promise<void> {
+export async function parseBaseOptions(options: unknown): Promise<BaseOptions> {
 	if(typeof options !== 'object' || options === null){
 		throw Error("'options' must be an object");
 	}
 
+	const opts: BaseOptions = { ...DEFAULT_OPTIONS, ...options };
+
 	if(
-		typeof options.port !== 'number' || isNaN(options.port) ||
-		options.port < 0 || options.port > 65535
+		typeof opts.port !== 'number' || isNaN(opts.port) ||
+		opts.port < 0 || opts.port > 65535
 	){
 		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.debug !== 'boolean'){
+	}else if(typeof opts.debug !== 'boolean'){
 		throw Error("'debug' should be a boolean");
-	}else if(typeof options.enableWarns !== 'boolean'){
+	}else if(typeof opts.enableWarns !== 'boolean'){
 		throw Error("'enableWarns' should be a boolean");
-		// @ts-expect-error using isNaN to check if the value is a number
-	}else if(isNaN(options.timeout) || options.timeout < 0){
+	}else if(isNaN(opts.timeout) || opts.timeout < 0){
 		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof options.ip !== 'string'){
+	}else if(typeof opts.ip !== 'string'){
 		throw Error("'ip' should be a string");
-	}else if(isIP(options.ip) === 0){
-		options.ip = await resolveHostname(options.ip);
+	}else if(isIP(opts.ip) === 0){
+		opts.ip = await resolveHostname(opts.ip);
 	}
+
+	return opts;
 }
 
 async function resolveHostname(str: string): Promise<string> {
 	const addresses = await dnsPromises.resolveAny(str);
-	const ip = addresses.find(x => x.type === 'A' || x.type === 'AAAA') as RecordWithTtl || null;
+	const record = addresses.find(x => x.type === 'A' || x.type === 'AAAA') as AnyAaaaRecord | AnyARecord;
 
-	if(ip === null){
+	if(typeof record === 'undefined'){
 		throw Error('Invalid IP/Hostname');
-	}
-
-	if(isIP(ip.address) === 6){
+	}else if(record.type === 'AAAA'){
 		// eslint-disable-next-line no-console
 		console.error('IPv6 is not supported but i could do it if someone ask me to.');
 		throw Error('IPv6 is not supported');
 	}
 
-	return ip.address;
+	return record.address;
 }
 
 
-/* eslint-disable no-console */
 export function debug(
 	string: string,
-	thing?: BufferLike
+	thing?: Buffer
 ): void {
 	string = `\x1B[33m${string}\x1B[0m`;
 	if(thing instanceof Buffer){
@@ -166,31 +174,16 @@ export function debug(
 			.toString('hex')
 			.match(/../g) as string[];
 
-		for(let i = 0; i < parts.length; i++){
-			if(
-				parts[i - 1] !== '00' &&
-				parts[i + 0] === '00' &&
-				parts[i + 1] === '00' &&
-				parts[i + 2] !== '00'
-			){
-				parts[i] = '\x1B[31m00';
-				parts[++i] = '00\x1B[0m';
-			}
-		}
-
-		if(thing.length > 30){
-			console.log(string, `<Buffer ${
-				parts.slice(0, 20).join(' ')
-			} ...${thing.length - 20} bytes>`, '\n');
-		}else{
-			console.log(string, `<Buffer ${
+		const str = `<Buffer ${
+			thing.length > 30 ?
+				`${parts.slice(0, 20).join(' ')} ...${thing.length - 20} bytes` :
 				parts.join(' ')
-			}>`, '\n');
-		}
-	}else if(typeof thing === 'string'){
-		console.log(string, thing, '\n');
+		}>`.replace(/(?<!00 )00 00(?! 00)/g, '\x1B[31m00 00\x1B[00m');
+
+		// eslint-disable-next-line no-console
+		console.log(string, str, '\n');
 	}else{
+		// eslint-disable-next-line no-console
 		console.log(string, '\n');
 	}
 }
-/* eslint-disable no-multiple-empty-lines */

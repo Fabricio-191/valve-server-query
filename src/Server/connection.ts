@@ -1,4 +1,4 @@
-import { debug, type BufferLike, type BaseOptions as Options } from '../utils';
+import { debug, type BaseOptions as Options } from '../utils';
 import { BufferReader } from '../utils';
 import { EventEmitter } from 'events';
 import { createSocket } from 'dgram';
@@ -182,7 +182,7 @@ export default class Connection extends EventEmitter{
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 
-	public send(command: BufferLike): Promise<void> {
+	public send(command: Buffer): Promise<void> {
 		if(this.options.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
@@ -227,7 +227,7 @@ export default class Connection extends EventEmitter{
 	}
 	/* eslint-enable @typescript-eslint/no-use-before-define */
 
-	public async query(command: BufferLike, ...responseHeaders: number[]): Promise<Buffer> {
+	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {

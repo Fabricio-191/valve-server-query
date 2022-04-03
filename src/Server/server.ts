@@ -1,54 +1,18 @@
 /* eslint-disable new-cap */
-import { debug, type BaseOptions as Options, parseBaseOptions } from '../utils';
+import { debug, parseBaseOptions as parseOptions, type BaseOptions as Options } from '../utils';
 import Connection from './connection';
 import * as parsers from './serverParsers';
 
-// #region Options
-const DEFAULT_OPTIONS = {
-	ip: 'localhost',
-	port: 27015,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-} as const;
-
-async function parseOptions(options: unknown): Promise<Options> {
-	if(typeof options !== 'object'){
-		throw Error("'options' must be an object");
-	}
-
-	const opts = Object.assign({}, DEFAULT_OPTIONS, options);
-
-	if(
-		typeof opts.port !== 'number' || isNaN(opts.port) ||
-		opts.port < 0 || opts.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof opts.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof opts.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(isNaN(opts.timeout) || opts.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}
-
-	// const { ip, format } = await resolveIP(options.ip);
-
-	return opts;
-}
-// #endregion
-
 const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF] as const;
-const INFO_S = [
-	...BIG_F, 0x54,
-	...Buffer.from('Source Engine Query\0'),
-] as const;
-
 const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
+	INFO_BASE: [
+		...BIG_F, 0x54,
+		...Buffer.from('Source Engine Query\0'),
+	] as const,
 	// @ts-expect-error ts got stupid
 	INFO(key: Buffer | number[] = BIG_F){
-		return Buffer.from([ ...INFO_S, ...key ]);
+		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
 	CHALLENGE(code = 0x57, key = BIG_F){
 		return Buffer.from([ ...BIG_F, code, ...key ]);
@@ -164,7 +128,9 @@ class Server{
 	}
 }
 
-export default async function init(options: Partial<Options>): Promise<Server> {
+type RawOptions = Partial<Options>;
+
+export default async function init(options: RawOptions): Promise<Server> {
 	const meta = {};
 
 	// @ts-expect-error meta properties are added later
@@ -184,8 +150,9 @@ export default async function init(options: Partial<Options>): Promise<Server> {
 
 	return new Server(connection);
 }
+init.getInfo = getInfo;
 
-export async function getInfo(options: Options): Promise<parsers.FServerInfo> {
+async function getInfo(options: RawOptions): Promise<parsers.FServerInfo> {
 	// @ts-expect-error meta properties are innecesary
 	const connection = new Connection(await parseOptions(options), {});
 	const info = await _getInfo(connection);

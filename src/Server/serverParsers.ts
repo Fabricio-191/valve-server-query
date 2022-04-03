@@ -28,6 +28,7 @@ const OPERATIVE_SYSTEMS = {
 type ServerType = ValueIn<typeof SERVER_TYPES>;
 type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
 
+
 // #region server info
 interface ServerInfo {
 	address: string;
@@ -186,6 +187,7 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 }
 // #endregion
 
+
 // #region players
 /** Info from a player in the server. */
 interface Player {
@@ -246,6 +248,7 @@ export function players(buffer: Buffer, { appID }: { appID: number }): Players {
 	return playerList;
 }
 // #endregion
+
 
 // #region rules
 /** An object with server's rules */

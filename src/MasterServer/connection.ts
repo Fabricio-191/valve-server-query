@@ -1,14 +1,7 @@
-import { debug, type BufferLike } from '../utils';
-import { EventEmitter } from 'events';
 import { createSocket } from 'dgram';
-
-export interface BaseOptions {
-	ip: string;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
-}
+import { EventEmitter } from 'events';
+import type { BaseOptions } from '../utils';
+import { debug } from '../utils';
 
 const connections: Record<string, Connection> = {};
 const client = createSocket('udp4')
@@ -22,26 +15,18 @@ const client = createSocket('udp4')
 
 		if(connection.options.debug) debug('MASTER_SERVER recieved:', buffer);
 
-		const packet = packetHandler(buffer, connection);
-		if(!packet) return;
+		if(buffer.readInt32LE() !== -1){
+			if(connection.options.debug) debug('MASTER_SERVER cannot parse packet', buffer);
+			if(connection.options.enableWarns){
+				// eslint-disable-next-line no-console
+				console.error(new Error("Warning: a packet couln't be handled"));
+			}
+			return;
+		}
 
-		connection.emit('packet', packet, address);
+		connection.emit('packet', buffer.slice(4), address);
 	})
 	.unref();
-
-// #region Packet Handlers
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
-	if(buffer.readInt32LE() === -1) return buffer.slice(4);
-
-	const { options } = connection;
-	if(options.debug) debug('MASTER_SERVER cannot parse packet', buffer);
-	if(options.enableWarns){
-		// eslint-disable-next-line no-console
-		console.error(new Error("Warning: a packet couln't be handled"));
-	}
-}
-// #endregion
 
 export default class Connection extends EventEmitter{
 	constructor(options: BaseOptions){
@@ -59,7 +44,7 @@ export default class Connection extends EventEmitter{
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 
-	public send(command: BufferLike): Promise<void> {
+	public send(command: Buffer): Promise<void> {
 		if(this.options.debug) debug('MASTER_SERVER sent:', command);
 
 		return new Promise((res, rej) => {
@@ -104,7 +89,7 @@ export default class Connection extends EventEmitter{
 	}
 	/* eslint-enable @typescript-eslint/no-use-before-define */
 
-	public async query(command: BufferLike, ...responseHeaders: number[]): Promise<Buffer> {
+	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {

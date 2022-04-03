@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { debug, BufferWriter } from '../utils';
-import Connection, { type BaseOptions } from './connection';
+import { debug, BufferWriter, parseBaseOptions } from '../utils';
+import Connection, { type RCONPacket, type Options } from './connection';
 
 function makeCommand(ID: number, type: number, body = ''): Buffer {
 	return new BufferWriter()
@@ -12,8 +12,9 @@ function makeCommand(ID: number, type: number, body = ''): Buffer {
 		.end();
 }
 
+const LONG = ['cvarlist', 'status'];
 class RCON extends EventEmitter{
-	constructor(options){
+	constructor(options: Options){
 		super();
 		this.connection = new Connection(options);
 
@@ -35,7 +36,7 @@ class RCON extends EventEmitter{
 			.on('end', cb)
 			.on('error', cb);
 	}
-	private connection: Connection;
+	public connection: Connection;
 	private _auth: Promise<void> | null = null;
 
 	public async _ready(): Promise<void> {
@@ -56,13 +57,15 @@ class RCON extends EventEmitter{
 
 		if(
 			packet.body.length > 500 || multiPacket ||
-			command === 'cvarlist' || command === 'status'
+			LONG.includes(command)
 		){
 			const ID2 = this._getID();
 			await this.connection.send(makeCommand(ID2, 2));
 
-			const packets = [];
-			const cb = p => packets.push(p);
+			const packets: RCONPacket[] = [];
+			const cb = (p: RCONPacket): void => {
+				packets.push(p);
+			};
 
 			this.connection.socket.on('packet', cb);
 
@@ -98,13 +101,13 @@ class RCON extends EventEmitter{
 		).unref();
 
 		await this.connection._connected;
-		if(this.connection.options.debug) debug('RCON', 'connected');
+		if(this.connection.options.debug) debug('RCON connected');
 
 		try{
 			await this.authenticate(this.connection.options.password);
-		}catch(e){
+		}catch(e: unknown){
 			this._auth = null;
-			if(e.message !== 'RCON: wrong password') throw e;
+			if(e instanceof Error && e.message !== 'RCON: wrong password') throw e;
 
 			if(this.connection.options.debug) debug('RCON password changed.');
 			this.emit('passwordChange');
@@ -150,8 +153,17 @@ class RCON extends EventEmitter{
 	}
 }
 
+interface RawOptions extends Partial<Options> {
+	password: string;
+}
+
 export default async function createRCON(options: RawOptions): Promise<RCON> {
-	const opts = await parseOptions(options);
+	const opts = await parseBaseOptions(options) as Options;
+
+	if(typeof opts.password !== 'string'){
+		throw new Error('RCON password must be a string');
+	}
+
 	const rcon = new RCON(opts);
 	if(opts.debug) debug('RCON connecting...');
 
@@ -160,15 +172,4 @@ export default async function createRCON(options: RawOptions): Promise<RCON> {
 	await rcon.authenticate(options.password);
 
 	return rcon;
-}
-
-interface Options extends BaseOptions{
-	password: string;
-}
-type RawOptions = Partial<Options> & {
-	password: string;
-};
-
-async function parseOptions(options: RawOptions): Promise<Options> {
-
 }

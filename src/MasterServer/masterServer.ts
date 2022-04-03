@@ -1,5 +1,6 @@
-import { BufferWriter, BufferReader, type ValueIn } from '../utils';
-import Connection, { type BaseOptions } from './connection';
+import { BufferWriter, BufferReader } from '../utils';
+import type { ValueIn, BaseOptions } from '../utils';
+import Connection from './connection';
 
 // #region filter
 const flags = {
@@ -18,7 +19,7 @@ const flags = {
 type Flag = keyof typeof flags;
 type FilterKey = 'appid' | 'gameaddr' | 'gamedata' | 'gamedataor' | 'gamedir' | 'gametype' | 'map' | 'name_match' | 'napp' | 'version_match';
 
-export class Filter{
+class Filter{
 	public readonly filters: string[] = [];
 
 	public add(key: FilterKey, value: string[] | number | string): this {
@@ -95,82 +96,7 @@ export class Filter{
 }
 // #endregion
 
-const REGIONS = {
-	US_EAST: 0,
-	US_WEST: 1,
-	SOUTH_AMERICA: 2,
-	EUROPE: 3,
-	ASIA: 4,
-	AUSTRALIA: 5,
-	MIDDLE_EAST: 6,
-	AFRICA: 7,
-	OTHER: 255,
-} as const;
-
-// #region options
-interface Options extends BaseOptions {
-	quantity: number;
-	region: ValueIn<typeof REGIONS>;
-	filter: string;
-}
-interface RawOptions extends Partial<BaseOptions> {
-	quantity?: number | 'all';
-	region?: keyof typeof REGIONS;
-	filter?: Filter | string;
-}
-
-const DEFAULT_OPTIONS: Required<RawOptions> = {
-	ip: 'hl2master.steampowered.com',
-	port: 27011,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-	quantity: 200,
-	region: 'OTHER',
-	filter: '',
-} as const;
-
-async function parseOptions(options: unknown = {}): Promise<Options> {
-	if(typeof options !== 'object' && options !== null){
-		throw Error("'options' must be an object");
-	}
-
-	const opts = Object.assign({}, DEFAULT_OPTIONS, options);
-
-	if(opts.quantity === 'all') opts.quantity = Infinity;
-	if(opts.filter instanceof Filter){
-		opts.filter = opts.filter.filters.join('');
-	}
-	if(opts.region in REGIONS){
-		opts.region = REGIONS[opts.region] as ValueIn<typeof REGIONS>;
-	}else{
-		throw new Error(`unknown region: ${opts.region}`);
-	}
-
-	if(
-		typeof options.port !== 'number' ||
-		isNaN(options.port) ||
-		options.port < 0 ||
-		options.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof options.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(isNaN(options.timeout) || options.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
-		throw Error("'quantity' must be a number greater than zero");
-	}else if(typeof opts.filter !== 'string'){
-		throw Error("'filter' must be a string or an instance of the Filter class");
-	}
-
-	return options;
-}
-// #endregion
-
-export default async function MasterServer(options: RawOptions): Promise<string[]> {
+export default async function MasterServer(options: RawOptions = {}): Promise<string[]> {
 	const opts = await parseOptions(options);
 	const connection = new Connection(opts);
 	const servers: string[] = [];
@@ -203,24 +129,80 @@ export default async function MasterServer(options: RawOptions): Promise<string[
 	connection.destroy();
 	return servers;
 }
+MasterServer.Filter = Filter;
 
-export function parseServerList(buffer: Buffer): string[] {
+function parseServerList(buffer: Buffer): string[] {
 	const reader = new BufferReader(buffer, 2);
 	const servers = [];
 
 	while(reader.hasRemaining){
-		servers.push(`${
-			reader.byte()
-		}.${
-			reader.byte()
-		}.${
-			reader.byte()
-		}.${
-			reader.byte()
-		}:${
-			reader.short(true, 'BE')
-		}`);
+		servers.push(`${reader.byte()}.${reader.byte()}.${reader.byte()}.${reader.byte()}:${reader.short(true, 'BE')}`);
 	}
 
 	return servers;
 }
+
+// #region options
+const REGIONS = {
+	US_EAST: 0,
+	US_WEST: 1,
+	SOUTH_AMERICA: 2,
+	EUROPE: 3,
+	ASIA: 4,
+	AUSTRALIA: 5,
+	MIDDLE_EAST: 6,
+	AFRICA: 7,
+	OTHER: 255,
+} as const;
+
+interface Options extends BaseOptions {
+	quantity: number;
+	region: ValueIn<typeof REGIONS>;
+	filter: string;
+}
+interface RawOptions extends Partial<BaseOptions> {
+	quantity?: number | 'all';
+	region?: keyof typeof REGIONS;
+	filter?: Filter | string;
+}
+type MixedOptions = {
+	[P in keyof Options]: Options[P] | Required<RawOptions>[P];
+};
+
+const DEFAULT_OPTIONS: Required<RawOptions> = {
+	ip: 'hl2master.steampowered.com',
+	port: 27011,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+	quantity: 200,
+	region: 'OTHER',
+	filter: '',
+} as const;
+
+async function parseOptions(options: RawOptions): Promise<Options> {
+	if(typeof options !== 'object' || options === null){
+		throw Error("'options' must be an object");
+	}
+
+	const opts: MixedOptions = Object.assign({}, DEFAULT_OPTIONS, options);
+
+	if(opts.quantity === 'all') opts.quantity = Infinity;
+	if(opts.filter instanceof Filter){
+		opts.filter = opts.filter.filters.join('');
+	}
+	if(opts.region in REGIONS){
+		opts.region = REGIONS[opts.region] as ValueIn<typeof REGIONS>;
+	}else{
+		throw new Error(`unknown region: ${opts.region}`);
+	}
+
+	if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
+		throw Error("'quantity' must be a number greater than zero");
+	}else if(typeof opts.filter !== 'string'){
+		throw Error("'filter' must be a string or an instance of the Filter class");
+	}
+
+	return opts as Options;
+}
+// #endregion
