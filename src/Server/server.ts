@@ -1,7 +1,44 @@
 /* eslint-disable new-cap */
 import { debug } from '../utils';
-import Connection from './connection';
+import Connection, { type Options } from './connection';
 import * as parsers from './serverParsers';
+
+// #region Options
+const DEFAULT_OPTIONS: Options = {
+	ip: 'localhost',
+	port: 27015,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+} as const;
+
+async function parseOptions(options: Partial<Options>): Promise<Options> {
+	if(typeof options !== 'object'){
+		throw Error("'options' must be an object");
+	}
+
+	const opts = Object.assign({}, DEFAULT_OPTIONS, options);
+
+	if(
+		typeof opts.port !== 'number' ||
+		isNaN(opts.port) ||
+		opts.port < 0 ||
+		opts.port > 65535
+	){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof opts.debug !== 'boolean'){
+		throw Error("'debug' should be a boolean");
+	}else if(typeof opts.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+	}else if(isNaN(opts.timeout) || opts.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}
+
+	// const { ip, format } = await resolveIP(options.ip);
+
+	return opts;
+}
+// #endregion
 
 const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 const INFO_S = [
@@ -9,7 +46,7 @@ const INFO_S = [
 	...Buffer.from('Source Engine Query\0'),
 ] as const;
 
-const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
+const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as readonly number[];
 const COMMANDS = {
 	INFO(key: Buffer | number[] = BIG_F){
 		return Buffer.from([ ...INFO_S, ...key ]);
@@ -20,17 +57,9 @@ const COMMANDS = {
 	PING: Buffer.from([ ...BIG_F, 0x69 ]),
 };
 
-const DEFAULT_OPTIONS = {
-	ip: 'localhost',
-	port: 27015,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-} as const;
-
 class Server{
-	constructor(options: Options){
-		this.connection = new Connection(options);
+	constructor(connection: Connection){
+		this.connection = connection;
 	}
 	private readonly connection: Connection;
 
@@ -55,7 +84,7 @@ class Server{
 
 		return Object.assign({
 			address: this.connection.address,
-		}, ...responses.map(parse.serverInfo));
+		}, ...responses.map(parsers.serverInfo)) as parsers.FServerInfo;
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
@@ -135,16 +164,17 @@ class Server{
 	}
 }
 
-export default async function init(options): Promise<Server> {
+export default async function init(options: Partial<Options>): Promise<Server> {
 	const meta = {};
 
-	const connection = await createConnection(options, meta);
+	// @ts-expect-error meta properties are added later
+	const connection = new Connection(await parseOptions(options), meta);
 	const info = await _getInfo(connection);
-	if(connection.options.debug) debug('SERVER', 'connected');
+	if(connection.options.debug) debug('SERVER connected');
 
 	Object.assign(meta, {
 		info: {
-			challenge: info.challenge,
+			challenge: info.needsChallenge,
 			goldSource: info.goldSource,
 		},
 		multiPacketResponseIsGoldSource: false,
@@ -155,7 +185,8 @@ export default async function init(options): Promise<Server> {
 	return new Server(connection);
 }
 
-export async function getInfo(options): Promise<parsers.FServerInfo> {
+export async function getInfo(options: Options): Promise<parsers.FServerInfo> {
+	// @ts-expect-error meta properties are innecesary
 	const connection = new Connection(await parseOptions(options), {});
 	const info = await _getInfo(connection);
 
@@ -163,7 +194,11 @@ export async function getInfo(options): Promise<parsers.FServerInfo> {
 	return info;
 }
 
-async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<parsers.FServerInfo> {
+type _ServerInfo = parsers.FServerInfo & {
+	needsChallenge: boolean;
+};
+
+async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<_ServerInfo> {
 	const command = challenge === null ?
 		COMMANDS.INFO() :
 		COMMANDS.INFO(challenge.slice(-4));
@@ -184,5 +219,5 @@ async function _getInfo(connection: Connection, challenge: Buffer | null = null)
 		address: `${connection.options.ip}:${connection.options.port}`,
 		needsChallenge: Boolean(challenge),
 		ping: connection.lastPing,
-	}, ...responses.map(parsers.serverInfo)) as parsers.FServerInfo;
+	}, ...responses.map(parsers.serverInfo)) as _ServerInfo;
 }

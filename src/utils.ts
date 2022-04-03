@@ -1,5 +1,6 @@
 import { resolve as resolveDNS } from 'dns';
 import { isIP } from 'net';
+export type ValueIn<T extends object> = T[keyof T];
 
 interface ResolvedIP {
 	ip: string;
@@ -131,11 +132,10 @@ export type BufferLike = Buffer | number[] | string;
 
 /* eslint-disable no-console */
 export function debug(
-	type: string,
 	string: string,
 	thing?: BufferLike
 ): void {
-	string = `\x1B[33m${type} ${string}\x1B[0m`;
+	string = `\x1B[33m${string}\x1B[0m`;
 	if(thing instanceof Buffer){
 		const parts = Buffer.from(thing)
 			.toString('hex')

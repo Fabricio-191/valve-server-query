@@ -3,37 +3,12 @@ import { BufferReader } from '../utils';
 import { EventEmitter } from 'events';
 import { createSocket } from 'dgram';
 
-export interface BaseOptions {
+export interface Options {
 	ip: string;
 	port: number;
 	timeout: number;
 	debug: boolean;
 	enableWarns: boolean;
-}
-
-export async function parseBaseOptions(options: BaseOptions): Promise<BaseOptions> {
-	if(typeof options !== 'object'){
-		throw Error("'options' must be an object");
-	}
-
-	if(
-		typeof options.port !== 'number' ||
-		isNaN(options.port) ||
-		options.port < 0 ||
-		options.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof options.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(isNaN(options.timeout) || options.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}
-
-	// const { ip, format } = await resolveIP(options.ip);
-
-	return options;
 }
 
 export interface MetaData {
@@ -56,7 +31,7 @@ const client = createSocket('udp4')
 		if(!(address in connections)) return;
 		const connection = connections[address] as Connection;
 
-		if(connection.options.debug) debug(connection.meta ? 'SERVER' : 'MASTER_SERVER', 'recieved:', buffer);
+		if(connection.options.debug) debug('SERVER recieved:', buffer);
 
 		const packet = packetHandler(buffer, connection);
 		if(!packet) return;
@@ -80,7 +55,7 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 		try{
 			packet = multiPacketResponse(buffer, meta);
 		}catch(e){
-			if(options.debug) debug('SERVER', 'cannot parse packet', buffer);
+			if(options.debug) debug('SERVER cannot parse packet', buffer);
 			if(options.enableWarns){
 				// eslint-disable-next-line no-console
 				console.error(new Error("Warning: a packet couldn't be handled"));
@@ -89,7 +64,7 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 		}
 
 		if(options.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1 && packet.ID in packetsQueues){
-			debug('RCON', 'changed packet parsing in not the first recieved packet');
+			debug('SERVER changed packet parsing in not the first recieved packet');
 		}
 
 		if(!(packet.ID in packetsQueues)){
@@ -102,7 +77,7 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 
 		delete packetsQueues[packet.ID];
 
-		if(meta.multiPacketResponseIsGoldSource){ // Checks that all the packets are parsed as goldsource
+		if(meta.multiPacketResponseIsGoldSource){ // Checks that all the packets were parsed as goldsource
 			for(let i = 0; i < queue.length; i++){
 				const p = queue[i] as MultiPacket;
 
@@ -117,21 +92,12 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 			.map(p => p.payload);
 
 		buffer = Buffer.concat(payloads);
-
-		if(queue[0].bzip){
-			if(options.debug) debug('SERVER', `BZip ${options.ip}:${options.port}`, buffer);
-			throw new Error('BZip is not supported');
-		}
-		/*
-		I never tried bzip decompression, if you are having trouble with this, contact me on discord
-		Fabricio-191#8051, and please send me de ip and port of the server, so i can do tests
-		*/
 	}
 
 	if(buffer.readInt32LE() === -1) return buffer.slice(4);
 
 	const { options } = connection;
-	if(options.debug) debug('SERVER', 'cannot parse packet', buffer);
+	if(options.debug) debug('SERVER cannot parse packet', buffer);
 	if(options.enableWarns){
 		// eslint-disable-next-line no-console
 		console.error(new Error("Warning: a packet couln't be handled"));
@@ -147,7 +113,7 @@ interface MultiPacket {
 	goldSource: boolean;
 	payload: Buffer;
 	raw: Buffer;
-	bzip?: true;
+	// bzip?: true;
 }
 
 const MPS_IDS = [ 215, 17550, 17700, 240 ] as readonly number[];
@@ -177,21 +143,26 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 		raw: buffer,
 	};
 
-	if(!(MPS_IDS.includes(meta.appID) && meta.protocol === 7)){
+	if(!(meta.protocol === 7 && MPS_IDS.includes(meta.appID))){
 		// info.maxPacketSize = reader.short();
 		reader.offset += 2;
 	}
 
-	if(info.packets.current === 0 && info.ID & 0x80000000){ // 10000000 00000000 00000000 00000000
+	if(info.packets.current === 0 && info.ID & 0x80000000){
+		// eslint-disable-next-line no-console
+		console.warn('Bzip decompression is for old engines and it could be supported but i didn\'t found any server to test it, so if you need it you could hand me the ip and port of the server so i can add it and test it');
+
+		throw new Error('BZip is not supported');
+
 		/*
 		info.bzip = {
 			uncompressedSize: reader.long(),
 			CRC32_sum: reader.long(),
 		};
-		*/
 
 		reader.offset += 8;
 		info.bzip = true;
+		*/
 	}
 
 	info.payload = reader.remaining();
@@ -201,25 +172,26 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 // #endregion
 
 export default class Connection extends EventEmitter{
-	constructor(options: BaseOptions, meta: MetaData | null = null){
+	constructor(options: Options, meta: MetaData){
 		super();
 		this.options = options;
 		this.meta = meta;
 
-		this.address = `${options.ip}:${options.port}`;
-		connections[this.address] = this;
+		connections[
+			this.address = `${options.ip}:${options.port}`
+		] = this;
 
 		client.setMaxListeners(client.getMaxListeners() + 20);
 	}
 	public readonly address: string;
-	public readonly options: BaseOptions;
+	public readonly options: Options;
 
-	public readonly meta: MetaData | null;
+	public readonly meta: MetaData;
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 
 	public send(command: BufferLike): Promise<void> {
-		if(this.options.debug) debug(this.meta ? 'SERVER' : 'MASTER_SERVER', 'sent:', command);
+		if(this.options.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
 			client.send(

@@ -1,4 +1,4 @@
-import { BufferReader } from '../utils';
+import { BufferReader, type ValueIn } from '../utils';
 
 const OPERATIVE_SYSTEMS = {
 		l: 'linux',
@@ -25,9 +25,8 @@ const OPERATIVE_SYSTEMS = {
 		2412, 2430,
 	] as readonly number[];
 
-type ValuesIn<T> = T[keyof T];
-type ServerType = ValuesIn<typeof SERVER_TYPES>;
-type OS = ValuesIn<typeof OPERATIVE_SYSTEMS>;
+type ServerType = ValueIn<typeof SERVER_TYPES>;
+type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
 
 // #region server info
 interface ServerInfo {

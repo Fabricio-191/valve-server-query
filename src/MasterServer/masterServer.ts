@@ -1,5 +1,5 @@
-import { BufferWriter, BufferReader } from '../utils';
-import Connection, { type BaseOptions } from './connection';
+import { BufferWriter, BufferReader, type ValueIn } from '../utils';
+import Connection, { type BaseOptions, parseBaseOptions } from '../Server/connection';
 
 // #region filter
 const flags = {
@@ -116,17 +116,17 @@ interface Options extends BaseOptions {
 interface RawOptions extends Partial<BaseOptions> {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
-	filter?: Filter;
+	filter?: Filter | string;
 }
 
-const DEFAULT_OPTIONS: Options = {
+const DEFAULT_OPTIONS: Required<RawOptions> = {
 	ip: 'hl2master.steampowered.com',
 	port: 27011,
 	timeout: 5000,
 	debug: false,
 	enableWarns: true,
 	quantity: 200,
-	region: 255,
+	region: 'OTHER',
 	filter: '',
 } as const;
 
@@ -138,16 +138,33 @@ async function parseOptions(options: RawOptions = {}): Promise<Options> {
 	const opts = Object.assign({}, DEFAULT_OPTIONS, options);
 
 	if(opts.quantity === 'all') opts.quantity = Infinity;
-	if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
-		throw Error("'quantity' must be a number greater than zero");
-	}else if(opts.region in REGIONS){
-		opts.region = REGIONS[opts.region];
-	}else{
-		throw Error('The specified region is not valid');
-	}
 	if(opts.filter instanceof Filter){
 		opts.filter = opts.filter.filters.join('');
-	}else throw new Error('filter must be an instance of MasterServer.Filter');
+	}
+	if(opts.region in REGIONS){
+		opts.region = REGIONS[opts.region] as ValueIn<typeof REGIONS>;
+	}else{
+		throw new Error(`unknown region: ${opts.region}`);
+	}
+
+	if(
+		typeof options.port !== 'number' ||
+		isNaN(options.port) ||
+		options.port < 0 ||
+		options.port > 65535
+	){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof options.debug !== 'boolean'){
+		throw Error("'debug' should be a boolean");
+	}else if(typeof options.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+	}else if(isNaN(options.timeout) || options.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}else if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
+		throw Error("'quantity' must be a number greater than zero");
+	}else if(typeof opts.filter !== 'string'){
+		throw Error("'filter' must be a string or an instance of the Filter class");
+	}
 
 	return options;
 }

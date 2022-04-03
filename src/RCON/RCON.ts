@@ -18,7 +18,7 @@ class RCON extends EventEmitter{
 		this.connection = new Connection(options);
 
 		const cb = (err?: Error): void => {
-			if(this.connection.options.debug) debug('RCON', 'disconnected.');
+			if(this.connection.options.debug) debug('RCON disconnected.');
 
 			this.connection.buffers = [];
 			this.connection.remaining = 0;
@@ -88,7 +88,7 @@ class RCON extends EventEmitter{
 		await new Promise(res => {
 			setTimeout(res, 100);
 		});
-		if(this.connection.options.debug) debug('RCON', 'reconnecting...');
+		if(this.connection.options.debug) debug('RCON reconnecting...');
 
 		this.connection._connected = this.connection.awaitEvent('connect', 'Connection timeout.');
 
@@ -106,7 +106,7 @@ class RCON extends EventEmitter{
 			this._auth = null;
 			if(e.message !== 'RCON: wrong password') throw e;
 
-			if(this.connection.options.debug) debug('RCON', 'password changed.');
+			if(this.connection.options.debug) debug('RCON password changed.');
 			this.emit('passwordChange');
 		}
 	}
@@ -140,7 +140,7 @@ class RCON extends EventEmitter{
 		await this._auth;
 		this.connection.options.password = password;
 
-		if(this.connection.options.debug) debug('RCON', 'autenticated');
+		if(this.connection.options.debug) debug('RCON autenticated');
 	}
 
 	private _lastID = 0x33333333;
@@ -152,10 +152,10 @@ class RCON extends EventEmitter{
 
 export default async function createRCON(options): Promise<RCON> {
 	const rcon = new RCON(await parseOptions(options));
-	if(rcon.connection.options.debug) debug('RCON', 'connecting...');
+	if(rcon.connection.options.debug) debug('RCON connecting...');
 
 	await rcon.connection._connected;
-	if(rcon.connection.options.debug) debug('RCON', 'connected');
+	if(rcon.connection.options.debug) debug('RCON connected');
 	await rcon.authenticate(options.password);
 
 	return rcon;

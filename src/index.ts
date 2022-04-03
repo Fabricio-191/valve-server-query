@@ -1,5 +1,5 @@
-import Server from './main/server';
-import MasterServer from './main/masterServer';
+import Server from './Server/server';
+import MasterServer from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
 
 export default {

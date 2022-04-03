@@ -27,7 +27,7 @@ export default class Connection{
 		this.socket = createConnection(options.port, options.ip)
 			.unref()
 			.on('data', (buffer: Buffer) => {
-				if(this.options.debug) debug('RCON', 'recieved:', buffer);
+				if(this.options.debug) debug('RCON recieved:', buffer);
 
 				if(this.remaining === 0){
 					this.remaining = buffer.readUInt32LE() + 4; // size field
@@ -78,7 +78,7 @@ export default class Connection{
 
 	public async send(command): Promise<void> {
 		await this._ready();
-		if(this.options.debug) debug('RCON', 'sending:', command);
+		if(this.options.debug) debug('RCON sending:', command);
 
 		return await new Promise((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
