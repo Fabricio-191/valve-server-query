@@ -174,7 +174,7 @@ export default class Connection extends EventEmitter{
 	public readonly options: Options;
 	private readonly client: Socket;
 
-	public readonly meta!: MetaData;
+	public meta!: MetaData;
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 

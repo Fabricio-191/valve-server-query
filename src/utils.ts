@@ -15,7 +15,7 @@ export function getClient(
 		return client;
 	}
 
-	const client = createSocket(`upd${format}` as SocketType)
+	const client = createSocket(`udp${format}` as SocketType)
 		.on('message', handleMessage)
 		.setMaxListeners(20)
 		.unref();
@@ -114,7 +114,7 @@ export class BufferReader{
 	}
 
 	public get hasRemaining(): boolean {
-		return this.offset === this.length;
+		return this.offset < this.length;
 	}
 
 	public remaining(): Buffer {

@@ -1,7 +1,7 @@
 /* eslint-disable new-cap */
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
-import { Server, RCON, MasterServer } from '../src';
+import { Server, RCON, MasterServer, type FinalServerInfo } from '../src';
 import type { EventEmitter } from 'events';
 import { existsSync, writeFileSync } from 'fs';
 
@@ -10,7 +10,7 @@ const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 
 const options = (() => {
 	const [ip, port, password] = (regex.exec(
-		'connect 49.12.122.244:33027 ; rcon_password cosas'.trim()
+		'connect 49.12.122.244:33037 ; rcon_password cosas'.trim()
 	) as RegExpExecArray)
 		.slice(1) as [string, string, string];
 
@@ -20,16 +20,24 @@ const options = (() => {
 		password,
 
 		enableWarns: false,
-		debug: true,
+		debug: false,
 	};
 })();
 
 const result: {
 	MasterServer: string[] | null;
-	server: Record<string, unknown>;
+	server: {
+		lastPing: number;
+		getInfo: unknown;
+		getPlayers: unknown;
+		getRules: unknown;
+		getPing: unknown;
+
+	};
 	RCON: Record<string, unknown>;
 } = {
 	MasterServer: null,
+	// @ts-expect-error asd
 	server: {},
 	RCON: {},
 };
@@ -51,13 +59,13 @@ describe('Server', () => {
 		result.server['static getInfo()'] = info;
 	});
 
-	let server;
+	const server = new Server();
 	it('connect', async function(){
 		this.retries(3);
 		this.slow(9000);
 		this.timeout(10000);
 
-		server = await Server(options);
+		await server.connect(options);
 	});
 
 	it('getInfo()', async () => {
@@ -144,7 +152,7 @@ describe('MasterServer', () => {
 			quantity: 300,
 		});
 
-		let results = await Promise.allSettled(
+		const results = (await Promise.allSettled(
 			IPs.map(address => {
 				// eslint-disable-next-line no-shadow
 				const [ip, port] = address.split(':') as [string, string];
@@ -154,17 +162,18 @@ describe('MasterServer', () => {
 					port: parseInt(port),
 				});
 			})
-		);
+		))
+			.filter(x => x.status === 'fulfilled') as PromiseFulfilledResult<FinalServerInfo>[];
 
-		results = results
-			.filter(x => x.status === 'fulfilled')
-			.map(x => x.value);
 
-		if(!results.every(x =>
-			x.OS === 'linux' &&
-			x.map === 'de_dust2' &&
-			!x.VAC
-		)){
+		if(!results
+			.map(x => x.value)
+			.every(x =>
+				x.OS === 'linux' &&
+				x.map === 'de_dust2' &&
+				!x.VAC
+			)
+		){
 			throw new Error('Filter is not working well');
 		}
 	});
@@ -172,11 +181,11 @@ describe('MasterServer', () => {
 
 describe('RCON', () => {
 	// eslint-disable-next-line @typescript-eslint/init-declarations
-	let rcon: InstanceType<typeof RCON>;
+	const rcon = new RCON();
 	it('connect and authenticate', async function(){
 		this.retries(3);
 
-		rcon = await RCON(options);
+		await rcon.connect(options);
 	});
 
 	it("exec('sv_gravity') (single packet response)", async () => {
@@ -219,12 +228,12 @@ describe('RCON', () => {
 	it('should reconnect', async () => {
 		if(!rcon) throw MyError('RCON not connected');
 
-		rcon.exec('sv_gravity 0').catch(() => {});
+		rcon.exec('sv_gravity 0').catch(() => { /* do nothing */ });
 
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 		await rcon.reconnect();
 
-		rcon.exec('sv_gravity 0').catch(() => {});
+		rcon.exec('sv_gravity 0').catch(() => { /* do nothing */ });
 
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 		await rcon.reconnect();
@@ -233,7 +242,7 @@ describe('RCON', () => {
 	it('should manage password changes', async () => {
 		if(!rcon || !rcon.connection._ready) throw MyError('RCON not connected');
 
-		rcon.exec('rcon_password cosas2').catch(() => {});
+		rcon.exec('rcon_password cosas2').catch(() => { /* do nothing */ });
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 
 		await Promise.all([
@@ -244,7 +253,7 @@ describe('RCON', () => {
 		await rcon.authenticate('cosas2');
 
 
-		rcon.exec('rcon_password cosas').catch(() => {});
+		rcon.exec('rcon_password cosas').catch(() => { /* do nothing */ });
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 
 		await Promise.all([
@@ -282,7 +291,7 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 		const clear = (): void => {
 			obj.off(event, onEvent);
 			clearTimeout(timeout);
-		};;
+		};
 		const onEvent = (): void => {
 			clear(); res();
 		};

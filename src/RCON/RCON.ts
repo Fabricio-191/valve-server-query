@@ -13,30 +13,8 @@ function makeCommand(ID: number, type: number, body = ''): Buffer {
 }
 
 const LONG = ['cvarlist', 'status'];
-class RCON extends EventEmitter{
-	constructor(options: Options){
-		super();
-		this.connection = new Connection(options);
-
-		const cb = (err?: Error): void => {
-			if(this.connection.options.debug) debug('RCON disconnected.');
-
-			this.connection.buffers = [];
-			this.connection.remaining = 0;
-			this.connection._connected = null;
-			this._auth = null;
-
-			this.emit(
-				'disconnect',
-				err ? err.message : 'The server closed the connection.'
-			);
-		};
-
-		this.connection.socket
-			.on('end', cb)
-			.on('error', cb);
-	}
-	public connection: Connection;
+export default class RCON extends EventEmitter{
+	public connection!: Connection;
 	private _auth: Promise<void> | null = null;
 
 	public async _ready(): Promise<void> {
@@ -82,6 +60,38 @@ class RCON extends EventEmitter{
 		this.removeAllListeners();
 		this.connection.socket.removeAllListeners();
 		this.connection.socket.destroy();
+	}
+
+	public async connect(options: RawOptions): Promise<void> {
+		const opts = await parseBaseOptions(options) as Options;
+		if(typeof opts.password !== 'string'){
+			throw new Error('RCON password must be a string');
+		}
+
+		if(opts.debug) debug('RCON connecting...');
+		const connection = this.connection = new Connection(opts);
+		await connection._connected;
+
+		const cb = (err?: Error): void => {
+			if(this.connection.options.debug) debug('RCON disconnected.');
+
+			connection.buffers = [];
+			connection.remaining = 0;
+			connection._connected = null;
+			this._auth = null;
+
+			this.emit(
+				'disconnect',
+				err ? err.message : 'The server closed the connection.'
+			);
+		};
+
+		connection.socket
+			.on('end', cb)
+			.on('error', cb);
+
+		if(opts.debug) debug('RCON connected');
+		await this.authenticate(opts.password);
 	}
 
 	public async reconnect(): Promise<void> {
@@ -155,21 +165,4 @@ class RCON extends EventEmitter{
 
 interface RawOptions extends Partial<Options> {
 	password: string;
-}
-
-export default async function createRCON(options: RawOptions): Promise<RCON> {
-	const opts = await parseBaseOptions(options) as Options;
-
-	if(typeof opts.password !== 'string'){
-		throw new Error('RCON password must be a string');
-	}
-
-	const rcon = new RCON(opts);
-	if(opts.debug) debug('RCON connecting...');
-
-	await rcon.connection._connected;
-	if(opts.debug) debug('RCON connected');
-	await rcon.authenticate(options.password);
-
-	return rcon;
 }

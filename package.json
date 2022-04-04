@@ -4,7 +4,7 @@
   "typings": "./typings/index.d.ts",
   "scripts": {
     "lint": "npx eslint . --fix",
-    "test": "mocha test/mocha.js --slow 5000 --timeout 6000"
+    "test": "mocha -r ts-node/register test/mocha.ts --slow 5000 --timeout 6000"
   },
   "devDependencies": {
     "why-is-node-running": "^2.2.1",

@@ -37,9 +37,9 @@ export default class Server{
 
 		const requests = this.connection.meta.info.goldSource ? [
 			this.connection.query(command, 0x49),
+			this.connection.awaitResponse([0x6D]),
 		] : [
 			this.connection.query(command, 0x49),
-			this.connection.awaitResponse([0x6D]),
 		];
 
 		const responses = await Promise.all(requests);
@@ -152,7 +152,7 @@ export default class Server{
 		const info = await _getInfo(connection);
 		if(connection.options.debug) debug('SERVER connected');
 
-		Object.assign(connection.meta, {
+		connection.meta = {
 			info: {
 				challenge: info.needsChallenge,
 				goldSource: info.goldSource,
@@ -160,7 +160,7 @@ export default class Server{
 			multiPacketResponseIsGoldSource: false,
 			appID: info.appID,
 			protocol: info.protocol,
-		});
+		};
 	}
 
 	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
