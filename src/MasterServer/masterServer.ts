@@ -1,5 +1,5 @@
-import { BufferWriter, BufferReader } from '../utils';
-import type { ValueIn, BaseOptions } from '../utils';
+import { BufferWriter, BufferReader, parseOptions as parseBaseOptions } from '../utils';
+import type { ValueIn, Options as BaseOptions, RawOptions as BaseRawOptions } from '../utils';
 import Connection from './connection';
 
 // #region filter
@@ -155,18 +155,20 @@ const REGIONS = {
 	OTHER: 255,
 } as const;
 
-interface Options extends BaseOptions {
-	quantity: number;
-	region: ValueIn<typeof REGIONS>;
-	filter: string;
-}
-interface RawOptions extends Partial<BaseOptions> {
+export interface RawOptions extends BaseRawOptions {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
 	filter?: Filter | string;
 }
+export interface Options extends BaseOptions {
+	quantity: number;
+	region: ValueIn<typeof REGIONS>;
+	filter: string;
+}
 type MixedOptions = {
-	[P in keyof Options]: Options[P] | Required<RawOptions>[P];
+	[key in keyof Options]: key extends keyof RawOptions ?
+		Exclude<Options[key] | RawOptions[key], undefined> :
+		never;
 };
 
 const DEFAULT_OPTIONS: Required<RawOptions> = {
@@ -177,15 +179,15 @@ const DEFAULT_OPTIONS: Required<RawOptions> = {
 	enableWarns: true,
 	quantity: 200,
 	region: 'OTHER',
-	filter: '',
+	filter: new Filter(),
 } as const;
 
-async function parseOptions(options: RawOptions): Promise<Options> {
+async function parseOptions(options: unknown): Promise<Options> {
 	if(typeof options !== 'object' || options === null){
 		throw Error("'options' must be an object");
 	}
 
-	const opts: MixedOptions = Object.assign({}, DEFAULT_OPTIONS, options);
+	const opts = await parseBaseOptions(options, DEFAULT_OPTIONS) as MixedOptions;
 
 	if(opts.quantity === 'all') opts.quantity = Infinity;
 	if(opts.filter instanceof Filter){
@@ -197,10 +199,10 @@ async function parseOptions(options: RawOptions): Promise<Options> {
 		throw new Error(`unknown region: ${opts.region}`);
 	}
 
-	if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
+	if(typeof opts.filter !== 'string'){
+		throw Error("'filter' must be an instance of MasterServer.Filter or a string");
+	}else if(typeof opts.quantity !== 'number' || isNaN(opts.quantity) || opts.quantity <= 0){
 		throw Error("'quantity' must be a number greater than zero");
-	}else if(typeof opts.filter !== 'string'){
-		throw Error("'filter' must be a string or an instance of the Filter class");
 	}
 
 	return opts as Options;

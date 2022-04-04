@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { debug, BufferWriter, parseBaseOptions } from '../utils';
+import { debug, BufferWriter, parseOptions as parseBaseOptions } from '../utils';
 import Connection, { type RCONPacket, type Options } from './connection';
 
 function makeCommand(ID: number, type: number, body = ''): Buffer {

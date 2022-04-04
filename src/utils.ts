@@ -1,12 +1,30 @@
+import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
 import { promises as dnsPromises } from 'dns';
 import type { AnyARecord, AnyAaaaRecord } from 'dns';
 import { isIP } from 'net';
 
-export type ValueIn<T> = T[keyof T];
-export type UnknownValues<T> = {
-	[P in keyof T]: unknown;
-};
+const clients: Record<number, Socket> = {};
+export function getClient(
+	format: 4 | 6,
+	handleMessage: (buffer: Buffer, rinfo: RemoteInfo) => void
+): Socket {
+	if(format in clients){
+		const client = clients[format] as Socket;
 
+		client.setMaxListeners(client.getMaxListeners() + 20);
+		return client;
+	}
+
+	const client = createSocket(`upd${format}` as SocketType)
+		.on('message', handleMessage)
+		.setMaxListeners(20)
+		.unref();
+
+	clients[format] = client;
+	return client;
+}
+
+export type ValueIn<T> = T[keyof T];
 
 export class BufferWriter{
 	private readonly buffer: number[] = [];
@@ -104,66 +122,6 @@ export class BufferReader{
 	}
 }
 
-
-export interface BaseOptions {
-	ip: string;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
-}
-
-const DEFAULT_OPTIONS = {
-	ip: 'localhost',
-	port: 27015,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-} as const;
-
-export async function parseBaseOptions(options: unknown): Promise<BaseOptions> {
-	if(typeof options !== 'object' || options === null){
-		throw Error("'options' must be an object");
-	}
-
-	const opts: BaseOptions = { ...DEFAULT_OPTIONS, ...options };
-
-	if(
-		typeof opts.port !== 'number' || isNaN(opts.port) ||
-		opts.port < 0 || opts.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof opts.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof opts.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(isNaN(opts.timeout) || opts.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof opts.ip !== 'string'){
-		throw Error("'ip' should be a string");
-	}else if(isIP(opts.ip) === 0){
-		opts.ip = await resolveHostname(opts.ip);
-	}
-
-	return opts;
-}
-
-async function resolveHostname(str: string): Promise<string> {
-	const addresses = await dnsPromises.resolveAny(str);
-	const record = addresses.find(x => x.type === 'A' || x.type === 'AAAA') as AnyAaaaRecord | AnyARecord;
-
-	if(typeof record === 'undefined'){
-		throw Error('Invalid IP/Hostname');
-	}else if(record.type === 'AAAA'){
-		// eslint-disable-next-line no-console
-		console.error('IPv6 is not supported but i could do it if someone ask me to.');
-		throw Error('IPv6 is not supported');
-	}
-
-	return record.address;
-}
-
-
 export function debug(
 	string: string,
 	thing?: Buffer
@@ -186,4 +144,70 @@ export function debug(
 		// eslint-disable-next-line no-console
 		console.log(string, '\n');
 	}
+}
+
+
+export interface RawOptions {
+	ip?: string;
+	port?: number;
+	timeout?: number;
+	debug?: boolean;
+	enableWarns?: boolean;
+}
+export interface Options extends Required<RawOptions> {
+	ipFormat: 4 | 6;
+}
+
+const DEFAULT_OPTIONS: Required<RawOptions> = {
+	ip: 'localhost',
+	port: 27015,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+} as const;
+
+const recordTypes = ['A', 'AAAA'] as const;
+export async function parseOptions(options: unknown, defaultOptions = DEFAULT_OPTIONS): Promise<Options> {
+	if(typeof options !== 'object' || options === null){
+		throw Error("'options' must be an object");
+	}
+
+	// @ts-expect-error ipFormat is added later
+	const opts: Options = {
+		...defaultOptions,
+		...options,
+	};
+
+	if(
+		typeof opts.port !== 'number' || isNaN(opts.port) ||
+		opts.port < 0 || opts.port > 65535
+	){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof opts.debug !== 'boolean'){
+		throw Error("'debug' should be a boolean");
+	}else if(typeof opts.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+	}else if(typeof opts.timeout !== 'number' || isNaN(opts.timeout) || opts.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}else if(typeof opts.ip !== 'string'){
+		throw Error("'ip' should be a string");
+	}
+
+	const ipFormat = isIP(opts.ip) as 0 | 4 | 6;
+	if(ipFormat === 0){
+		const addresses = await dnsPromises.resolveAny(opts.ip);
+		const record = addresses.find(x =>
+			// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
+			recordTypes.includes(x.type)
+		) as AnyAaaaRecord | AnyARecord;
+
+		if(typeof record === 'undefined'){
+			throw Error('Invalid IP/Hostname');
+		}
+
+		opts.ip = record.address;
+		opts.ipFormat = record.type === 'A' ? 4 : 6;
+	}else opts.ipFormat = ipFormat;
+
+	return opts;
 }

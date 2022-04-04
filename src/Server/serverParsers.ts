@@ -1,4 +1,5 @@
 import { BufferReader, type ValueIn } from '../utils';
+import type { MetaData } from './connection';
 
 const OPERATIVE_SYSTEMS = {
 		l: 'linux',
@@ -29,7 +30,6 @@ type ServerType = ValueIn<typeof SERVER_TYPES>;
 type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
 
 
-// #region server info
 interface ServerInfo {
 	address: string;
 	ping: number;
@@ -62,7 +62,7 @@ interface ServerInfo {
 }
 
 interface TheShipServerInfo extends ServerInfo {
-	mode: 'deathmatch' | 'duel' | 'elimination' | 'hunt' | 'team elimination' | 'vip team';
+	mode: ValueIn<typeof THE_SHIP_MODES>;
 	witnesses: number;
 	duration: number;
 }
@@ -93,7 +93,7 @@ interface GoldSourceServerInfo {
 	};
 	VAC: boolean;
 }
-export type FServerInfo = ServerInfo | TheShipServerInfo | (GoldSourceServerInfo & (ServerInfo | TheShipServerInfo));
+export type FinalServerInfo = ServerInfo | TheShipServerInfo | (GoldSourceServerInfo & (ServerInfo | TheShipServerInfo));
 
 export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
@@ -101,7 +101,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	if(reader.byte() === 0x6D) return goldSourceServerInfo(reader);
 
 	// @ts-expect-error missing properties will be added later
-	const info: ServerInfo = {
+	const info: ServerInfo | TheShipServerInfo = {
 		protocol: reader.byte(),
 		goldSource: false,
 		name: reader.string().trim(),
@@ -120,7 +120,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 		VAC: reader.byte() === 1,
 	};
 
-	// @ts-expect-error ts got stupid
+	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(THE_SHIP_IDS.includes(info.appID)){
 		Object.assign(info, {
 			mode: THE_SHIP_MODES[reader.byte()],
@@ -134,6 +134,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	if(reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
+	// 1111 0001 (241)
 	if(EDF & 0x80) info.port = reader.short(true);
 	if(EDF & 0x10) info.steamID = reader.bigUInt();
 	if(EDF & 0x40) info.tv = {
@@ -185,13 +186,11 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 
 	return info;
 }
-// #endregion
 
 
-// #region players
 /** Info from a player in the server. */
 interface Player {
-/* Index of the player. */
+	/* Index of the player. */
 	index: number;
 	/** Name of the player. */
 	name: string;
@@ -209,11 +208,11 @@ interface TheShipPlayer extends Player{
 }
 
 export type Players = Player[] | TheShipPlayer[];
-export function players(buffer: Buffer, { appID }: { appID: number }): Players {
+export function players(buffer: Buffer, { appID }: MetaData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const playerList: Player[] = [];
 
-	// @ts-expect-error ts got stupid
+	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(THE_SHIP_IDS.includes(appID)){
 		const playersCount = reader.byte();
 
@@ -247,10 +246,8 @@ export function players(buffer: Buffer, { appID }: { appID: number }): Players {
 
 	return playerList;
 }
-// #endregion
 
 
-// #region rules
 /** An object with server's rules */
 export interface Rules {
 	[key: string]: boolean | number | string;
@@ -277,4 +274,3 @@ export function rules(buffer: Buffer): Rules {
 
 	return obj;
 }
-// #endregion

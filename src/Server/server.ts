@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import { debug, parseBaseOptions as parseOptions, type BaseOptions as Options } from '../utils';
+import { debug, parseOptions, type RawOptions } from '../utils';
 import Connection from './connection';
 import * as parsers from './serverParsers';
 
@@ -10,8 +10,7 @@ const COMMANDS = {
 		...BIG_F, 0x54,
 		...Buffer.from('Source Engine Query\0'),
 	] as const,
-	// @ts-expect-error ts got stupid
-	INFO(key: Buffer | number[] = BIG_F){
+	INFO(key: Buffer | typeof BIG_F = BIG_F){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
 	CHALLENGE(code = 0x57, key = BIG_F){
@@ -20,13 +19,14 @@ const COMMANDS = {
 	PING: Buffer.from([ ...BIG_F, 0x69 ]),
 };
 
-class Server{
-	constructor(connection: Connection){
-		this.connection = connection;
-	}
-	private readonly connection: Connection;
+export default class Server{
+	private connection: Connection | null = null;
 
-	public async getInfo(): Promise<parsers.FServerInfo> {
+	public async getInfo(): Promise<parsers.FinalServerInfo> {
+		if(this.connection === null){
+			throw new Error('Not connected');
+		}
+
 		let command = COMMANDS.INFO();
 		if(this.connection.meta.info.challenge){
 			const response = await this.connection.query(command, 0x41);
@@ -35,22 +35,28 @@ class Server{
 			command = COMMANDS.INFO(key);
 		}
 
-		const requests = [
+		const requests = this.connection.meta.info.goldSource ? [
 			this.connection.query(command, 0x49),
+		] : [
+			this.connection.query(command, 0x49),
+			this.connection.awaitResponse([0x6D]),
 		];
-
-		if(this.connection.meta.info.goldSource) requests.push(
-			this.connection.awaitResponse([0x6D])
-		);
 
 		const responses = await Promise.all(requests);
 
-		return Object.assign({
-			address: this.connection.address,
-		}, ...responses.map(parsers.serverInfo)) as parsers.FServerInfo;
+		return Object.assign(
+			{
+				address: this.connection.address,
+			},
+			...responses.map(parsers.serverInfo)
+		) as parsers.FinalServerInfo;
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
+		if(this.connection === null){
+			throw new Error('Not connected');
+		}
+
 		const key = await this.challenge(0x55);
 
 		if(key[0] === 0x44 && key.length > 5){
@@ -70,6 +76,10 @@ class Server{
 	}
 
 	public async getRules(): Promise<parsers.Rules>{
+		if(this.connection === null){
+			throw new Error('Not connected');
+		}
+
 		const key = await this.challenge(0x56);
 
 		if(key[0] === 0x45 && key.length > 5){
@@ -93,6 +103,10 @@ class Server{
 	}
 
 	public async getPing(): Promise<number> {
+		if(this.connection === null){
+			throw new Error('Not connected');
+		}
+
 		if(this.connection.options.enableWarns){
 			// eslint-disable-next-line no-console
 			console.trace('A2A_PING request is a deprecated feature of source servers');
@@ -108,9 +122,13 @@ class Server{
 		}
 	}
 
-	public async challenge(code: number): Promise<number[]> {
+	public async challenge(code: number): Promise<Buffer> {
+		if(this.connection === null){
+			throw new Error('Not connected');
+		}
+
 		const command = COMMANDS.CHALLENGE();
-		// @ts-expect-error ts got stupid
+		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		if(!CHALLENGE_IDS.includes(this.connection.meta.appID)){
 			command[4] = code;
 		}
@@ -120,48 +138,41 @@ class Server{
 		// 0x45 truncated players response
 		const response = await this.connection.query(command, 0x41, code - 0b10001);
 
-		return Array.from(response);
+		return response;
 	}
 
 	public disconnect(): void {
-		this.connection.destroy();
+		if(this.connection !== null){
+			this.connection.destroy();
+		}
+	}
+
+	public async connect(options: RawOptions): Promise<void> {
+		const connection = this.connection = new Connection(await parseOptions(options));
+		const info = await _getInfo(connection);
+		if(connection.options.debug) debug('SERVER connected');
+
+		Object.assign(connection.meta, {
+			info: {
+				challenge: info.needsChallenge,
+				goldSource: info.goldSource,
+			},
+			multiPacketResponseIsGoldSource: false,
+			appID: info.appID,
+			protocol: info.protocol,
+		});
+	}
+
+	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
+		const connection = new Connection(await parseOptions(options));
+		const info = await _getInfo(connection);
+
+		connection.destroy();
+		return info;
 	}
 }
 
-type RawOptions = Partial<Options>;
-
-export default async function init(options: RawOptions): Promise<Server> {
-	const meta = {};
-
-	// @ts-expect-error meta properties are added later
-	const connection = new Connection(await parseOptions(options), meta);
-	const info = await _getInfo(connection);
-	if(connection.options.debug) debug('SERVER connected');
-
-	Object.assign(meta, {
-		info: {
-			challenge: info.needsChallenge,
-			goldSource: info.goldSource,
-		},
-		multiPacketResponseIsGoldSource: false,
-		appID: info.appID,
-		protocol: info.protocol,
-	});
-
-	return new Server(connection);
-}
-init.getInfo = getInfo;
-
-async function getInfo(options: RawOptions): Promise<parsers.FServerInfo> {
-	// @ts-expect-error meta properties are innecesary
-	const connection = new Connection(await parseOptions(options), {});
-	const info = await _getInfo(connection);
-
-	connection.destroy();
-	return info;
-}
-
-type _ServerInfo = parsers.FServerInfo & {
+type _ServerInfo = parsers.FinalServerInfo & {
 	needsChallenge: boolean;
 };
 

@@ -1,7 +1,6 @@
-import { debug, type BaseOptions as Options } from '../utils';
-import { BufferReader } from '../utils';
+import { debug, BufferReader, getClient, type Options } from '../utils';
 import { EventEmitter } from 'events';
-import { createSocket } from 'dgram';
+import type { RemoteInfo, Socket } from 'dgram';
 
 export interface MetaData {
 	appID: number;
@@ -13,29 +12,27 @@ export interface MetaData {
 	};
 }
 
+// #region
 const connections: Record<string, Connection> = {};
-const client = createSocket('udp4')
-	.on('message', (buffer, rinfo) => {
-		if(buffer.length === 0) return;
+function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
+	if(buffer.length === 0) return;
 
-		const address = `${rinfo.address}:${rinfo.port}`;
+	const address = `${rinfo.address}:${rinfo.port}`;
 
-		if(!(address in connections)) return;
-		const connection = connections[address] as Connection;
+	if(!(address in connections)) return;
+	const connection = connections[address] as Connection;
 
-		if(connection.options.debug) debug('SERVER recieved:', buffer);
+	if(connection.options.debug) debug('SERVER recieved:', buffer);
 
-		const packet = packetHandler(buffer, connection);
-		if(!packet) return;
+	const packet = packetHandler(buffer, connection);
+	if(!packet) return;
 
-		connection.emit('packet', packet, address);
-	})
-	.unref();
+	connection.emit('packet', packet, address);
+}
 
-// #region Packet Handlers
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
-	if(connection.meta !== null && buffer.readInt32LE() === -2){
+	if(buffer.readInt32LE() === -2){
 		const { meta, options, packetsQueues } = connection;
 
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
@@ -88,9 +85,8 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 
 	if(buffer.readInt32LE() === -1) return buffer.slice(4);
 
-	const { options } = connection;
-	if(options.debug) debug('SERVER cannot parse packet', buffer);
-	if(options.enableWarns){
+	if(connection.options.debug) debug('SERVER cannot parse packet', buffer);
+	if(connection.options.enableWarns){
 		// eslint-disable-next-line no-console
 		console.error(new Error("Warning: a packet couln't be handled"));
 	}
@@ -108,7 +104,7 @@ interface MultiPacket {
 	// bzip?: true;
 }
 
-const MPS_IDS = [ 215, 17550, 17700, 240 ] as readonly number[];
+const MPS_IDS = [ 215, 17550, 17700, 240 ] as const;
 function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
@@ -135,6 +131,7 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 		raw: buffer,
 	};
 
+	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(!(meta.protocol === 7 && MPS_IDS.includes(meta.appID))){
 		// info.maxPacketSize = reader.short();
 		reader.offset += 2;
@@ -147,14 +144,14 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 		throw new Error('BZip is not supported');
 
 		/*
-		info.bzip = {
-			uncompressedSize: reader.long(),
-			CRC32_sum: reader.long(),
-		};
+			info.bzip = {
+				uncompressedSize: reader.long(),
+				CRC32_sum: reader.long(),
+			};
 
-		reader.offset += 8;
-		info.bzip = true;
-		*/
+			reader.offset += 8;
+			info.bzip = true;
+			*/
 	}
 
 	info.payload = reader.remaining();
@@ -164,21 +161,20 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 // #endregion
 
 export default class Connection extends EventEmitter{
-	constructor(options: Options, meta: MetaData){
+	constructor(options: Options){
 		super();
 		this.options = options;
-		this.meta = meta;
 
-		connections[
-			this.address = `${options.ip}:${options.port}`
-		] = this;
+		this.address = `${options.ip}:${options.port}`;
+		connections[this.address] = this;
 
-		client.setMaxListeners(client.getMaxListeners() + 20);
+		this.client = getClient(options.ipFormat, handleMessage);
 	}
 	public readonly address: string;
 	public readonly options: Options;
+	private readonly client: Socket;
 
-	public readonly meta: MetaData;
+	public readonly meta!: MetaData;
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 
@@ -186,7 +182,7 @@ export default class Connection extends EventEmitter{
 		if(this.options.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
-			client.send(
+			this.client.send(
 				Buffer.from(command),
 				this.options.port,
 				this.options.ip,
@@ -203,7 +199,7 @@ export default class Connection extends EventEmitter{
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				this.off('packet', onPacket);
-				client.off('error', onError);
+				this.client.off('error', onError);
 				clearTimeout(timeout);
 			};
 
@@ -213,7 +209,7 @@ export default class Connection extends EventEmitter{
 			const onPacket = (buffer: Buffer, address: string): void => {
 				if(
 					this.address !== address ||
-					!responseHeaders.includes(buffer[0] as number)
+						!responseHeaders.includes(buffer[0] as number)
 				) return;
 
 				clear(); res(buffer);
@@ -222,7 +218,7 @@ export default class Connection extends EventEmitter{
 			const timeout = setTimeout(onError, this.options.timeout, new Error('Response timeout.'));
 
 			this.on('packet', onPacket);
-			client.on('error', onError);
+			this.client.on('error', onError);
 		});
 	}
 	/* eslint-enable @typescript-eslint/no-use-before-define */
@@ -245,7 +241,7 @@ export default class Connection extends EventEmitter{
 	}
 
 	public destroy(): void {
-		client.setMaxListeners(client.getMaxListeners() - 20);
+		this.client.setMaxListeners(this.client.getMaxListeners() - 20);
 		delete connections[this.address];
 	}
 }

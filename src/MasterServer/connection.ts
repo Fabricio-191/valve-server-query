@@ -1,34 +1,30 @@
-import { createSocket } from 'dgram';
+import type { RemoteInfo, Socket } from 'dgram';
+import { debug, getClient, type Options as BaseOptions } from '../utils';
 import { EventEmitter } from 'events';
-import type { BaseOptions } from '../utils';
-import { debug } from '../utils';
 
 const connections: Record<string, Connection> = {};
-const client = createSocket('udp4')
-	.on('message', (buffer, rinfo) => {
-		if(buffer.length === 0) return;
+function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
+	if(buffer.length === 0) return;
 
-		const address = `${rinfo.address}:${rinfo.port}`;
+	const address = `${rinfo.address}:${rinfo.port}`;
 
-		if(!(address in connections)) return;
-		const connection = connections[address] as Connection;
+	if(!(address in connections)) return;
+	const connection = connections[address] as Connection;
 
-		if(connection.options.debug) debug('MASTER_SERVER recieved:', buffer);
+	if(connection.options.debug) debug('MASTER_SERVER recieved:', buffer);
 
-		if(buffer.readInt32LE() !== -1){
-			if(connection.options.debug) debug('MASTER_SERVER cannot parse packet', buffer);
-			if(connection.options.enableWarns){
-				// eslint-disable-next-line no-console
-				console.error(new Error("Warning: a packet couln't be handled"));
-			}
-			return;
-		}
-
+	if(buffer.readInt32LE() === -1){
 		connection.emit('packet', buffer.slice(4), address);
-	})
-	.unref();
+	}else{
+		if(connection.options.debug) debug('MASTER_SERVER cannot parse packet', buffer);
+		if(connection.options.enableWarns){
+			// eslint-disable-next-line no-console
+			console.error(new Error("Warning: a packet couln't be handled"));
+		}
+	}
+}
 
-export default class Connection extends EventEmitter{
+export default class Connection extends EventEmitter {
 	constructor(options: BaseOptions){
 		super();
 		this.options = options;
@@ -36,10 +32,11 @@ export default class Connection extends EventEmitter{
 		this.address = `${options.ip}:${options.port}`;
 		connections[this.address] = this;
 
-		client.setMaxListeners(client.getMaxListeners() + 20);
+		this.client = getClient(options.ipFormat, handleMessage);
 	}
 	public readonly address: string;
 	public readonly options: BaseOptions;
+	private readonly client: Socket;
 
 	public readonly packetsQueues = {};
 	public lastPing = -1;
@@ -48,7 +45,7 @@ export default class Connection extends EventEmitter{
 		if(this.options.debug) debug('MASTER_SERVER sent:', command);
 
 		return new Promise((res, rej) => {
-			client.send(
+			this.client.send(
 				Buffer.from(command),
 				this.options.port,
 				this.options.ip,
@@ -65,7 +62,7 @@ export default class Connection extends EventEmitter{
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				this.off('packet', onPacket);
-				client.off('error', onError);
+				this.client.off('error', onError);
 				clearTimeout(timeout);
 			};
 
@@ -84,7 +81,7 @@ export default class Connection extends EventEmitter{
 			const timeout = setTimeout(onError, this.options.timeout, new Error('Response timeout.'));
 
 			this.on('packet', onPacket);
-			client.on('error', onError);
+			this.client.on('error', onError);
 		});
 	}
 	/* eslint-enable @typescript-eslint/no-use-before-define */
@@ -107,7 +104,7 @@ export default class Connection extends EventEmitter{
 	}
 
 	public destroy(): void {
-		client.setMaxListeners(client.getMaxListeners() - 20);
+		this.client.setMaxListeners(this.client.getMaxListeners() - 20);
 		delete connections[this.address];
 	}
 }

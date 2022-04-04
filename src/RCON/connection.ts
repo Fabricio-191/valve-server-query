@@ -1,5 +1,5 @@
 import { createConnection, type Socket } from 'net';
-import { BufferReader, debug, type BaseOptions } from '../utils';
+import { BufferReader, debug, type Options as BaseOptions } from '../utils';
 
 export interface RCONPacket {
 	size: number;
@@ -38,30 +38,25 @@ export default class Connection{
 				}
 				this.remaining -= buffer.length;
 
-				if(this.remaining === 0){
-					// got the whole packet
+				if(this.remaining === 0){ // got the whole packet
+					this.buffers.push(buffer);
 					this.socket.emit('packet', parseRCONPacket(
-						Buffer.concat(this.buffers.concat(buffer))
+						Buffer.concat(this.buffers)
 					));
 
 					this.buffers = [];
-				}else if(this.remaining > 0){
-					// needs more packets
+				}else if(this.remaining > 0){ // needs more packets
 					this.buffers.push(buffer);
-				}else if(this.remaining < 0){
-					// got more than one packet
+				}else{ // got more than one packet
+					this.buffers.push(buffer.slice(0, this.remaining));
 					this.socket.emit('packet', parseRCONPacket(
-						Buffer.concat(this.buffers.concat(
-							buffer.slice(0, this.remaining)
-						))
+						Buffer.concat(this.buffers)
 					));
 
-					const excess = buffer.slice(this.remaining);
-
+					const excess = this.remaining;
 					this.buffers = [];
 					this.remaining = 0;
-
-					this.socket.emit('data', excess);
+					this.socket.emit('data', buffer.slice(excess));
 				}
 			});
 
