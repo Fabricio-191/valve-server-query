@@ -12,7 +12,7 @@ function makeCommand(ID: number, type: number, body = ''): Buffer {
 		.end();
 }
 
-const LONG = ['cvarlist', 'status'];
+const LONG: readonly string[] = ['cvarlist', 'status'];
 export default class RCON extends EventEmitter{
 	public connection!: Connection;
 	private _auth: Promise<void> | null = null;

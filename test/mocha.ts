@@ -9,10 +9,10 @@ import { existsSync, writeFileSync } from 'fs';
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 
 const options = (() => {
-	const [ip, port, password] = (regex.exec(
+	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+	const [ip, port, password] = regex.exec(
 		'connect 49.12.122.244:33037 ; rcon_password cosas'.trim()
-	) as RegExpExecArray)
-		.slice(1) as [string, string, string];
+	)!.slice(1) as [string, string, string];
 
 	return {
 		ip,

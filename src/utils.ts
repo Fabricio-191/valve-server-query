@@ -211,3 +211,4 @@ export async function parseOptions(options: unknown, defaultOptions = DEFAULT_OP
 
 	return opts;
 }
+/* eslint-disable no-multiple-empty-lines */

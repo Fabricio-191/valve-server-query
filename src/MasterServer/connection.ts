@@ -34,11 +34,9 @@ export default class Connection extends EventEmitter {
 
 		this.client = getClient(options.ipFormat, handleMessage);
 	}
-	public readonly address: string;
+	private readonly address: string;
 	public readonly options: BaseOptions;
 	private readonly client: Socket;
-
-	public readonly packetsQueues = {};
 	public lastPing = -1;
 
 	public send(command: Buffer): Promise<void> {
@@ -46,7 +44,7 @@ export default class Connection extends EventEmitter {
 
 		return new Promise((res, rej) => {
 			this.client.send(
-				Buffer.from(command),
+				command,
 				this.options.port,
 				this.options.ip,
 				err => {
@@ -90,8 +88,8 @@ export default class Connection extends EventEmitter {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
-			// eslint-disable-next-line @typescript-eslint/no-empty-function
-			this.send(command).catch(() => {});
+			this.send(command)
+				.catch(() => { /* do nothing */ });
 		}, this.options.timeout / 2);
 
 		const start = Date.now();

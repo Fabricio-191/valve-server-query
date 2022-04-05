@@ -167,7 +167,7 @@ export interface Options extends BaseOptions {
 }
 type MixedOptions = {
 	[key in keyof Options]: key extends keyof RawOptions ?
-		Exclude<Options[key] | RawOptions[key], undefined> :
+		Exclude<RawOptions[key], undefined> | Options[key] :
 		never;
 };
 
@@ -182,7 +182,7 @@ const DEFAULT_OPTIONS: Required<RawOptions> = {
 	filter: new Filter(),
 } as const;
 
-async function parseOptions(options: unknown): Promise<Options> {
+async function parseOptions(options: RawOptions): Promise<Options> {
 	if(typeof options !== 'object' || options === null){
 		throw Error("'options' must be an object");
 	}
