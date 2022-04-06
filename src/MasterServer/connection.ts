@@ -1,7 +1,26 @@
-import type { RemoteInfo, Socket } from 'dgram';
-import { debug, getClient, type Options as BaseOptions } from '../utils';
+import { debug, type Options } from '../utils';
 import { EventEmitter } from 'events';
+import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
 
+const clients: Record<number, Socket> = {};
+export function getClient(format: 4 | 6): Socket {
+	if(format in clients){
+		const client = clients[format] as Socket;
+
+		client.setMaxListeners(client.getMaxListeners() + 20);
+		return client;
+	}
+
+	const client = createSocket(`udp${format}` as SocketType)
+		.on('message', handleMessage)
+		.setMaxListeners(20)
+		.unref();
+
+	clients[format] = client;
+	return client;
+}
+
+// #region
 const connections: Record<string, Connection> = {};
 function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	if(buffer.length === 0) return;
@@ -11,40 +30,50 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	if(!(address in connections)) return;
 	const connection = connections[address] as Connection;
 
-	if(connection.options.debug) debug('MASTER_SERVER recieved:', buffer);
+	if(connection.options.debug) debug('SERVER recieved:', buffer);
 
-	if(buffer.readInt32LE() === -1){
-		connection.emit('packet', buffer.slice(4), address);
-	}else{
-		if(connection.options.debug) debug('MASTER_SERVER cannot parse packet', buffer);
-		if(connection.options.enableWarns){
-			// eslint-disable-next-line no-console
-			console.error(new Error("Warning: a packet couln't be handled"));
-		}
-	}
+	const packet = packetHandler(buffer, connection);
+	if(!packet) return;
+
+	connection.emit('packet', packet, address);
 }
 
-export default class Connection extends EventEmitter {
-	constructor(options: BaseOptions){
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
+	const header = buffer.readInt32LE();
+
+	if(header === -1) return buffer.slice(-4);
+	if(connection.options.debug) debug('SERVER cannot parse multi-packet', buffer);
+	if(connection.options.enableWarns){
+		// eslint-disable-next-line no-console
+		console.error(new Error("Warning: a multi-packet couln't be handled"));
+	}
+}
+// #endregion
+
+export default class Connection extends EventEmitter{
+	constructor(options: Options){
 		super();
 		this.options = options;
 
 		this.address = `${options.ip}:${options.port}`;
 		connections[this.address] = this;
 
-		this.client = getClient(options.ipFormat, handleMessage);
+		this.client = getClient(options.ipFormat);
 	}
-	private readonly address: string;
-	public readonly options: BaseOptions;
+	public readonly address: string;
+	public readonly options: Options;
 	private readonly client: Socket;
+
+	public readonly packetsQueues = {};
 	public lastPing = -1;
 
 	public send(command: Buffer): Promise<void> {
-		if(this.options.debug) debug('MASTER_SERVER sent:', command);
+		if(this.options.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
 			this.client.send(
-				command,
+				Buffer.from(command),
 				this.options.port,
 				this.options.ip,
 				err => {
@@ -70,7 +99,7 @@ export default class Connection extends EventEmitter {
 			const onPacket = (buffer: Buffer, address: string): void => {
 				if(
 					this.address !== address ||
-					!responseHeaders.includes(buffer[0] as number)
+						!responseHeaders.includes(buffer[0] as number)
 				) return;
 
 				clear(); res(buffer);
@@ -88,8 +117,8 @@ export default class Connection extends EventEmitter {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
-			this.send(command)
-				.catch(() => { /* do nothing */ });
+			// eslint-disable-next-line @typescript-eslint/no-empty-function
+			this.send(command).catch(() => {});
 		}, this.options.timeout / 2);
 
 		const start = Date.now();

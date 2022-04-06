@@ -9,9 +9,8 @@ import { existsSync, writeFileSync } from 'fs';
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 
 const options = (() => {
-	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 	const [ip, port, password] = regex.exec(
-		'connect 49.12.122.244:33037 ; rcon_password cosas'.trim()
+		'connect 213.239.207.78:33044 ; rcon_password cosas'.trim()
 	)!.slice(1) as [string, string, string];
 
 	return {
@@ -20,7 +19,7 @@ const options = (() => {
 		password,
 
 		enableWarns: false,
-		debug: false,
+		debug: true,
 	};
 })();
 
@@ -111,7 +110,7 @@ describe('Server', () => {
 
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
 // const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
-describe('MasterServer', () => {
+describe.only('MasterServer', () => {
 	it('query', async () => {
 		const ips = await MasterServer({
 			region: 'SOUTH_AMERICA',

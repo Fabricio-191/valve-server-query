@@ -1,10 +1,28 @@
-import { debug, BufferReader, getClient, type Options } from '../utils';
+import { debug, BufferReader, type Options } from '../utils';
 import { EventEmitter } from 'events';
-import type { RemoteInfo, Socket } from 'dgram';
+import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
+
+const clients: Record<number, Socket> = {};
+export function getClient(format: 4 | 6): Socket {
+	if(format in clients){
+		const client = clients[format] as Socket;
+
+		client.setMaxListeners(client.getMaxListeners() + 20);
+		return client;
+	}
+
+	const client = createSocket(`udp${format}` as SocketType)
+		.on('message', handleMessage)
+		.setMaxListeners(20)
+		.unref();
+
+	clients[format] = client;
+	return client;
+}
 
 export interface MetaData {
 	appID: number;
-	multiPacketResponseIsGoldSource: boolean;
+	multiPacketGoldSource: boolean;
 	protocol: number;
 	info: {
 		challenge: boolean;
@@ -27,38 +45,31 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	const packet = packetHandler(buffer, connection);
 	if(!packet) return;
 
-	connection.emit('packet', packet, address);
+	connection.emit('packet', packet);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
-	if(buffer.readInt32LE() === -2){
+	const header = buffer.readInt32LE();
+
+	if(header === -1) return buffer.slice(4);
+	if(header === -2 && connection.meta !== null){
 		const { meta, options, packetsQueues } = connection;
 
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
-			// only valid in the first packet
-			meta.multiPacketResponseIsGoldSource = true;
+		// only valid in the first packet
+			connection.meta.multiPacketGoldSource = true;
 		}
 
-		let packet: MultiPacket | null = null;
-		try{
-			packet = multiPacketResponse(buffer, meta);
-		}catch(e){
-			if(options.debug) debug('SERVER cannot parse packet', buffer);
-			if(options.enableWarns){
-				// eslint-disable-next-line no-console
-				console.error(new Error("Warning: a packet couldn't be handled"));
-			}
-			return;
-		}
-
-		if(options.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1 && packet.ID in packetsQueues){
-			debug('SERVER changed packet parsing in not the first recieved packet');
-		}
+		const packet = parseMultiPacket(buffer, meta);
 
 		if(!(packet.ID in packetsQueues)){
 			packetsQueues[packet.ID] = [packet];
 			return;
+		}
+
+		if(options.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1){
+			debug('SERVER changed packet parsing in not the first recieved packet');
 		}
 
 		const queue = packetsQueues[packet.ID] as [MultiPacket, ...MultiPacket[]];
@@ -66,13 +77,13 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 
 		delete packetsQueues[packet.ID];
 
-		if(meta.multiPacketResponseIsGoldSource){ // Checks that all the packets were parsed as goldsource
+		// Checks that all the packets were parsed as goldsource
+		if(meta.multiPacketGoldSource){
 			for(let i = 0; i < queue.length; i++){
 				const p = queue[i] as MultiPacket;
 
-				if(!p.goldSource){
-					queue[i] = multiPacketResponse(p.raw, meta);
-				}
+				if(p.goldSource) continue;
+				queue[i] = parseMultiPacket(p.raw, meta);
 			}
 		}
 
@@ -80,15 +91,13 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 			.sort((p1, p2) => p1.packets.current - p2.packets.current)
 			.map(p => p.payload);
 
-		buffer = Buffer.concat(payloads);
+		return packetHandler(Buffer.concat(payloads), connection);
 	}
 
-	if(buffer.readInt32LE() === -1) return buffer.slice(4);
-
-	if(connection.options.debug) debug('SERVER cannot parse packet', buffer);
+	if(connection.options.debug) debug('SERVER cannot parse multi-packet', buffer);
 	if(connection.options.enableWarns){
 		// eslint-disable-next-line no-console
-		console.error(new Error("Warning: a packet couln't be handled"));
+		console.error(new Error("Warning: a multi-packet couln't be handled"));
 	}
 }
 
@@ -105,11 +114,11 @@ interface MultiPacket {
 }
 
 const MPS_IDS = [ 215, 17550, 17700, 240 ] as const;
-function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
+function parseMultiPacket(buffer: Buffer, meta: MetaData): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
 
-	if(meta.multiPacketResponseIsGoldSource) return {
+	if(meta.multiPacketGoldSource) return {
 		ID,
 		packets: {
 			current: packets >> 4,
@@ -144,14 +153,14 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 		throw new Error('BZip is not supported');
 
 		/*
-			info.bzip = {
-				uncompressedSize: reader.long(),
-				CRC32_sum: reader.long(),
-			};
+		info.bzip = {
+			uncompressedSize: reader.long(),
+			CRC32_sum: reader.long(),
+		};
 
-			reader.offset += 8;
-			info.bzip = true;
-			*/
+		reader.offset += 8;
+		info.bzip = true;
+		*/
 	}
 
 	info.payload = reader.remaining();
@@ -161,20 +170,21 @@ function multiPacketResponse(buffer: Buffer, meta: MetaData): MultiPacket {
 // #endregion
 
 export default class Connection extends EventEmitter{
-	constructor(options: Options){
+	constructor(options: Options, meta: MetaData){
 		super();
 		this.options = options;
+		this.meta = meta;
 
 		this.address = `${options.ip}:${options.port}`;
 		connections[this.address] = this;
 
-		this.client = getClient(options.ipFormat, handleMessage);
+		this.client = getClient(options.ipFormat);
 	}
 	public readonly address: string;
 	public readonly options: Options;
 	private readonly client: Socket;
 
-	public meta!: MetaData;
+	public meta: MetaData;
 	public readonly packetsQueues = {};
 	public lastPing = -1;
 
@@ -206,10 +216,9 @@ export default class Connection extends EventEmitter{
 			const onError = (err: unknown): void => {
 				clear(); rej(err);
 			};
-			const onPacket = (buffer: Buffer, address: string): void => {
+			const onPacket = (buffer: Buffer): void => {
 				if(
-					this.address !== address ||
-						!responseHeaders.includes(buffer[0] as number)
+					!responseHeaders.includes(buffer[0] as number)
 				) return;
 
 				clear(); res(buffer);

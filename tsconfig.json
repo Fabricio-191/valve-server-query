@@ -38,6 +38,6 @@
 		"forceConsistentCasingInFileNames": true,
 		"suppressImplicitAnyIndexErrors": true,
 	},
-	"include": ["src", "test"],
+	"include": ["src", "test", "src copy"],
 	"exclude": ["lib"]
 }

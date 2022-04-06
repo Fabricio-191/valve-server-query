@@ -1,28 +1,6 @@
-import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
 import { promises as dnsPromises } from 'dns';
 import type { AnyARecord, AnyAaaaRecord } from 'dns';
 import { isIP } from 'net';
-
-const clients: Record<number, Socket> = {};
-export function getClient(
-	format: 4 | 6,
-	handleMessage: (buffer: Buffer, rinfo: RemoteInfo) => void
-): Socket {
-	if(format in clients){
-		const client = clients[format] as Socket;
-
-		client.setMaxListeners(client.getMaxListeners() + 20);
-		return client;
-	}
-
-	const client = createSocket(`udp${format}` as SocketType)
-		.on('message', handleMessage)
-		.setMaxListeners(20)
-		.unref();
-
-	clients[format] = client;
-	return client;
-}
 
 export type ValueIn<T> = T[keyof T];
 

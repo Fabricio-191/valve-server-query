@@ -148,7 +148,11 @@ export default class Server{
 	}
 
 	public async connect(options: RawOptions): Promise<void> {
-		const connection = this.connection = new Connection(await parseOptions(options));
+		const connection = this.connection = new Connection(
+			await parseOptions(options),
+			// @ts-expect-error missing meta properties are added below
+			{}
+		);
 		const info = await _getInfo(connection);
 		if(connection.options.debug) debug('SERVER connected');
 
@@ -157,14 +161,18 @@ export default class Server{
 				challenge: info.needsChallenge,
 				goldSource: info.goldSource,
 			},
-			multiPacketResponseIsGoldSource: false,
+			multiPacketGoldSource: false,
 			appID: info.appID,
 			protocol: info.protocol,
 		};
 	}
 
 	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
-		const connection = new Connection(await parseOptions(options));
+		const connection = new Connection(
+			await parseOptions(options),
+			// @ts-expect-error meta is not needed
+			{}
+		);
 		const info = await _getInfo(connection);
 
 		connection.destroy();
