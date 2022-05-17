@@ -10,7 +10,7 @@ const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 
 const options = (() => {
 	const [ip, port, password] = regex.exec(
-		'connect 213.239.207.78:33044 ; rcon_password cosas'.trim()
+		'connect 213.239.207.78:33039 ; rcon_password cosas'.trim()
 	)!.slice(1) as [string, string, string];
 
 	return {
@@ -19,7 +19,7 @@ const options = (() => {
 		password,
 
 		enableWarns: false,
-		debug: true,
+		debug: false,
 	};
 })();
 
@@ -116,7 +116,7 @@ describe.only('MasterServer', () => {
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
-			debug: false,
+			debug: true,
 		});
 
 		if(!Array.isArray(ips)){

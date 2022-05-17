@@ -7,21 +7,21 @@
     "test": "mocha -r ts-node/register test/mocha.ts --slow 5000 --timeout 6000"
   },
   "devDependencies": {
-    "why-is-node-running": "^2.2.1",
-	"mocha": "^9.2.1",
-	"ts-node": "^10.5.0",
-	"typescript": "^4.0.3",
-	"@babel/eslint-parser": "^7.17.0",
-	"@types/mocha": "^9.1.0",
-	"@typescript-eslint/eslint-plugin": "^5.12.1",
-	"@typescript-eslint/parser": "^5.12.1"
+    "@babel/eslint-parser": "^7.17.0",
+    "@types/mocha": "^9.1.0",
+    "@typescript-eslint/eslint-plugin": "^5.12.1",
+    "@typescript-eslint/parser": "^5.12.1",
+    "mocha": "^9.2.1",
+    "ts-node": "^10.5.0",
+    "typescript": "^4.7.0-beta",
+    "why-is-node-running": "^2.2.1"
   },
   "type": "commonjs",
   "module": "./lib/index.js",
   "main": "./lib/index.js",
   "exports": {
-	  "import": "./lib/index.js",
-	  "require": "./lib/index.js"
+    "import": "./lib/index.js",
+    "require": "./lib/index.js"
   },
   "homepage": "https://github.com/Fabricio-191/valve-server-query#readme",
   "repository": {

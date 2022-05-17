@@ -1,5 +1,4 @@
-import { promises as dnsPromises } from 'dns';
-import type { AnyARecord, AnyAaaaRecord } from 'dns';
+import { promises as dns } from 'dns';
 import { isIP } from 'net';
 
 export type ValueIn<T> = T[keyof T];
@@ -124,7 +123,6 @@ export function debug(
 	}
 }
 
-
 export interface RawOptions {
 	ip?: string;
 	port?: number;
@@ -132,6 +130,7 @@ export interface RawOptions {
 	debug?: boolean;
 	enableWarns?: boolean;
 }
+
 export interface Options extends Required<RawOptions> {
 	ipFormat: 4 | 6;
 }
@@ -144,17 +143,40 @@ const DEFAULT_OPTIONS: Required<RawOptions> = {
 	enableWarns: true,
 } as const;
 
-const recordTypes = ['A', 'AAAA'] as const;
+async function resolveHostname(string: string): Promise<{
+	ipFormat: 4 | 6;
+	ip: string;
+}> {
+	const ipFormat = isIP(string) as 0 | 4 | 6;
+	if(ipFormat !== 0) return {
+		ipFormat,
+		ip: string,
+	};
+
+	try{
+		const r = await dns.lookup(string, {
+			verbatim: false,
+		});
+		if(r.family !== 4 && r.family !== 6){
+			throw Error('The IP address is not IPv4 or IPv6');
+		}
+
+		return {
+			ipFormat: r.family,
+			ip: r.address,
+		};
+	}catch(e){
+		throw Error("'ip' is not a valid IP address or hostname");
+	}
+}
+
 export async function parseOptions(options: unknown, defaultOptions = DEFAULT_OPTIONS): Promise<Options> {
 	if(typeof options !== 'object' || options === null){
 		throw Error("'options' must be an object");
 	}
 
 	// @ts-expect-error ipFormat is added later
-	const opts: Options = {
-		...defaultOptions,
-		...options,
-	};
+	const opts: Options = { ...defaultOptions, ...options };
 
 	if(
 		typeof opts.port !== 'number' || isNaN(opts.port) ||
@@ -171,22 +193,7 @@ export async function parseOptions(options: unknown, defaultOptions = DEFAULT_OP
 		throw Error("'ip' should be a string");
 	}
 
-	const ipFormat = isIP(opts.ip) as 0 | 4 | 6;
-	if(ipFormat === 0){
-		const addresses = await dnsPromises.resolveAny(opts.ip);
-		const record = addresses.find(x =>
-			// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-			recordTypes.includes(x.type)
-		) as AnyAaaaRecord | AnyARecord;
-
-		if(typeof record === 'undefined'){
-			throw Error('Invalid IP/Hostname');
-		}
-
-		opts.ip = record.address;
-		opts.ipFormat = record.type === 'A' ? 4 : 6;
-	}else opts.ipFormat = ipFormat;
+	Object.assign(opts, await resolveHostname(opts.ip));
 
 	return opts;
 }
-/* eslint-disable no-multiple-empty-lines */
