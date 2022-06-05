@@ -10,7 +10,7 @@ const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 
 const options = (() => {
 	const [ip, port, password] = regex.exec(
-		'connect 213.239.207.78:33039 ; rcon_password cosas'.trim()
+		'connect us1.npcs.gg : rcon_password cosas'.trim()
 	)!.slice(1) as [string, string, string];
 
 	return {
@@ -19,7 +19,7 @@ const options = (() => {
 		password,
 
 		enableWarns: false,
-		debug: false,
+		debug: true,
 	};
 })();
 
@@ -107,10 +107,9 @@ describe('Server', () => {
 	});
 });
 
-
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
 // const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
-describe.only('MasterServer', () => {
+describe('MasterServer', () => {
 	it('query', async () => {
 		const ips = await MasterServer({
 			region: 'SOUTH_AMERICA',

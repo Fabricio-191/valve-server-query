@@ -42,7 +42,7 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 	const header = buffer.readInt32LE();
 
-	if(header === -1) return buffer.slice(-4);
+	if(header === -1) return buffer.slice(4);
 	if(connection.options.debug) debug('SERVER cannot parse multi-packet', buffer);
 	if(connection.options.enableWarns){
 		// eslint-disable-next-line no-console

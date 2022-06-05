@@ -216,11 +216,13 @@ export default class Connection extends EventEmitter{
 			const onError = (err: unknown): void => {
 				clear(); rej(err);
 			};
+			const start = Date.now();
 			const onPacket = (buffer: Buffer): void => {
 				if(
 					!responseHeaders.includes(buffer[0] as number)
 				) return;
 
+				this.lastPing = Date.now() - start;
 				clear(); res(buffer);
 			};
 
@@ -236,16 +238,10 @@ export default class Connection extends EventEmitter{
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
-			// eslint-disable-next-line @typescript-eslint/no-empty-function
-			this.send(command).catch(() => {});
+			this.send(command).catch(() => { /* do nothing */ });
 		}, this.options.timeout / 2);
 
-		const start = Date.now();
 		return await this.awaitResponse(responseHeaders)
-			.then(value => {
-				this.lastPing = Date.now() - start;
-				return value;
-			})
 			.finally(() => clearTimeout(timeout));
 	}
 

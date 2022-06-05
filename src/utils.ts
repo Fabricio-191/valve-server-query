@@ -110,7 +110,7 @@ export function debug(
 			.match(/../g) as string[];
 
 		const str = `<Buffer ${
-			thing.length > 30 ?
+			thing.length > 300 ?
 				`${parts.slice(0, 20).join(' ')} ...${thing.length - 20} bytes` :
 				parts.join(' ')
 		}>`.replace(/(?<!00 )00 00(?! 00)/g, '\x1B[31m00 00\x1B[00m');

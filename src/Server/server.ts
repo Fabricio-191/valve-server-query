@@ -6,11 +6,11 @@ import * as parsers from './serverParsers';
 const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
-	INFO_BASE: [
+	INFO_BASE: Buffer.from([
 		...BIG_F, 0x54,
 		...Buffer.from('Source Engine Query\0'),
-	] as const,
-	INFO(key: Buffer | typeof BIG_F = BIG_F){
+	]),
+	INFO(key: Buffer | [] = []){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
 	CHALLENGE(code = 0x57, key = BIG_F){
@@ -148,7 +148,7 @@ export default class Server{
 	}
 
 	public async connect(options: RawOptions): Promise<void> {
-		const connection = this.connection = new Connection(
+		const connection = new Connection(
 			await parseOptions(options),
 			// @ts-expect-error missing meta properties are added below
 			{}
@@ -165,6 +165,8 @@ export default class Server{
 			appID: info.appID,
 			protocol: info.protocol,
 		};
+
+		this.connection = connection;
 	}
 
 	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
@@ -185,17 +187,24 @@ type _ServerInfo = parsers.FinalServerInfo & {
 };
 
 async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<_ServerInfo> {
-	const command = challenge === null ?
-		COMMANDS.INFO() :
-		COMMANDS.INFO(challenge.slice(-4));
+	if(challenge === null){
+		await connection.send(COMMANDS.INFO());
+	}else{
+		await connection.send(COMMANDS.INFO(challenge));
+	}
 
 	const responses = [];
+
 	connection.awaitResponse([0x6d])
-		.then(buf => responses.push(buf))
+		.then(data => responses.push(data))
 		.catch(() => { /* do nothing */ });
 
-	const INFO = await connection.query(command, 0x49, 0x41);
+	const INFO = await connection.awaitResponse([0x49, 0x41]);
 	if(INFO[0] === 0x41){
+		if(challenge !== null){
+			throw new Error('Wrong server response');
+		}
+
 		// needs challenge
 		return await _getInfo(connection, INFO);
 	}
