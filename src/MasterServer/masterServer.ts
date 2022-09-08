@@ -129,6 +129,7 @@ export default async function MasterServer(options: RawOptions = {}): Promise<st
 	connection.destroy();
 	return servers;
 }
+
 MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {

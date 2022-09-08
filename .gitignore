@@ -1,6 +1,8 @@
 node_modules/
 package-lock.json
 
+lib/
+
 .npmignore
 .gitignore
 .eslintrc.js

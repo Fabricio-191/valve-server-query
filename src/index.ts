@@ -9,9 +9,3 @@ export default {
 };
 export { Server, MasterServer, RCON };
 export * from './Server/serverParsers';
-
-/*
-
-Buenos días profe, podrian volver a explicar el trabajo de investigación ? para evitar confusiones
-Y al final, es grupal o individual ?
-*/

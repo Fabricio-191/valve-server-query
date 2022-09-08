@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import { debug, parseOptions, type RawOptions } from '../utils';
+import { debug, type RawOptions } from '../utils';
 import Connection from './connection';
 import * as parsers from './serverParsers';
 
@@ -20,26 +20,56 @@ const COMMANDS = {
 };
 
 export default class Server{
-	private connection: Connection | null = null;
+	constructor(options: RawOptions){
+		this.connection = new Connection(options);
+	}
+	private connection: Connection;
+	public isConnected = false;
+
+	public async connect(): Promise<void> {
+		const info = await _getInfo(connection);
+		if(connection.options.debug) debug('SERVER connected');
+
+		connection.meta = {
+			info: {
+				challenge: info.needsChallenge,
+				goldSource: info.goldSource,
+			},
+			multiPacketGoldSource: false,
+			appID: info.appID,
+			protocol: info.protocol,
+		};
+
+		this.connection = connection;
+		this.isConnected = true;
+	}
+
+	public disconnect(): void {
+		if(!this.isConnected){
+			throw new Error('Not connected');
+		}
+		this.connection!.destroy();
+		this.isConnected = false;
+	}
 
 	public async getInfo(): Promise<parsers.FinalServerInfo> {
-		if(this.connection === null){
+		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
 		let command = COMMANDS.INFO();
-		if(this.connection.meta.info.challenge){
-			const response = await this.connection.query(command, 0x41);
+		if(this.connection!.meta.info.challenge){
+			const response = await this.connection!.query(command, 0x41);
 			const key = response.slice(-4);
 
 			command = COMMANDS.INFO(key);
 		}
 
-		const requests = this.connection.meta.info.goldSource ? [
-			this.connection.query(command, 0x49),
-			this.connection.awaitResponse([0x6D]),
+		const requests = this.connection!.meta.info.goldSource ? [
+			this.connection!.query(command, 0x49),
+			this.connection!.awaitResponse([0x6D]),
 		] : [
-			this.connection.query(command, 0x49),
+			this.connection!.query(command, 0x49),
 		];
 
 		const responses = await Promise.all(requests);
@@ -53,7 +83,7 @@ export default class Server{
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		if(this.connection === null){
+		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
@@ -76,7 +106,7 @@ export default class Server{
 	}
 
 	public async getRules(): Promise<parsers.Rules>{
-		if(this.connection === null){
+		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
@@ -99,11 +129,11 @@ export default class Server{
 	}
 
 	public get lastPing(): number {
-		return this.connection === null ? -1 : this.connection.lastPing;
+		return this.connection.lastPing;
 	}
 
 	public async getPing(): Promise<number> {
-		if(this.connection === null){
+		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
@@ -123,7 +153,7 @@ export default class Server{
 	}
 
 	public async challenge(code: number): Promise<Buffer> {
-		if(this.connection === null){
+		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
@@ -141,40 +171,8 @@ export default class Server{
 		return response;
 	}
 
-	public disconnect(): void {
-		if(this.connection !== null){
-			this.connection.destroy();
-		}
-	}
-
-	public async connect(options: RawOptions): Promise<void> {
-		const connection = new Connection(
-			await parseOptions(options),
-			// @ts-expect-error missing meta properties are added below
-			{}
-		);
-		const info = await _getInfo(connection);
-		if(connection.options.debug) debug('SERVER connected');
-
-		connection.meta = {
-			info: {
-				challenge: info.needsChallenge,
-				goldSource: info.goldSource,
-			},
-			multiPacketGoldSource: false,
-			appID: info.appID,
-			protocol: info.protocol,
-		};
-
-		this.connection = connection;
-	}
-
 	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
-		const connection = new Connection(
-			await parseOptions(options),
-			// @ts-expect-error meta is not needed
-			{}
-		);
+		const connection = new Connection(options);
 		const info = await _getInfo(connection);
 
 		connection.destroy();

@@ -1,4 +1,4 @@
-import { debug, BufferReader, type Options } from '../utils';
+import { debug, BufferReader, type Options, type RawOptions, parseOptions } from '../utils';
 import { EventEmitter } from 'events';
 import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
 
@@ -171,20 +171,10 @@ function parseMultiPacket(buffer: Buffer, meta: MetaData): MultiPacket {
 // #endregion
 
 export default class Connection extends EventEmitter{
-	constructor(options: Options, meta: MetaData){
-		super();
-		this.options = options;
-		this.meta = meta;
-
-		this.address = `${options.ip}:${options.port}`;
-		connections[this.address] = this;
-
-		this.client = getClient(options.ipFormat);
-	}
 	private readonly client: Socket;
 	public readonly packetsQueues = {};
 	public readonly address: string;
-	public readonly options: Options;
+	public options!: Options;
 
 	public meta: MetaData;
 	public lastPing = -1;
@@ -246,8 +236,16 @@ export default class Connection extends EventEmitter{
 			.finally(() => clearTimeout(timeout));
 	}
 
-	public destroy(): void {
+	public disconnect(): void {
 		this.client.setMaxListeners(this.client.getMaxListeners() - 20);
 		delete connections[this.address];
+	}
+
+	public async connect(rawOpts: RawOptions): Promise<void> {
+		const options = this.options = await parseOptions(rawOpts);
+		this.address = `${options.ip}:${options.port}`;
+		connections[this.address] = this;
+
+		this.client = getClient(options.ipFormat);
 	}
 }

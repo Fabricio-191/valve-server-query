@@ -45,3 +45,71 @@ const { Server, RCON, MasterServer } = require('@fabricio-191/valve-server-query
 * Team Fortress 2
 * Day of Defeat
 * The ship
+
+## Examples
+
+#### Server
+
+```js
+const server = new Server({
+  ip: '0.0.0.0',
+  port: 27015,
+  timeout: 3000,
+});
+
+await server.connect();
+
+const info = await server.getInfo();
+console.log(info);
+
+const players = await server.getPlayers();
+console.log(players);
+
+const rules = await server.getRules();
+console.log(rules);
+
+console.log(server.lastPing);
+```
+
+#### Master Server
+
+```js
+const servers = await MasterServer({
+  quantity: 1000,
+  region: 'US_EAST',
+  timeout: 3000,
+});
+
+//servers is an array if 'ip:port' strings, see the docs
+console.log(servers);
+```
+
+#### RCON
+
+```js
+const rcon = await RCON({
+  ip: '0.0.0.0',
+  port: 27015, //RCON port
+  password: 'your RCON password'
+});
+
+rcon.on('disconnect', async (reason) => {
+  console.log('disconnected', reason);
+  try{
+    await rcon.reconnect();
+  }catch(e){
+    console.log('reconnect failed', e.message);
+  }
+});
+
+rcon.on('passwordChanged', async () => {
+  const password = await getNewPasswordSomehow();
+  try{
+    await rcon.authenticate(password);
+  }catch(e){
+    console.error('Failed to authenticate with new password', e.message);
+  }
+});
+
+const response = await rcon.exec('sv_gravity 1000');
+```

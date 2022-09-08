@@ -1,14 +1,15 @@
+/* eslint-disable no-invalid-this */
+// @ts-nocheck
+/* eslint-disable new-cap */
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
-import { Server, RCON, MasterServer } from '../src';
-import type { EventEmitter } from 'events';
-import { existsSync, writeFileSync } from 'fs';
+const { Server, RCON, MasterServer } = require('../lib');
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 const [ip, port, password] = regex.exec(
-	'connect 49.12.122.244:33044 ; rcon_password cosas'.trim()
-)!.slice(1) as [string, string, string];
+	'connect 49.12.122.244:33036 ; rcon_password cosas'.trim()
+).slice(1);
 
 const options = {
 	ip,
@@ -16,32 +17,20 @@ const options = {
 	password,
 
 	enableWarns: false,
-	debug: true,
+	debug: false,
 };
 
-const result: {
-	MasterServer: string[] | null;
-	server: {
-		lastPing: number;
-		getInfo: unknown;
-		getPlayers: unknown;
-		getRules: unknown;
-		getPing: unknown;
-
-	};
-	RCON: Record<string, unknown>;
-} = {
+const result = {
 	MasterServer: null,
-	// @ts-expect-error asd
 	server: {},
 	RCON: {},
 };
 
-class MyError extends Error {
-	constructor(message: string, stack = '') {
-		super(message);
-		this.stack = stack;
-	}
+function MyError(message, stack = ''){
+	const err = new Error(message);
+	err.stack = stack;
+
+	return err;
 }
 
 describe('Server', () => {
@@ -54,17 +43,17 @@ describe('Server', () => {
 		result.server['static getInfo()'] = info;
 	});
 
-	const server = new Server(options);
+	const server = new Server();
 	it('connect', async function(){
 		this.retries(3);
 		this.slow(9000);
 		this.timeout(10000);
 
-		await server.connect();
+		await server.connect(options);
 	});
 
 	it('getInfo()', async () => {
-		if(!server) throw new MyError('Server not connected');
+		if(!server) throw MyError('Server not connected');
 
 		const info = await server.getInfo();
 
@@ -73,30 +62,30 @@ describe('Server', () => {
 	});
 
 	it('getPlayers()', async () => {
-		if(!server) throw new MyError('Server not connected');
+		if(!server) throw MyError('Server not connected');
 
 		result.server.getPlayers = await server.getPlayers();
 	});
 
 	it('getRules()', async () => {
-		if(!server) throw new MyError('Server not connected');
+		if(!server) throw MyError('Server not connected');
 
 		result.server.getRules = await server.getRules();
 	});
 
 	it('getPing()', async () => {
-		if(!server) throw new MyError('Server not connected');
+		if(!server) throw MyError('Server not connected');
 
 		result.server.getPing = await server.getPing();
 	});
 
 	it('lastPing', () => {
-		if(!server) throw new MyError('Server not connected');
+		if(!server) throw MyError('Server not connected');
 
 		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
-			throw new MyError('Server.lastPing is not a number');
+			throw MyError('Server.lastPing is not a number');
 		}else if(server.lastPing <= -1){
-			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
+			throw MyError(`Server.lastPing is too small (${server.lastPing})`);
 		}
 
 		result.server.lastPing = server.lastPing;
@@ -106,7 +95,6 @@ describe('Server', () => {
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
 describe('MasterServer', () => {
 	it('query', async () => {
-		// eslint-disable-next-line new-cap
 		const IPs = await MasterServer({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
@@ -176,16 +164,17 @@ describe('MasterServer', () => {
 	*/
 });
 
-describe.only('RCON', () => {
-	const rcon = new RCON(options);
+describe('RCON', () => {
+	// eslint-disable-next-line @typescript-eslint/init-declarations
+	const rcon = new RCON();
 	it('connect and authenticate', async function(){
 		this.retries(3);
 
-		await rcon.connect();
+		await rcon.connect(options);
 	});
 
 	it("exec('sv_gravity') (single packet response)", async () => {
-		if(!rcon) throw new MyError('RCON not connected');
+		if(!rcon) throw MyError('RCON not connected');
 
 		result.RCON["exec('sv_gravity')"] = await rcon.exec('sv_gravity');
 	});
@@ -193,13 +182,13 @@ describe.only('RCON', () => {
 	it("exec('cvarlist') (multiple packet response)", async function(){
 		this.slow(9000);
 		this.timeout(10000);
-		if(!rcon) throw new MyError('RCON not connected');
+		if(!rcon) throw MyError('RCON not connected');
 
 		result.RCON["exec('cvarlist')"] = await rcon.exec('cvarlist');
 	});
 
 	it("exec('status')", async () => {
-		if(!rcon) throw new MyError('RCON not connected');
+		if(!rcon) throw MyError('RCON not connected');
 
 		result.RCON["exec('status')"] = await rcon.exec('status');
 	});
@@ -222,7 +211,7 @@ describe.only('RCON', () => {
 	});
 
 	it('should reconnect', async () => {
-		if(!rcon) throw new MyError('RCON not connected');
+		if(!rcon) throw MyError('RCON not connected');
 
 		rcon.exec('sv_gravity 0').catch(() => { /* do nothing */ });
 
@@ -236,7 +225,7 @@ describe.only('RCON', () => {
 	});
 
 	it('should manage password changes', async () => {
-		if(!rcon || !rcon.connection._ready) throw new MyError('RCON not connected');
+		if(!rcon || !rcon.connection._ready) throw MyError('RCON not connected');
 
 		rcon.exec('rcon_password cosas2').catch(() => { /* do nothing */ });
 		await shouldFireEvent(rcon, 'disconnect', 3000);
@@ -261,34 +250,17 @@ describe.only('RCON', () => {
 	});
 });
 
-after(() => {
-	const path = existsSync('./test') ?
-		'./test/result.json' : './result.json';
-
-	writeFileSync(
-		path,
-		JSON.stringify(
-			result,
-			(_key, value: unknown) => {
-				if(typeof value === 'bigint') return value.toString() + 'n';
-				return value;
-			},
-			'\t'
-		)
-	);
-});
-
 let id = 1;
-/* eslint-disable @typescript-eslint/no-use-before-define */
-function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promise<void> {
+/* eslint-disable no-use-before-define */
+function shouldFireEvent(obj, event, time){
 	const err = new Error(`Event ${event} (${id++}) not fired`);
 
 	return new Promise((res, rej) => {
-		const clear = (): void => {
+		const clear = () => {
 			obj.off(event, onEvent);
 			clearTimeout(timeout);
 		};
-		const onEvent = (): void => {
+		const onEvent = () => {
 			clear(); res();
 		};
 
@@ -299,9 +271,9 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 		obj.on(event, onEvent);
 	});
 }
-/* eslint-enable @typescript-eslint/no-use-before-define */
+/* eslint-enable no-use-before-define */
 
-function checkInfo(info: object): void {
+function checkInfo(info){
 	for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
 		if(!(key in info)){
 			throw new Error('Missing keys in data');

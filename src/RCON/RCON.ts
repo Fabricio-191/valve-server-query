@@ -14,7 +14,12 @@ function makeCommand(ID: number, type: number, body = ''): Buffer {
 
 const LONG: readonly string[] = ['cvarlist', 'status'];
 export default class RCON extends EventEmitter{
+	constructor(options: RawOptions){
+		super();
+		this.options = options;
+	}
 	public connection!: Connection;
+	private readonly options: RawOptions;
 	private _auth: Promise<void> | null = null;
 
 	public async _ready(): Promise<void> {
@@ -62,8 +67,8 @@ export default class RCON extends EventEmitter{
 		this.connection.socket.destroy();
 	}
 
-	public async connect(options: RawOptions): Promise<void> {
-		const opts = await parseBaseOptions(options) as Options;
+	public async connect(): Promise<void> {
+		const opts = await parseBaseOptions(this.options) as Options;
 		if(typeof opts.password !== 'string'){
 			throw new Error('RCON password must be a string');
 		}
