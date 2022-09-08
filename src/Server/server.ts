@@ -206,7 +206,7 @@ async function _getInfo(connection: Connection, challenge: Buffer | null = null)
 		}
 
 		// needs challenge
-		return await _getInfo(connection, INFO);
+		return await _getInfo(connection, INFO.slice(1));
 	}
 	responses.push(INFO);
 

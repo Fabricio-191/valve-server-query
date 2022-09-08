@@ -7,21 +7,18 @@ import { existsSync, writeFileSync } from 'fs';
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
+const [ip, port, password] = regex.exec(
+	'connect 49.12.122.244:33015 ; rcon_password cosas'.trim()
+)!.slice(1) as [string, string, string];
 
-const options = (() => {
-	const [ip, port, password] = regex.exec(
-		'connect us1.npcs.gg : rcon_password cosas'.trim()
-	)!.slice(1) as [string, string, string];
+const options = {
+	ip,
+	port: parseInt(port),
+	password,
 
-	return {
-		ip,
-		port: parseInt(port),
-		password,
-
-		enableWarns: false,
-		debug: true,
-	};
-})();
+	enableWarns: false,
+	debug: false,
+};
 
 const result: {
 	MasterServer: string[] | null;
@@ -99,7 +96,7 @@ describe('Server', () => {
 
 		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
 			throw MyError('Server.lastPing is not a number');
-		}else if(server.lastPing < -1){
+		}else if(server.lastPing <= -1){
 			throw MyError(`Server.lastPing is too small (${server.lastPing})`);
 		}
 
@@ -108,34 +105,34 @@ describe('Server', () => {
 });
 
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
-// const ipv4Regex = /(?:\d{1,3}\.){3}\d{1,3}/;
 describe('MasterServer', () => {
 	it('query', async () => {
-		const ips = await MasterServer({
+		const IPs = await MasterServer({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
-			debug: true,
+			debug: options.debug,
 		});
 
-		if(!Array.isArray(ips)){
+		if(!Array.isArray(IPs)){
 			throw new Error('ips is not an array');
-		}else if(ips.length === 0){
+		}else if(IPs.length === 0){
 			throw new Error('ips is empty');
-		}else if(ips.some(x => typeof x !== 'string')){
+		}else if(IPs.some(x => typeof x !== 'string')){
 			throw new Error('ips contains non-string values');
-		}else if(ips.some(str => !ipv4RegexWithPort.test(str))){
+		}else if(IPs.some(str => !ipv4RegexWithPort.test(str))){
 			throw new Error('ips contains invalid IPs');
-		}else if(Math.abs(ips.length - 900) > 100){
+		}else if(Math.abs(IPs.length - 900) > 100){
 			throw new Error('ips does not have ~900 servers');
 		}
 
-		result.MasterServer = ips;
+		result.MasterServer = IPs;
 	});
 
 	it('filter', async function(){
 		this.slow(14000);
 		this.timeout(15000);
+
 		const filter = new MasterServer.Filter()
 			.add('map', 'de_dust2')
 			.addFlag('linux')
@@ -147,31 +144,31 @@ describe('MasterServer', () => {
 		const IPs = await MasterServer({
 			// debug: true,
 			filter,
-			quantity: 300,
+			region: 'SOUTH_AMERICA',
+			quantity: 1000,
 		});
 
-		const results = (await Promise.allSettled(
-			IPs.map(address => {
-				// eslint-disable-next-line no-shadow
-				const [ip, port] = address.split(':') as [string, string];
+		const results = (await Promise.allSettled(IPs.map(address => {
+			// eslint-disable-next-line @typescript-eslint/no-shadow
+			const [ip, port] = address.split(':') as [string, string];
 
-				return Server.getInfo({
-					ip,
-					port: parseInt(port),
-				});
-			})
-		))
+			return Server.getInfo({
+				ip,
+				port: parseInt(port),
+			});
+		})))
 			.filter(x => x.status === 'fulfilled') as PromiseFulfilledResult<FinalServerInfo>[];
 
-
-		if(!results
+		const satisfiesFilter = results
 			.map(x => x.value)
-			.every(x =>
+			.filter(x =>
 				x.OS === 'linux' &&
 				x.map === 'de_dust2' &&
 				!x.VAC
 			)
-		){
+			.length;
+
+		if(results.length - satisfiesFilter < results.length * 0.1){ // master servers are not perfect
 			throw new Error('Filter is not working well');
 		}
 	});

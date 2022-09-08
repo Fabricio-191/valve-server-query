@@ -43,10 +43,10 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 	const header = buffer.readInt32LE();
 
 	if(header === -1) return buffer.slice(4);
-	if(connection.options.debug) debug('SERVER cannot parse multi-packet', buffer);
+	if(connection.options.debug) debug('MASTERSERVER cannot parse multi-packet', buffer);
 	if(connection.options.enableWarns){
 		// eslint-disable-next-line no-console
-		console.error(new Error("Warning: a multi-packet couln't be handled"));
+		console.error(new Error('MASTERSERVER cannot parse multi-packet'));
 	}
 }
 // #endregion

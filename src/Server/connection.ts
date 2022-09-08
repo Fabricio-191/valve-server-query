@@ -20,17 +20,7 @@ export function getClient(format: 4 | 6): Socket {
 	return client;
 }
 
-export interface MetaData {
-	appID: number;
-	multiPacketGoldSource: boolean;
-	protocol: number;
-	info: {
-		challenge: boolean;
-		goldSource: boolean;
-	};
-}
 
-// #region
 const connections: Record<string, Connection> = {};
 function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	if(buffer.length === 0) return;
@@ -48,6 +38,7 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	connection.emit('packet', packet);
 }
 
+// #region
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 	const header = buffer.readInt32LE();
@@ -111,6 +102,16 @@ interface MultiPacket {
 	payload: Buffer;
 	raw: Buffer;
 	// bzip?: true;
+}
+
+export interface MetaData {
+	appID: number;
+	multiPacketGoldSource: boolean;
+	protocol: number;
+	info: {
+		challenge: boolean;
+		goldSource: boolean;
+	};
 }
 
 const MPS_IDS = [ 215, 17550, 17700, 240 ] as const;
@@ -180,12 +181,12 @@ export default class Connection extends EventEmitter{
 
 		this.client = getClient(options.ipFormat);
 	}
+	private readonly client: Socket;
+	public readonly packetsQueues = {};
 	public readonly address: string;
 	public readonly options: Options;
-	private readonly client: Socket;
 
 	public meta: MetaData;
-	public readonly packetsQueues = {};
 	public lastPing = -1;
 
 	public send(command: Buffer): Promise<void> {

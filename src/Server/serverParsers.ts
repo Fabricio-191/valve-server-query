@@ -131,7 +131,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	info.version = reader.string();
 
-	if(reader.hasRemaining) return info;
+	if(!reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
 	// 1111 0001 (241)
