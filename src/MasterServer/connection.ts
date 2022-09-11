@@ -1,81 +1,64 @@
-import { debug, type Options } from '../utils';
-import { EventEmitter } from 'events';
-import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
+import { debug } from '../utils';
+import { createSocket, type Socket, type RemoteInfo } from 'dgram';
+import type { Data } from './masterServer';
 
-const clients: Record<number, Socket> = {};
-export function getClient(format: 4 | 6): Socket {
-	if(format in clients){
-		const client = clients[format] as Socket;
+const connections = new Map<string, Connection>();
+const sockets: Record<4 | 6, Socket | null> = {
+	4: null,
+	6: null,
+};
 
-		client.setMaxListeners(client.getMaxListeners() + 20);
-		return client;
-	}
-
-	const client = createSocket(`udp${format}` as SocketType)
-		.on('message', handleMessage)
-		.setMaxListeners(20)
-		.unref();
-
-	clients[format] = client;
-	return client;
-}
-
-// #region
-const connections: Record<string, Connection> = {};
 function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
-	if(buffer.length === 0) return;
+	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
+	if(!connection) return;
 
-	const address = `${rinfo.address}:${rinfo.port}`;
+	if(connection.data.debug) debug('recieved:', buffer);
 
-	if(!(address in connections)) return;
-	const connection = connections[address] as Connection;
-
-	if(connection.options.debug) debug('SERVER recieved:', buffer);
-
-	const packet = packetHandler(buffer, connection);
-	if(!packet) return;
-
-	connection.emit('packet', packet, address);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 	const header = buffer.readInt32LE();
-
-	if(header === -1) return buffer.slice(4);
-	if(connection.options.debug) debug('MASTERSERVER cannot parse multi-packet', buffer);
-	if(connection.options.enableWarns){
-		// eslint-disable-next-line no-console
-		console.error(new Error('MASTERSERVER cannot parse multi-packet'));
+	if(header === -1){
+		connection.socket.emit('packet', buffer.slice(4));
+	}else{
+		if(connection.data.debug) debug('MASTERSERVER cannot parse multi-packet', buffer);
+		if(connection.data.enableWarns){
+			// eslint-disable-next-line no-console
+			console.error(new Error('MASTERSERVER cannot parse multi-packet'));
+		}
 	}
 }
-// #endregion
 
-export default class Connection extends EventEmitter{
-	constructor(options: Options){
-		super();
-		this.options = options;
-
-		this.address = `${options.ip}:${options.port}`;
-		connections[this.address] = this;
-
-		this.client = getClient(options.ipFormat);
+export default class Connection {
+	constructor(data: Data) {
+		this.data = data;
 	}
-	public readonly address: string;
-	public readonly options: Options;
-	private readonly client: Socket;
-
+	public socket!: Socket;
 	public readonly packetsQueues = {};
-	public lastPing = -1;
+	public readonly data: Data;
 
-	public send(command: Buffer): Promise<void> {
-		if(this.options.debug) debug('SERVER sent:', command);
+	public connect(): void {
+		if(sockets[this.data.ipFormat] === null){
+			sockets[this.data.ipFormat] = createSocket(`udp${this.data.ipFormat}`)
+				.on('message', handleMessage)
+				.unref();
+		}
+
+		this.socket = sockets[this.data.ipFormat]!;
+		this.socket.setMaxListeners(this.socket.getMaxListeners() + 10);
+		connections.set(this.data.address, this);
+	}
+
+	public destroy(): void {
+		this.socket.setMaxListeners(this.socket.getMaxListeners() - 10);
+		connections.delete(this.data.address);
+	}
+
+	public async send(command: Buffer): Promise<void> {
+		if(this.data.debug) debug('sent:', command);
 
 		return new Promise((res, rej) => {
-			this.client.send(
+			this.socket.send(
 				Buffer.from(command),
-				this.options.port,
-				this.options.ip,
+				this.data.port,
+				this.data.ip,
 				err => {
 					if(err) return rej(err);
 					res();
@@ -85,30 +68,27 @@ export default class Connection extends EventEmitter{
 	}
 
 	/* eslint-disable @typescript-eslint/no-use-before-define */
-	public awaitResponse(responseHeaders: number[]): Promise<Buffer> {
+	public async awaitResponse(responseHeaders: number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
-				this.off('packet', onPacket);
-				this.client.off('error', onError);
+				this.socket.off('packet', onPacket);
+				this.socket.off('error', onError);
 				clearTimeout(timeout);
 			};
 
 			const onError = (err: unknown): void => {
 				clear(); rej(err);
 			};
-			const onPacket = (buffer: Buffer, address: string): void => {
-				if(
-					this.address !== address ||
-						!responseHeaders.includes(buffer[0] as number)
-				) return;
+			const onPacket = (buffer: Buffer): void => {
+				if(!responseHeaders.includes(buffer[0]!)) return;
 
 				clear(); res(buffer);
 			};
 
-			const timeout = setTimeout(onError, this.options.timeout, new Error('Response timeout.'));
+			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
 
-			this.on('packet', onPacket);
-			this.client.on('error', onError);
+			this.socket.on('packet', onPacket);
+			this.socket.on('error', onError);
 		});
 	}
 	/* eslint-enable @typescript-eslint/no-use-before-define */
@@ -117,21 +97,12 @@ export default class Connection extends EventEmitter{
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
-			// eslint-disable-next-line @typescript-eslint/no-empty-function
-			this.send(command).catch(() => {});
-		}, this.options.timeout / 2);
+			this.send(command)
+				.catch(() => { /* do nothing */ });
+		}, this.data.timeout / 2)
+			.unref();
 
-		const start = Date.now();
 		return await this.awaitResponse(responseHeaders)
-			.then(value => {
-				this.lastPing = Date.now() - start;
-				return value;
-			})
 			.finally(() => clearTimeout(timeout));
-	}
-
-	public destroy(): void {
-		this.client.setMaxListeners(this.client.getMaxListeners() - 20);
-		delete connections[this.address];
 	}
 }

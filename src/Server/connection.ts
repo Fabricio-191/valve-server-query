@@ -1,80 +1,80 @@
-import { debug, BufferReader, type Options, type RawOptions, parseOptions } from '../utils';
-import { EventEmitter } from 'events';
-import { createSocket, type RemoteInfo, type Socket, type SocketType } from 'dgram';
+import { debug, BufferReader } from '../utils';
+import { createSocket, type Socket, type RemoteInfo } from 'dgram';
 
-const clients: Record<number, Socket> = {};
-export function getClient(format: 4 | 6): Socket {
-	if(format in clients){
-		const client = clients[format] as Socket;
+export interface Data {
+	address: string;
 
-		client.setMaxListeners(client.getMaxListeners() + 20);
-		return client;
-	}
+	ip: string;
+	ipFormat: 4 | 6;
+	port: number;
+	timeout: number;
+	debug: boolean;
+	enableWarns: boolean;
 
-	const client = createSocket(`udp${format}` as SocketType)
-		.on('message', handleMessage)
-		.setMaxListeners(20)
-		.unref();
-
-	clients[format] = client;
-	return client;
+	appID: number;
+	multiPacketGoldSource: boolean;
+	protocol: number;
+	info: {
+		challenge: boolean;
+		goldSource: boolean;
+	};
 }
 
+const connections = new Map<string, Connection>();
+const sockets: Record<4 | 6, Socket | null> = {
+	4: null,
+	6: null,
+};
 
-const connections: Record<string, Connection> = {};
 function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
-	if(buffer.length === 0) return;
+	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
+	if(!connection) return;
 
-	const address = `${rinfo.address}:${rinfo.port}`;
-
-	if(!(address in connections)) return;
-	const connection = connections[address] as Connection;
-
-	if(connection.options.debug) debug('SERVER recieved:', buffer);
+	if(connection.data.debug) debug('SERVER recieved:', buffer);
 
 	const packet = packetHandler(buffer, connection);
 	if(!packet) return;
 
-	connection.emit('packet', packet);
+	connection.socket.emit('packet', packet);
 }
 
-// #region
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
+// #region packetHandler
+function packetHandler(buffer: Buffer, connection?: Connection): Buffer | null {
 	const header = buffer.readInt32LE();
 
 	if(header === -1) return buffer.slice(4);
-	if(header === -2 && connection.meta !== null){
-		const { meta, options, packetsQueues } = connection;
-
+	if(!connection){
+		throw new Error('Invalid packet.');
+	}
+	if(header === -2){
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
-		// only valid in the first packet
-			connection.meta.multiPacketGoldSource = true;
+			// only valid in the first packet
+			connection.data.multiPacketGoldSource = true;
 		}
 
-		const packet = parseMultiPacket(buffer, meta);
+		const packet = parseMultiPacket(buffer, connection.data);
 
-		if(!(packet.ID in packetsQueues)){
-			packetsQueues[packet.ID] = [packet];
-			return;
+		if(!(packet.ID in connection.packetsQueues)){
+			connection.packetsQueues[packet.ID] = [packet];
+			return null;
 		}
 
-		if(options.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1){
+		if(connection.data.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1){
 			debug('SERVER changed packet parsing in not the first recieved packet');
 		}
 
-		const queue = packetsQueues[packet.ID] as [MultiPacket, ...MultiPacket[]];
-		if(queue.push(packet) !== packet.packets.total) return;
+		const queue = connection.packetsQueues[packet.ID] as [MultiPacket, ...MultiPacket[]];
+		if(queue.push(packet) !== packet.packets.total) return null;
 
-		delete packetsQueues[packet.ID];
+		delete connection.packetsQueues[packet.ID];
 
 		// Checks that all the packets were parsed as goldsource
-		if(meta.multiPacketGoldSource){
+		if(connection.data.multiPacketGoldSource){
 			for(let i = 0; i < queue.length; i++){
 				const p = queue[i] as MultiPacket;
 
 				if(p.goldSource) continue;
-				queue[i] = parseMultiPacket(p.raw, meta);
+				queue[i] = parseMultiPacket(p.raw, connection.data);
 			}
 		}
 
@@ -85,11 +85,13 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | void {
 		return packetHandler(Buffer.concat(payloads), connection);
 	}
 
-	if(connection.options.debug) debug('SERVER cannot parse multi-packet', buffer);
-	if(connection.options.enableWarns){
+	if(connection.data.debug) debug('SERVER cannot parse multi-packet', buffer);
+	if(connection.data.enableWarns){
 		// eslint-disable-next-line no-console
 		console.error(new Error("Warning: a multi-packet couln't be handled"));
 	}
+
+	return null;
 }
 
 interface MultiPacket {
@@ -104,22 +106,12 @@ interface MultiPacket {
 	// bzip?: true;
 }
 
-export interface MetaData {
-	appID: number;
-	multiPacketGoldSource: boolean;
-	protocol: number;
-	info: {
-		challenge: boolean;
-		goldSource: boolean;
-	};
-}
-
 const MPS_IDS = [ 215, 17550, 17700, 240 ] as const;
-function parseMultiPacket(buffer: Buffer, meta: MetaData): MultiPacket {
+function parseMultiPacket(buffer: Buffer, data: Data): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
 
-	if(meta.multiPacketGoldSource) return {
+	if(data.multiPacketGoldSource) return {
 		ID,
 		packets: {
 			current: packets >> 4,
@@ -142,7 +134,7 @@ function parseMultiPacket(buffer: Buffer, meta: MetaData): MultiPacket {
 	};
 
 	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-	if(!(meta.protocol === 7 && MPS_IDS.includes(meta.appID))){
+	if(!(data.protocol === 7 && MPS_IDS.includes(data.appID))){
 		// info.maxPacketSize = reader.short();
 		reader.offset += 2;
 	}
@@ -170,23 +162,39 @@ function parseMultiPacket(buffer: Buffer, meta: MetaData): MultiPacket {
 }
 // #endregion
 
-export default class Connection extends EventEmitter{
-	private readonly client: Socket;
+export default class Connection {
+	constructor(data: Data) {
+		this.data = data;
+	}
+	public socket!: Socket;
 	public readonly packetsQueues = {};
-	public readonly address: string;
-	public options!: Options;
+	public readonly data: Data;
 
-	public meta: MetaData;
-	public lastPing = -1;
+	public connect(): void {
+		if(sockets[this.data.ipFormat] === null){
+			sockets[this.data.ipFormat] = createSocket(`udp${this.data.ipFormat}`)
+				.on('message', handleMessage)
+				.unref();
+		}
 
-	public send(command: Buffer): Promise<void> {
-		if(this.options.debug) debug('SERVER sent:', command);
+		this.socket = sockets[this.data.ipFormat]!;
+		this.socket.setMaxListeners(this.socket.getMaxListeners() + 10);
+		connections.set(this.data.address, this);
+	}
+
+	public destroy(): void {
+		this.socket.setMaxListeners(this.socket.getMaxListeners() - 10);
+		connections.delete(this.data.address);
+	}
+
+	public async send(command: Buffer): Promise<void> {
+		if(this.data.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
-			this.client.send(
+			this.socket.send(
 				Buffer.from(command),
-				this.options.port,
-				this.options.ip,
+				this.data.port,
+				this.data.ip,
 				err => {
 					if(err) return rej(err);
 					res();
@@ -196,31 +204,27 @@ export default class Connection extends EventEmitter{
 	}
 
 	/* eslint-disable @typescript-eslint/no-use-before-define */
-	public awaitResponse(responseHeaders: number[]): Promise<Buffer> {
+	public async awaitResponse(responseHeaders: number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
-				this.off('packet', onPacket);
-				this.client.off('error', onError);
+				this.socket.off('packet', onPacket);
+				this.socket.off('error', onError);
 				clearTimeout(timeout);
 			};
 
 			const onError = (err: unknown): void => {
 				clear(); rej(err);
 			};
-			const start = Date.now();
 			const onPacket = (buffer: Buffer): void => {
-				if(
-					!responseHeaders.includes(buffer[0] as number)
-				) return;
+				if(!responseHeaders.includes(buffer[0]!)) return;
 
-				this.lastPing = Date.now() - start;
 				clear(); res(buffer);
 			};
 
-			const timeout = setTimeout(onError, this.options.timeout, new Error('Response timeout.'));
+			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
 
-			this.on('packet', onPacket);
-			this.client.on('error', onError);
+			this.socket.on('packet', onPacket);
+			this.socket.on('error', onError);
 		});
 	}
 	/* eslint-enable @typescript-eslint/no-use-before-define */
@@ -229,23 +233,55 @@ export default class Connection extends EventEmitter{
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
-			this.send(command).catch(() => { /* do nothing */ });
-		}, this.options.timeout / 2);
+			this.send(command)
+				.catch(() => { /* do nothing */ });
+		}, this.data.timeout / 2)
+			.unref();
 
 		return await this.awaitResponse(responseHeaders)
 			.finally(() => clearTimeout(timeout));
 	}
+}
 
-	public disconnect(): void {
-		this.client.setMaxListeners(this.client.getMaxListeners() - 20);
-		delete connections[this.address];
+export class PrivateConnection extends Connection {
+	public connect(): Promise<void> {
+		this.socket = createSocket(`udp${this.data.ipFormat}`)
+			.on('message', buffer => {
+				if(buffer.length === 0) return;
+
+				if(this.data.debug) debug('SERVER recieved:', buffer);
+
+				const packet = packetHandler(buffer, this);
+				if(!packet) return;
+
+				this.socket.emit('packet', packet);
+			})
+			.unref();
+
+		return new Promise((res, rej) => {
+			// @ts-expect-error asdasdasd
+			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
+				if(err) return rej(err);
+				res();
+			});
+		});
 	}
 
-	public async connect(rawOpts: RawOptions): Promise<void> {
-		const options = this.options = await parseOptions(rawOpts);
-		this.address = `${options.ip}:${options.port}`;
-		connections[this.address] = this;
+	public destroy(): void {
+		this.socket.close();
+	}
 
-		this.client = getClient(options.ipFormat);
+	public async send(command: Buffer): Promise<void> {
+		if(this.data.debug) debug('SERVER sent:', command);
+
+		return new Promise((res, rej) => {
+			this.socket.send(
+				Buffer.from(command),
+				err => {
+					if(err) return rej(err);
+					res();
+				}
+			);
+		});
 	}
 }

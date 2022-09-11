@@ -1,10 +1,18 @@
 import { createConnection, type Socket } from 'net';
-import { BufferReader, debug, type Options as BaseOptions } from '../utils';
+import { BufferReader, debug } from '../utils';
+import type { Data } from './RCON';
+
+export enum PacketType {
+	Auth = 3,
+	AuthResponse = 2,
+	Command = 2,
+	CommandResponse = 0
+}
 
 export interface RCONPacket {
 	size: number;
 	ID: number;
-	type: number;
+	type: PacketType;
 	body: string;
 }
 
@@ -20,18 +28,14 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 	// there is an extra null byte that doesn't matter
 }
 
-export interface Options extends BaseOptions{
-	password: string;
-}
-
 export default class Connection{
-	constructor(options: Options){
-		this.options = options;
+	constructor(data: Data){
+		this.data = data;
 
-		this.socket = createConnection(options.port, options.ip)
+		this.socket = createConnection(data.port, data.ip)
 			.unref()
 			.on('data', (buffer: Buffer) => {
-				if(this.options.debug) debug('RCON recieved:', buffer);
+				if(this.data.debug) debug('RCON recieved:', buffer);
 
 				if(this.remaining === 0){
 					this.remaining = buffer.readUInt32LE() + 4; // size field
@@ -63,7 +67,7 @@ export default class Connection{
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 	}
 	public socket: Socket;
-	public options: Options;
+	public data: Data;
 	public _connected: Promise<unknown> | null;
 
 	public remaining = 0;
@@ -77,7 +81,7 @@ export default class Connection{
 
 	public async send(command: Buffer): Promise<void> {
 		await this._ready();
-		if(this.options.debug) debug('RCON sending:', command);
+		if(this.data.debug) debug('RCON sending:', command);
 
 		return await new Promise((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
@@ -121,7 +125,7 @@ export default class Connection{
 				}
 			};
 
-			const timeout = setTimeout(onError, this.options.timeout, new Error(timeoutMsg));
+			const timeout = setTimeout(onError, this.data.timeout, new Error(timeoutMsg));
 			this.socket
 				.on(event, onEvent)
 				.on('error', onError);

@@ -1,85 +1,61 @@
 /* eslint-disable new-cap */
-import { debug, type RawOptions } from '../utils';
-import Connection from './connection';
+import { debug, resolveHostname } from '../utils';
+import Connection, { type Data, PrivateConnection } from './connection';
 import * as parsers from './serverParsers';
 
-const BIG_F = [0xFF, 0xFF, 0xFF, 0xFF] as const;
+const FFFFFFFFh = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
 	INFO_BASE: Buffer.from([
-		...BIG_F, 0x54,
+		...FFFFFFFFh, 0x54,
 		...Buffer.from('Source Engine Query\0'),
 	]),
 	INFO(key: Buffer | [] = []){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
-	CHALLENGE(code = 0x57, key = BIG_F){
-		return Buffer.from([ ...BIG_F, code, ...key ]);
+	CHALLENGE(code = 0x57, key = FFFFFFFFh){
+		return Buffer.from([ ...FFFFFFFFh, code, ...key ]);
 	},
-	PING: Buffer.from([ ...BIG_F, 0x69 ]),
+	PING: Buffer.from([ ...FFFFFFFFh, 0x69 ]),
 };
 
 export default class Server{
-	constructor(options: RawOptions){
-		this.connection = new Connection(options);
+	constructor(options: RawOptions, privateConnection = false){
+		// @ts-expect-error data is incomplete at this point
+		this.data = options;
+		if(privateConnection){
+			this.connection = new PrivateConnection(this.data);
+		}else{
+			this.connection = new Connection(this.data);
+		}
 	}
-	private connection: Connection;
+	private readonly connection: Connection | PrivateConnection;
+	public data: Data;
 	public isConnected = false;
 
-	public async connect(): Promise<void> {
-		const info = await _getInfo(connection);
-		if(connection.options.debug) debug('SERVER connected');
-
-		connection.meta = {
-			info: {
-				challenge: info.needsChallenge,
-				goldSource: info.goldSource,
-			},
-			multiPacketGoldSource: false,
-			appID: info.appID,
-			protocol: info.protocol,
-		};
-
-		this.connection = connection;
-		this.isConnected = true;
-	}
-
-	public disconnect(): void {
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
-		this.connection!.destroy();
-		this.isConnected = false;
-	}
-
-	public async getInfo(): Promise<parsers.FinalServerInfo> {
+	public async getInfo(): Promise<FinalServerInfo> {
 		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
 		let command = COMMANDS.INFO();
-		if(this.connection!.meta.info.challenge){
-			const response = await this.connection!.query(command, 0x41);
+		if(this.data.info.challenge){
+			const response = await this.connection.query(command, 0x41);
 			const key = response.slice(-4);
 
 			command = COMMANDS.INFO(key);
 		}
 
-		const requests = this.connection!.meta.info.goldSource ? [
-			this.connection!.query(command, 0x49),
-			this.connection!.awaitResponse([0x6D]),
+		const requests = this.data.info.goldSource ? [
+			this.connection.query(command, 0x49),
+			this.connection.awaitResponse([0x6D]),
 		] : [
-			this.connection!.query(command, 0x49),
+			this.connection.query(command, 0x49),
 		];
 
 		const responses = await Promise.all(requests);
 
-		return Object.assign(
-			{
-				address: this.connection.address,
-			},
-			...responses.map(parsers.serverInfo)
-		) as parsers.FinalServerInfo;
+		return Object.assign({}, ...responses.map(parsers.serverInfo)) as FinalServerInfo;
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
@@ -90,11 +66,11 @@ export default class Server{
 		const key = await this.challenge(0x55);
 
 		if(key[0] === 0x44 && key.length > 5){
-			return parsers.players(Buffer.from(key), this.connection.meta);
+			return parsers.players(Buffer.from(key), this.data);
 		}
 
 		const command = Buffer.from([
-			...BIG_F, 0x55, ...key.slice(1),
+			...FFFFFFFFh, 0x55, ...key.slice(1),
 		]);
 		const response = await this.connection.query(command, 0x44);
 
@@ -102,7 +78,7 @@ export default class Server{
 			throw new Error('Wrong server response');
 		}
 
-		return parsers.players(response, this.connection.meta);
+		return parsers.players(response, this.data);
 	}
 
 	public async getRules(): Promise<parsers.Rules>{
@@ -117,7 +93,7 @@ export default class Server{
 		}
 
 		const command = Buffer.from([
-			...BIG_F, 0x56, ...key.slice(1),
+			...FFFFFFFFh, 0x56, ...key.slice(1),
 		]);
 		const response = await this.connection.query(command, 0x45);
 
@@ -128,16 +104,12 @@ export default class Server{
 		return parsers.rules(response);
 	}
 
-	public get lastPing(): number {
-		return this.connection.lastPing;
-	}
-
 	public async getPing(): Promise<number> {
 		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
 
-		if(this.connection.options.enableWarns){
+		if(this.data.enableWarns){
 			// eslint-disable-next-line no-console
 			console.trace('A2A_PING request is a deprecated feature of source servers');
 		}
@@ -159,7 +131,7 @@ export default class Server{
 
 		const command = COMMANDS.CHALLENGE();
 		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-		if(!CHALLENGE_IDS.includes(this.connection.meta.appID)){
+		if(!CHALLENGE_IDS.includes(this.data.appID)){
 			command[4] = code;
 		}
 
@@ -171,8 +143,41 @@ export default class Server{
 		return response;
 	}
 
-	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
-		const connection = new Connection(options);
+	public async connect(): Promise<void> {
+		if(this.isConnected){
+			throw new Error('Server: already connected.');
+		}
+		this.data = await parseData(this.data);
+		await this.connection.connect();
+
+		const info = await _getInfo(this.connection);
+		if(this.data.debug) debug('SERVER connected');
+
+		Object.assign(this.data, {
+			info: {
+				challenge: info.needsChallenge,
+				goldSource: info.goldSource,
+			},
+			appID: info.appID,
+			protocol: info.protocol,
+		});
+
+		this.isConnected = true;
+	}
+
+	public disconnect(): void {
+		if(!this.isConnected){
+			throw new Error('Not connected');
+		}
+		this.connection.destroy();
+		this.isConnected = false;
+	}
+
+	public static async getInfo(options: RawOptions): Promise<FinalServerInfo> {
+		const data = await parseData(options);
+
+		const connection = new Connection(data);
+		connection.connect();
 		const info = await _getInfo(connection);
 
 		connection.destroy();
@@ -180,10 +185,11 @@ export default class Server{
 	}
 }
 
-type _ServerInfo = parsers.FinalServerInfo & {
-	needsChallenge: boolean;
-};
+type FinalServerInfo = parsers.ServerInfo | parsers.TheShipServerInfo | (parsers.GoldSourceServerInfo & (
+	parsers.ServerInfo | parsers.TheShipServerInfo
+));
 
+type _ServerInfo = FinalServerInfo & { needsChallenge: boolean };
 async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<_ServerInfo> {
 	if(challenge === null){
 		await connection.send(COMMANDS.INFO());
@@ -209,8 +215,63 @@ async function _getInfo(connection: Connection, challenge: Buffer | null = null)
 	responses.push(INFO);
 
 	return Object.assign({
-		address: `${connection.options.ip}:${connection.options.port}`,
-		needsChallenge: Boolean(challenge),
-		ping: connection.lastPing,
+		address: `${connection.data.ip}:${connection.data.port}`,
+		needsChallenge: challenge !== null,
 	}, ...responses.map(parsers.serverInfo)) as _ServerInfo;
 }
+
+// #region parse data
+interface RawOptions {
+	ip?: string;
+	port?: number;
+	timeout?: number;
+	debug?: boolean;
+	enableWarns?: boolean;
+}
+
+const DEFAULT_DATA: Data = {
+	address: '127.0.0.1:27015',
+	ip: '127.0.0.1',
+	ipFormat: 4,
+
+	port: 27015,
+	timeout: 5000,
+	debug: false,
+	enableWarns: true,
+
+	appID: -1,
+	multiPacketGoldSource: false,
+	protocol: -1,
+	info: {
+		challenge: false,
+		goldSource: false,
+	},
+} as const;
+
+async function parseData(rawData: Partial<Data>): Promise<Data> {
+	if(typeof rawData !== 'object' || rawData === null){
+		throw Error("'options' must be an object");
+	}
+	const data = Object.assign({}, DEFAULT_DATA, rawData);
+
+	if(
+		typeof data.port !== 'number' || isNaN(data.port) ||
+		data.port < 0 || data.port > 65535
+	){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof data.debug !== 'boolean'){
+		throw Error("'debug' should be a boolean");
+	}else if(typeof data.enableWarns !== 'boolean'){
+		throw Error("'enableWarns' should be a boolean");
+	}else if(typeof data.timeout !== 'number' || isNaN(data.timeout) || data.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}else if(typeof data.ip !== 'string'){
+		throw Error("'ip' should be a string");
+	}
+
+	Object.assign(data, await resolveHostname(data.ip));
+	data.address = `${data.ip}:${data.port}`;
+
+	return data;
+}
+// #endregion

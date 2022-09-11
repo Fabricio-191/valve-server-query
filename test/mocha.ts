@@ -7,7 +7,7 @@ import { existsSync, writeFileSync } from 'fs';
 // https://www.freegamehosting.eu/stats#garrysmod
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 const [ip, port, password] = regex.exec(
-	'connect 49.12.122.244:33044 ; rcon_password cosas'.trim()
+	'connect 213.239.207.78:33010 ; rcon_password cosas'.trim()
 )!.slice(1) as [string, string, string];
 
 const options = {
@@ -16,7 +16,7 @@ const options = {
 	password,
 
 	enableWarns: false,
-	debug: true,
+	debug: false,
 };
 
 const result: {
@@ -44,7 +44,7 @@ class MyError extends Error {
 	}
 }
 
-describe('Server', () => {
+describe.only('Server (unconnected socket)', () => {
 	it('static getInfo()', async function(){
 		this.retries(3);
 
@@ -90,6 +90,7 @@ describe('Server', () => {
 		result.server.getPing = await server.getPing();
 	});
 
+	/*
 	it('lastPing', () => {
 		if(!server) throw new MyError('Server not connected');
 
@@ -101,6 +102,59 @@ describe('Server', () => {
 
 		result.server.lastPing = server.lastPing;
 	});
+	*/
+});
+
+describe.only('Server (connected socket)', () => {
+	const server = new Server(options, true);
+	it('connect', async function(){
+		this.retries(3);
+		this.slow(9000);
+		this.timeout(10000);
+
+		await server.connect();
+	});
+
+	it('getInfo()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		const info = await server.getInfo();
+
+		checkInfo(info);
+		result.server.getInfo = info;
+	});
+
+	it('getPlayers()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getPlayers = await server.getPlayers();
+	});
+
+	it('getRules()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getRules = await server.getRules();
+	});
+
+	it('getPing()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getPing = await server.getPing();
+	});
+
+	/*
+	it('lastPing', () => {
+		if(!server) throw new MyError('Server not connected');
+
+		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
+			throw new MyError('Server.lastPing is not a number');
+		}else if(server.lastPing <= -1){
+			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
+		}
+
+		result.server.lastPing = server.lastPing;
+	});
+	*/
 });
 
 const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
@@ -176,7 +230,7 @@ describe('MasterServer', () => {
 	*/
 });
 
-describe.only('RCON', () => {
+describe('RCON', () => {
 	const rcon = new RCON(options);
 	it('connect and authenticate', async function(){
 		this.retries(3);

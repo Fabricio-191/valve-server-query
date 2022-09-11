@@ -62,7 +62,7 @@ export class BufferReader{
 		return this.buffer.readFloatLE(this.offset - 4);
 	}
 
-	public bigUInt(): bigint {// long long
+	public bigUInt(): bigint { // long long
 		this.offset += 8;
 		return this.buffer.readBigUInt64LE(this.offset - 8);
 	}
@@ -123,27 +123,7 @@ export function debug(
 	}
 }
 
-export interface RawOptions {
-	ip?: string;
-	port?: number;
-	timeout?: number;
-	debug?: boolean;
-	enableWarns?: boolean;
-}
-
-export interface Options extends Required<RawOptions> {
-	ipFormat: 4 | 6;
-}
-
-const DEFAULT_OPTIONS: Required<RawOptions> = {
-	ip: 'localhost',
-	port: 27015,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-} as const;
-
-async function resolveHostname(string: string): Promise<{
+export async function resolveHostname(string: string): Promise<{
 	ipFormat: 4 | 6;
 	ip: string;
 }> {
@@ -154,9 +134,7 @@ async function resolveHostname(string: string): Promise<{
 	};
 
 	try{
-		const r = await dns.lookup(string, {
-			verbatim: false,
-		});
+		const r = await dns.lookup(string, { verbatim: false });
 		if(r.family !== 4 && r.family !== 6){
 			throw Error('The IP address is not IPv4 or IPv6');
 		}
@@ -168,32 +146,4 @@ async function resolveHostname(string: string): Promise<{
 	}catch(e){
 		throw Error("'ip' is not a valid IP address or hostname");
 	}
-}
-
-export async function parseOptions(options: unknown, defaultOptions = DEFAULT_OPTIONS): Promise<Options> {
-	if(typeof options !== 'object' || options === null){
-		throw Error("'options' must be an object");
-	}
-
-	// @ts-expect-error ipFormat is added later
-	const opts: Options = { ...defaultOptions, ...options };
-
-	if(
-		typeof opts.port !== 'number' || isNaN(opts.port) ||
-		opts.port < 0 || opts.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof opts.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof opts.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(typeof opts.timeout !== 'number' || isNaN(opts.timeout) || opts.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof opts.ip !== 'string'){
-		throw Error("'ip' should be a string");
-	}
-
-	Object.assign(opts, await resolveHostname(opts.ip));
-
-	return opts;
 }
