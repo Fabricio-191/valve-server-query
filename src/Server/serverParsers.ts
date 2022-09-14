@@ -1,5 +1,5 @@
 import { BufferReader, type ValueIn } from '../utils';
-import type { Data } from './connection';
+import type { ServerData } from './server';
 
 // #region constants
 const OPERATIVE_SYSTEMS = {
@@ -214,7 +214,7 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 	return info;
 }
 
-export function players(buffer: Buffer, { appID }: Data): Players {
+export function players(buffer: Buffer, { appID }: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const playerList: Player[] = [];
 

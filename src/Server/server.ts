@@ -1,6 +1,6 @@
 /* eslint-disable new-cap */
 import { debug, resolveHostname } from '../utils';
-import Connection, { type Data, PrivateConnection } from './connection';
+import Connection, { PrivateConnection } from '../connection';
 import * as parsers from './serverParsers';
 
 const FFFFFFFFh = [0xFF, 0xFF, 0xFF, 0xFF] as const;
@@ -29,8 +29,8 @@ export default class Server{
 			this.connection = new Connection(this.data);
 		}
 	}
-	private readonly connection: Connection | PrivateConnection;
-	public data: Data;
+	private readonly connection: Connection<ServerData> | PrivateConnection<ServerData>;
+	public data: ServerData;
 	public isConnected = false;
 
 	public async getInfo(): Promise<FinalServerInfo> {
@@ -147,7 +147,7 @@ export default class Server{
 		if(this.isConnected){
 			throw new Error('Server: already connected.');
 		}
-		this.data = await parseData(this.data);
+		await checkOptions(this.data);
 		await this.connection.connect();
 
 		const info = await _getInfo(this.connection);
@@ -174,9 +174,9 @@ export default class Server{
 	}
 
 	public static async getInfo(options: RawOptions): Promise<FinalServerInfo> {
-		const data = await parseData(options);
+		await checkOptions(options);
 
-		const connection = new Connection(data);
+		const connection = new Connection(options as ServerData);
 		connection.connect();
 		const info = await _getInfo(connection);
 
@@ -190,7 +190,7 @@ type FinalServerInfo = parsers.ServerInfo | parsers.TheShipServerInfo | (parsers
 ));
 
 type _ServerInfo = FinalServerInfo & { needsChallenge: boolean };
-async function _getInfo(connection: Connection, challenge: Buffer | null = null): Promise<_ServerInfo> {
+async function _getInfo(connection: Connection<ServerData>, challenge: Buffer | null = null): Promise<_ServerInfo> {
 	if(challenge === null){
 		await connection.send(COMMANDS.INFO());
 	}else{
@@ -229,7 +229,26 @@ interface RawOptions {
 	enableWarns?: boolean;
 }
 
-const DEFAULT_DATA: Data = {
+export interface ServerData {
+	address: string;
+
+	ip: string;
+	ipFormat: 4 | 6;
+	port: number;
+	timeout: number;
+	debug: boolean;
+	enableWarns: boolean;
+
+	appID: number;
+	multiPacketGoldSource: boolean;
+	protocol: number;
+	info: {
+		challenge: boolean;
+		goldSource: boolean;
+	};
+}
+
+const DEFAULT_DATA: ServerData = {
 	address: '127.0.0.1:27015',
 	ip: '127.0.0.1',
 	ipFormat: 4,
@@ -248,11 +267,17 @@ const DEFAULT_DATA: Data = {
 	},
 } as const;
 
-async function parseData(rawData: Partial<Data>): Promise<Data> {
-	if(typeof rawData !== 'object' || rawData === null){
+async function checkOptions(data: Partial<ServerData>): Promise<void> {
+	if(typeof data !== 'object' || data === null){
 		throw Error("'options' must be an object");
 	}
-	const data = Object.assign({}, DEFAULT_DATA, rawData);
+
+	for(const key in DEFAULT_DATA){
+		if(!(key in data)){
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+			data[key] = DEFAULT_DATA[key];
+		}
+	}
 
 	if(
 		typeof data.port !== 'number' || isNaN(data.port) ||
@@ -271,7 +296,5 @@ async function parseData(rawData: Partial<Data>): Promise<Data> {
 
 	Object.assign(data, await resolveHostname(data.ip));
 	data.address = `${data.ip}:${data.port}`;
-
-	return data;
 }
 // #endregion

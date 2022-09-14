@@ -1,36 +1,32 @@
-import { debug, BufferReader } from '../utils';
+import { debug, BufferReader } from './utils';
 import { createSocket, type Socket, type RemoteInfo } from 'dgram';
 
-export interface Data {
-	address: string;
+import type { ServerData } from './Server/server';
+import type { MasterServerData } from './masterServer';
 
-	ip: string;
-	ipFormat: 4 | 6;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
+type Data = MasterServerData | ServerData;
 
-	appID: number;
-	multiPacketGoldSource: boolean;
-	protocol: number;
-	info: {
-		challenge: boolean;
-		goldSource: boolean;
-	};
-}
-
-const connections = new Map<string, Connection>();
+const connections = new Map<string, Connection<Data>>();
 const sockets: Record<4 | 6, Socket | null> = {
 	4: null,
 	6: null,
 };
 
+function getSocket(ipFormat: 4 | 6): Socket {
+	if(sockets[ipFormat] !== null) return sockets[ipFormat] as Socket;
+
+	sockets[ipFormat] = createSocket(`udp${ipFormat}`)
+		.on('message', handleMessage)
+		.unref();
+
+	return sockets[ipFormat]!;
+}
+
 function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
 	if(!connection) return;
 
-	if(connection.data.debug) debug('SERVER recieved:', buffer);
+	if(connection.data.debug) debug('recieved:', buffer);
 
 	const packet = packetHandler(buffer, connection);
 	if(!packet) return;
@@ -39,59 +35,61 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 }
 
 // #region packetHandler
-function packetHandler(buffer: Buffer, connection?: Connection): Buffer | null {
+function packetHandler(buffer: Buffer, connection: Connection<Data>): Buffer | null {
 	const header = buffer.readInt32LE();
-
-	if(header === -1) return buffer.slice(4);
-	if(!connection){
-		throw new Error('Invalid packet.');
-	}
-	if(header === -2){
-		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
-			// only valid in the first packet
-			connection.data.multiPacketGoldSource = true;
+	if(header === -1){
+		return buffer.slice(4);
+	}else if(header === -2){
+		const packet = handleMultiplePackets(buffer, connection as Connection<ServerData>);
+		if(packet) packetHandler(packet, connection);
+	}else{
+		if(connection.data.debug) debug('SERVER cannot parse multi-packet', buffer);
+		if(connection.data.enableWarns){
+			// eslint-disable-next-line no-console
+			console.error(new Error("Warning: a multi-packet couln't be handled"));
 		}
-
-		const packet = parseMultiPacket(buffer, connection.data);
-
-		if(!(packet.ID in connection.packetsQueues)){
-			connection.packetsQueues[packet.ID] = [packet];
-			return null;
-		}
-
-		if(connection.data.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1){
-			debug('SERVER changed packet parsing in not the first recieved packet');
-		}
-
-		const queue = connection.packetsQueues[packet.ID] as [MultiPacket, ...MultiPacket[]];
-		if(queue.push(packet) !== packet.packets.total) return null;
-
-		delete connection.packetsQueues[packet.ID];
-
-		// Checks that all the packets were parsed as goldsource
-		if(connection.data.multiPacketGoldSource){
-			for(let i = 0; i < queue.length; i++){
-				const p = queue[i] as MultiPacket;
-
-				if(p.goldSource) continue;
-				queue[i] = parseMultiPacket(p.raw, connection.data);
-			}
-		}
-
-		const payloads = queue
-			.sort((p1, p2) => p1.packets.current - p2.packets.current)
-			.map(p => p.payload);
-
-		return packetHandler(Buffer.concat(payloads), connection);
-	}
-
-	if(connection.data.debug) debug('SERVER cannot parse multi-packet', buffer);
-	if(connection.data.enableWarns){
-		// eslint-disable-next-line no-console
-		console.error(new Error("Warning: a multi-packet couln't be handled"));
 	}
 
 	return null;
+}
+
+function handleMultiplePackets(buffer: Buffer, connection: Connection<ServerData>): Buffer | null {
+	if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
+		// only valid in the first packet
+		connection.data.multiPacketGoldSource = true;
+	}
+
+	const packet = parseMultiPacket(buffer, connection.data);
+
+	if(!(packet.ID in connection.packetsQueues)){
+		connection.packetsQueues[packet.ID] = [packet];
+		return null;
+	}
+
+	if(connection.data.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1){
+		debug('SERVER changed packet parsing in not the first recieved packet');
+	}
+
+	const queue = connection.packetsQueues[packet.ID]!;
+	if(queue.push(packet) !== packet.packets.total) return null;
+
+	delete connection.packetsQueues[packet.ID];
+
+	// Checks that all the packets were parsed as goldsource
+	if(connection.data.multiPacketGoldSource){
+		for(let i = 0; i < queue.length; i++){
+			const p = queue[i] as MultiPacket;
+
+			if(p.goldSource) continue;
+			queue[i] = parseMultiPacket(p.raw, connection.data);
+		}
+	}
+
+	const payloads = queue
+		.sort((p1, p2) => p1.packets.current - p2.packets.current)
+		.map(p => p.payload);
+
+	return Buffer.concat(payloads);
 }
 
 interface MultiPacket {
@@ -107,7 +105,7 @@ interface MultiPacket {
 }
 
 const MPS_IDS = [ 215, 17550, 17700, 240 ] as const;
-function parseMultiPacket(buffer: Buffer, data: Data): MultiPacket {
+function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
 
@@ -162,22 +160,16 @@ function parseMultiPacket(buffer: Buffer, data: Data): MultiPacket {
 }
 // #endregion
 
-export default class Connection {
-	constructor(data: Data) {
+export default class Connection<T extends Data> {
+	constructor(data: T) {
 		this.data = data;
 	}
 	public socket!: Socket;
-	public readonly packetsQueues = {};
-	public readonly data: Data;
+	public readonly packetsQueues: Record<number, [MultiPacket, ...MultiPacket[]]> = {};
+	public readonly data: T;
 
 	public connect(): void {
-		if(sockets[this.data.ipFormat] === null){
-			sockets[this.data.ipFormat] = createSocket(`udp${this.data.ipFormat}`)
-				.on('message', handleMessage)
-				.unref();
-		}
-
-		this.socket = sockets[this.data.ipFormat]!;
+		this.socket = getSocket(this.data.ipFormat);
 		this.socket.setMaxListeners(this.socket.getMaxListeners() + 10);
 		connections.set(this.data.address, this);
 	}
@@ -188,7 +180,7 @@ export default class Connection {
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('SERVER sent:', command);
+		if(this.data.debug) debug('sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(
@@ -243,7 +235,7 @@ export default class Connection {
 	}
 }
 
-export class PrivateConnection extends Connection {
+export class PrivateConnection<T extends Data> extends Connection<T> {
 	public connect(): Promise<void> {
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
 			.on('message', buffer => {

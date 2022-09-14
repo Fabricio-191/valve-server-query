@@ -7,7 +7,7 @@ import { existsSync, writeFileSync } from 'fs';
 // https://www.freegamehosting.eu/stats#garrysmod
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 const [ip, port, password] = regex.exec(
-	'connect 213.239.207.78:33010 ; rcon_password cosas'.trim()
+	'connect 213.239.207.78:33025 ; rcon_password cosas'.trim()
 )!.slice(1) as [string, string, string];
 
 const options = {
@@ -44,7 +44,7 @@ class MyError extends Error {
 	}
 }
 
-describe.only('Server (unconnected socket)', () => {
+describe('Server (unconnected socket)', () => {
 	it('static getInfo()', async function(){
 		this.retries(3);
 
@@ -105,7 +105,7 @@ describe.only('Server (unconnected socket)', () => {
 	*/
 });
 
-describe.only('Server (connected socket)', () => {
+describe('Server (connected socket)', () => {
 	const server = new Server(options, true);
 	it('connect', async function(){
 		this.retries(3);

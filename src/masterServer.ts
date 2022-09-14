@@ -1,4 +1,4 @@
-import { BufferWriter, BufferReader, type ValueIn, resolveHostname } from '../utils';
+import { BufferWriter, BufferReader, type ValueIn, resolveHostname } from './utils';
 import Connection from './connection';
 
 // #region filter
@@ -132,7 +132,7 @@ interface RawOptions {
 	filter?: Filter;
 }
 
-export interface Data {
+export interface MasterServerData {
 	address: string;
 	ip: string;
 	ipFormat: 4 | 6;
@@ -146,11 +146,11 @@ export interface Data {
 }
 
 type MixedOptions = {
-	[key in keyof Data]: key extends keyof RawOptions ?
-		Data[key] | Exclude<RawOptions[key], undefined> : Data[key];
+	[key in keyof MasterServerData]: key extends keyof RawOptions ?
+		Exclude<RawOptions[key], undefined> | MasterServerData[key] : MasterServerData[key];
 };
 
-async function parseData(rawData: RawOptions): Promise<Data> {
+async function parseData(rawData: RawOptions): Promise<MasterServerData> {
 	if(typeof rawData !== 'object' || rawData === null){
 		throw Error("'options' must be an object");
 	}
@@ -190,13 +190,14 @@ async function parseData(rawData: RawOptions): Promise<Data> {
 		throw Error("'quantity' must be a number greater than zero");
 	}
 
-	return data as Data;
+	return data as MasterServerData;
 }
 // #endregion
 
 export default async function MasterServer(options: RawOptions = {}): Promise<string[]> {
 	const data = await parseData(options);
 	const connection = new Connection(data);
+	connection.connect();
 	const servers: string[] = [];
 
 	while(data.quantity > servers.length){
