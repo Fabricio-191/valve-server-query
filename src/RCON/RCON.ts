@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { debug, BufferWriter, resolveHostname } from '../utils';
-import Connection, { type RCONPacket, PacketType } from './connection';
+import Connection from './connection';
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 	return new BufferWriter()
@@ -12,7 +12,21 @@ function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 		.end();
 }
 
-const LONG: readonly string[] = ['cvarlist', 'status'];
+export enum PacketType {
+	Auth = 3,
+	AuthResponse = 2,
+	Command = 2,
+	CommandResponse = 0
+}
+
+export interface RCONPacket {
+	size: number;
+	ID: number;
+	type: PacketType;
+	body: string;
+}
+
+const LONG = ['cvarlist', 'status'] as const;
 export default class RCON extends EventEmitter{
 	constructor(options: RawOptions){
 		super();
@@ -39,10 +53,8 @@ export default class RCON extends EventEmitter{
 		await this.connection.send(makeCommand(ID, PacketType.Command, command));
 		const packet = await this.connection.awaitResponse(PacketType.CommandResponse, ID);
 
-		if(
-			packet.body.length > 500 || multiPacket ||
-			LONG.includes(command)
-		){
+		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
+		if(packet.body.length > 500 || multiPacket || LONG.includes(command)){
 			const ID2 = this._getID();
 			await this.connection.send(makeCommand(ID2, 2));
 
@@ -166,6 +178,7 @@ export default class RCON extends EventEmitter{
 	}
 }
 
+// #region options
 export interface Data {
 	address: string;
 	ip: string;
@@ -219,3 +232,4 @@ async function parseData(rawData: RawOptions): Promise<Data> {
 
 	return data;
 }
+// #endregion

@@ -1,20 +1,6 @@
 import { createConnection, type Socket } from 'net';
 import { BufferReader, debug } from '../utils';
-import type { Data } from './RCON';
-
-export enum PacketType {
-	Auth = 3,
-	AuthResponse = 2,
-	Command = 2,
-	CommandResponse = 0
-}
-
-export interface RCONPacket {
-	size: number;
-	ID: number;
-	type: PacketType;
-	body: string;
-}
+import type { Data, RCONPacket, PacketType } from './RCON';
 
 function parseRCONPacket(buffer: Buffer): RCONPacket {
 	const reader = new BufferReader(buffer);
@@ -90,7 +76,7 @@ export default class Connection{
 		});
 	}
 
-	public async awaitResponse(type: number, ID: number): Promise<RCONPacket> {
+	public async awaitResponse(type: PacketType, ID: number): Promise<RCONPacket> {
 		await this._ready();
 
 		return await this.awaitEvent(

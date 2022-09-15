@@ -33,7 +33,7 @@ export default class Server{
 	public data: ServerData;
 	public isConnected = false;
 
-	public async getInfo(): Promise<FinalServerInfo> {
+	public async getInfo(): Promise<parsers.FinalServerInfo> {
 		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
@@ -55,7 +55,7 @@ export default class Server{
 
 		const responses = await Promise.all(requests);
 
-		return Object.assign({}, ...responses.map(parsers.serverInfo)) as FinalServerInfo;
+		return Object.assign({}, ...responses.map(parsers.serverInfo)) as parsers.FinalServerInfo;
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
@@ -150,7 +150,7 @@ export default class Server{
 		await checkOptions(this.data);
 		await this.connection.connect();
 
-		const info = await _getInfo(this.connection);
+		const info = await aloneGetInfo(this.connection);
 		if(this.data.debug) debug('SERVER connected');
 
 		Object.assign(this.data, {
@@ -173,24 +173,20 @@ export default class Server{
 		this.isConnected = false;
 	}
 
-	public static async getInfo(options: RawOptions): Promise<FinalServerInfo> {
+	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
 		await checkOptions(options);
 
 		const connection = new Connection(options as ServerData);
 		connection.connect();
-		const info = await _getInfo(connection);
+		const info = await aloneGetInfo(connection);
 
 		connection.destroy();
 		return info;
 	}
 }
 
-type FinalServerInfo = parsers.ServerInfo | parsers.TheShipServerInfo | (parsers.GoldSourceServerInfo & (
-	parsers.ServerInfo | parsers.TheShipServerInfo
-));
-
-type _ServerInfo = FinalServerInfo & { needsChallenge: boolean };
-async function _getInfo(connection: Connection<ServerData>, challenge: Buffer | null = null): Promise<_ServerInfo> {
+type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
+async function aloneGetInfo(connection: Connection<ServerData>, challenge: Buffer | null = null): Promise<AloneServerInfo> {
 	if(challenge === null){
 		await connection.send(COMMANDS.INFO());
 	}else{
@@ -210,14 +206,14 @@ async function _getInfo(connection: Connection<ServerData>, challenge: Buffer | 
 		}
 
 		// needs challenge
-		return await _getInfo(connection, INFO.slice(1));
+		return await aloneGetInfo(connection, INFO.slice(1));
 	}
 	responses.push(INFO);
 
 	return Object.assign({
 		address: `${connection.data.ip}:${connection.data.port}`,
 		needsChallenge: challenge !== null,
-	}, ...responses.map(parsers.serverInfo)) as _ServerInfo;
+	}, ...responses.map(parsers.serverInfo)) as AloneServerInfo;
 }
 
 // #region parse data

@@ -7,7 +7,7 @@ import { existsSync, writeFileSync } from 'fs';
 // https://www.freegamehosting.eu/stats#garrysmod
 const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
 const [ip, port, password] = regex.exec(
-	'connect 213.239.207.78:33025 ; rcon_password cosas'.trim()
+	'connect 213.239.207.78:33013 ; rcon_password cosas'.trim()
 )!.slice(1) as [string, string, string];
 
 const options = {

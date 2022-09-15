@@ -1,7 +1,6 @@
 import { BufferWriter, BufferReader, type ValueIn, resolveHostname } from './utils';
 import Connection from './connection';
 
-// #region filter
 const flags = {
 	dedicated: '\\dedicated\\1',
 	secure: '\\secure\\1',
@@ -14,9 +13,6 @@ const flags = {
 	collapse_addr_hash: '\\collapse_addr_hash\\1',
 	password: '\\password\\0',
 } as const;
-
-type Flag = keyof typeof flags;
-type FilterKey = 'appid' | 'gameaddr' | 'gamedata' | 'gamedataor' | 'gamedir' | 'gametype' | 'map' | 'name_match' | 'napp' | 'version_match';
 
 class Filter{
 	public readonly filters: string[] = [];
@@ -93,9 +89,8 @@ class Filter{
 		return this;
 	}
 }
-// #endregion
 
-// #region options
+// #region constants
 const REGIONS = {
 	US_EAST: 0,
 	US_WEST: 1,
@@ -120,6 +115,11 @@ const DEFAULT_DATA: Required<RawOptions> = {
 	filter: new Filter(),
 } as const;
 
+type Flag = keyof typeof flags;
+type FilterKey = 'appid' | 'gameaddr' | 'gamedata' | 'gamedataor' | 'gamedir' | 'gametype' | 'map' | 'name_match' | 'napp' | 'version_match';
+// #endregion
+
+// #region options
 interface RawOptions {
 	ip?: string;
 	port?: number;

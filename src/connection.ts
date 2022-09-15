@@ -41,7 +41,7 @@ function packetHandler(buffer: Buffer, connection: Connection<Data>): Buffer | n
 		return buffer.slice(4);
 	}else if(header === -2){
 		const packet = handleMultiplePackets(buffer, connection as Connection<ServerData>);
-		if(packet) packetHandler(packet, connection);
+		if(packet) return packetHandler(packet, connection);
 	}else{
 		if(connection.data.debug) debug('SERVER cannot parse multi-packet', buffer);
 		if(connection.data.enableWarns){

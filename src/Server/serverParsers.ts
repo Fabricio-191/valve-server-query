@@ -22,104 +22,10 @@ const OPERATIVE_SYSTEMS = {
 		'team elimination',
 	] as const,
 	THE_SHIP_IDS = [
-		2400, 2401, 2402,
-		2403, 2405, 2406,
+		2400, 2401, 2402, 2403,
+		2405, 2406,
 		2412, 2430,
 	] as const;
-// #endregion
-
-// #region types
-type ServerType = ValueIn<typeof SERVER_TYPES>;
-type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
-
-export interface ServerInfo {
-	address: string;
-	protocol: number;
-	goldSource: boolean;
-	name: string;
-	map: string;
-	folder: string;
-	game: string;
-	appID: number;
-	players: {
-		online: number;
-		max: number;
-		bots: number;
-	};
-	type: ServerType | null;
-	OS: OS;
-	visibility: 'private' | 'public';
-	VAC: boolean;
-	// EDF
-	version?: string;
-	port?: number;
-	steamID?: bigint;
-	tv?: {
-		port: number;
-		name: string;
-	};
-	keywords?: string[];
-	gameID?: bigint;
-}
-
-export interface TheShipServerInfo extends ServerInfo {
-	mode: ValueIn<typeof THE_SHIP_MODES>;
-	witnesses: number;
-	duration: number;
-}
-
-export interface GoldSourceServerInfo {
-	address: string;
-	name: string;
-	map: string;
-	folder: string;
-	game: string;
-	players: {
-		online: number;
-		max: number;
-		bots: number;
-	};
-	protocol: number;
-	goldSource: boolean;
-	type: ServerType;
-	OS: OS;
-	visibility: string;
-	mod: false | {
-		link: string;
-		downloadLink: string;
-		version: number;
-		size: number;
-		multiplayerOnly: boolean;
-		ownDLL: boolean;
-	};
-	VAC: boolean;
-}
-
-/** Info from a player in the server. */
-interface Player {
-	/* Index of the player. */
-	index: number;
-	/** Name of the player. */
-	name: string;
-	/** Player's score (usually "frags" or "kills"). */
-	score: number;
-	/** Time in miliseconds that the player has been connected to the server. */
-	timeOnline: number;
-}
-
-interface TheShipPlayer extends Player{
-	/** Player's deaths (Only for "the ship" servers). */
-	deaths: number;
-	/** Player's money (Only for "the ship" servers). */
-	money: number;
-}
-
-export type Players = Player[] | TheShipPlayer[];
-
-/** An object with server's rules */
-export interface Rules {
-	[key: string]: boolean | number | string;
-}
 // #endregion
 
 export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
@@ -161,7 +67,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	if(!reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
-	// 1111 0001 (241)
+	// 1111 0001
 	if(EDF & 0x80) info.port = reader.short(true);
 	if(EDF & 0x10) info.steamID = reader.bigUInt();
 	if(EDF & 0x40) info.tv = {
@@ -274,3 +180,99 @@ export function rules(buffer: Buffer): Rules {
 
 	return obj;
 }
+
+// #region types
+type ServerType = ValueIn<typeof SERVER_TYPES>;
+type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
+
+export interface ServerInfo {
+	address: string;
+	protocol: number;
+	goldSource: boolean;
+	name: string;
+	map: string;
+	folder: string;
+	game: string;
+	appID: number;
+	players: {
+		online: number;
+		max: number;
+		bots: number;
+	};
+	type: ServerType | null;
+	OS: OS;
+	visibility: 'private' | 'public';
+	VAC: boolean;
+	// EDF
+	version?: string;
+	port?: number;
+	steamID?: bigint;
+	tv?: {
+		port: number;
+		name: string;
+	};
+	keywords?: string[];
+	gameID?: bigint;
+}
+
+export interface TheShipServerInfo extends ServerInfo {
+	mode: ValueIn<typeof THE_SHIP_MODES>;
+	witnesses: number;
+	duration: number;
+}
+
+export interface GoldSourceServerInfo {
+	address: string;
+	name: string;
+	map: string;
+	folder: string;
+	game: string;
+	players: {
+		online: number;
+		max: number;
+		bots: number;
+	};
+	protocol: number;
+	goldSource: boolean;
+	type: ServerType;
+	OS: OS;
+	visibility: string;
+	mod: false | {
+		link: string;
+		downloadLink: string;
+		version: number;
+		size: number;
+		multiplayerOnly: boolean;
+		ownDLL: boolean;
+	};
+	VAC: boolean;
+}
+
+export type FinalServerInfo = ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
+
+/** Info from a player in the server. */
+interface Player {
+	/* Index of the player. */
+	index: number;
+	/** Name of the player. */
+	name: string;
+	/** Player's score (usually "frags" or "kills"). */
+	score: number;
+	/** Time in miliseconds that the player has been connected to the server. */
+	timeOnline: number;
+}
+
+interface TheShipPlayer extends Player{
+	/** Player's deaths (Only for "the ship" servers). */
+	deaths: number;
+	/** Player's money (Only for "the ship" servers). */
+	money: number;
+}
+
+export type Players = Player[] | TheShipPlayer[];
+
+/** An object with server's rules */
+export interface Rules {
+	[key: string]: boolean | number | string;
+}
+// #endregion
