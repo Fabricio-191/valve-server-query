@@ -1,5 +1,5 @@
 import { BufferReader, type ValueIn } from '../utils';
-import type { ServerData } from './server';
+import type { ServerData } from './options';
 
 // #region constants
 const OPERATIVE_SYSTEMS = {
@@ -90,9 +90,9 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 		map: reader.string(),
 		folder: reader.string(),
 		game: reader.string(),
-		// @ts-expect-error bots property is added later
 		players: {
 			online: reader.byte(),
+			bots: -1,
 			max: reader.byte(),
 		},
 		protocol: reader.byte(),
@@ -144,7 +144,7 @@ export function players(buffer: Buffer, { appID }: ServerData): Players {
 			});
 		}
 	}else{
-		reader.offset += 1;
+		reader.addOffset(1);
 
 		while(reader.hasRemaining){
 			playerList.push({

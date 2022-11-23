@@ -7,9 +7,7 @@ export class BufferWriter{
 	private readonly buffer: number[] = [];
 
 	public string(value: string, encoding: BufferEncoding = 'ascii'): this {
-		return this.byte(
-			...Buffer.from(value, encoding), 0
-		);
+		return this.byte(...Buffer.from(value, encoding), 0);
 	}
 
 	public byte(...values: number[]): this {
@@ -38,7 +36,7 @@ export class BufferReader{
 	}
 	private readonly length: number;
 	private readonly buffer: Buffer;
-	public offset = 0;
+	private offset = 0;
 
 	public byte(): number {
 		return this.buffer.readUInt8(this.offset++);
@@ -47,9 +45,7 @@ export class BufferReader{
 	public short(unsigned = false, endianess: 'BE' | 'LE' = 'LE'): number {
 		this.offset += 2;
 
-		return this.buffer[
-			`read${unsigned ? 'U' : ''}Int16${endianess}`
-		](this.offset - 2);
+		return this.buffer[`read${unsigned ? 'U' : ''}Int16${endianess}`](this.offset - 2);
 	}
 
 	public long(): number {
@@ -71,7 +67,8 @@ export class BufferReader{
 		const stringEndIndex = this.buffer.indexOf(0, this.offset);
 		if(stringEndIndex === -1) throw new Error('string not terminated');
 
-		const string = this.buffer.slice(this.offset, stringEndIndex)
+		const string = this.buffer
+			.slice(this.offset, stringEndIndex)
 			.toString(encoding);
 
 		this.offset = stringEndIndex + 1;
@@ -80,9 +77,7 @@ export class BufferReader{
 	}
 
 	public char(): string {
-		return this.buffer.slice(
-			this.offset++, this.offset
-		).toString();
+		return this.buffer.slice(this.offset++, this.offset).toString();
 	}
 
 	public addOffset(offset: number): this {

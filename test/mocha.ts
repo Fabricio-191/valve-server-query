@@ -5,42 +5,40 @@ import type { EventEmitter } from 'events';
 import { existsSync, writeFileSync } from 'fs';
 
 // https://www.freegamehosting.eu/stats#garrysmod
-const regex = /connect (\S+):(\d+) ; rcon_password (\S+)/;
-const [ip, port, password] = regex.exec(
-	'connect 213.239.207.78:33013 ; rcon_password cosas'.trim()
-)!.slice(1) as [string, string, string];
-
 const options = {
-	ip,
-	port: parseInt(port),
-	password,
+	ip: '',
+	port: 12,
+	password: '',
 
 	enableWarns: false,
 	debug: false,
 };
 
-const result: {
-	MasterServer: string[] | null;
+const result = {
+	MasterServer: [] as string[],
 	server: {
-		lastPing: number;
-		getInfo: unknown;
-		getPlayers: unknown;
-		getRules: unknown;
-		getPing: unknown;
-
-	};
-	RCON: Record<string, unknown>;
-} = {
-	MasterServer: null,
-	// @ts-expect-error asd
-	server: {},
-	RCON: {},
+		lastPing: 0,
+		getInfo: {},
+		getPlayers: {},
+		getRules: {},
+		getPing: {},
+	},
+	// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+	RCON: {} as Record<string, unknown>,
 };
 
 class MyError extends Error {
 	constructor(message: string, stack = '') {
 		super(message);
 		this.stack = stack;
+	}
+}
+
+function checkInfo(info: object): void {
+	for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
+		if(!(key in info)){
+			throw new MyError('Missing keys in data');
+		}
 	}
 }
 
@@ -157,7 +155,10 @@ describe('Server (connected socket)', () => {
 	*/
 });
 
-const ipv4RegexWithPort = /(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}/;
+const byteRegex = '(?:(?:[1-9]?\\d)|(?:1\\d\\d)|(?:2[0-4]\\d)|(?:25[0-5]))'; // 0 - 255
+const portRegex = '((?:[0-5]?\\d{1,4})|(?:6[0-4]\\d{3})|(?:65[0-4]\\d{2})|(?:655[0-2]\\d)|(?:6553[0-5]))'; // 0 - 65535
+
+const ipv4RegexWithPort = new RegExp(`^((?:${byteRegex}\\.){3}${byteRegex}):${portRegex}$`);
 describe('MasterServer', () => {
 	it('query', async () => {
 		// eslint-disable-next-line new-cap
@@ -239,22 +240,16 @@ describe('RCON', () => {
 	});
 
 	it("exec('sv_gravity') (single packet response)", async () => {
-		if(!rcon) throw new MyError('RCON not connected');
-
 		result.RCON["exec('sv_gravity')"] = await rcon.exec('sv_gravity');
 	});
 
 	it("exec('cvarlist') (multiple packet response)", async function(){
 		this.slow(9000);
 		this.timeout(10000);
-		if(!rcon) throw new MyError('RCON not connected');
-
 		result.RCON["exec('cvarlist')"] = await rcon.exec('cvarlist');
 	});
 
 	it("exec('status')", async () => {
-		if(!rcon) throw new MyError('RCON not connected');
-
 		result.RCON["exec('status')"] = await rcon.exec('status');
 	});
 
@@ -276,8 +271,6 @@ describe('RCON', () => {
 	});
 
 	it('should reconnect', async () => {
-		if(!rcon) throw new MyError('RCON not connected');
-
 		rcon.exec('sv_gravity 0').catch(() => { /* do nothing */ });
 
 		await shouldFireEvent(rcon, 'disconnect', 3000);
@@ -290,8 +283,6 @@ describe('RCON', () => {
 	});
 
 	it('should manage password changes', async () => {
-		if(!rcon || !rcon.connection._ready) throw new MyError('RCON not connected');
-
 		rcon.exec('rcon_password cosas2').catch(() => { /* do nothing */ });
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 
@@ -333,32 +324,21 @@ after(() => {
 });
 
 let id = 1;
-/* eslint-disable @typescript-eslint/no-use-before-define */
 function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promise<void> {
 	const err = new Error(`Event ${event} (${id++}) not fired`);
 
 	return new Promise((res, rej) => {
-		const clear = (): void => {
-			obj.off(event, onEvent);
+		const end = (error: unknown): void => {
+			obj.off(event, end);
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			clearTimeout(timeout);
-		};
-		const onEvent = (): void => {
-			clear(); res();
+
+			if(error) rej(err);
+			else res();
 		};
 
-		const timeout = setTimeout(() => {
-			clear();
-			rej(err);
-		}, time).unref();
-		obj.on(event, onEvent);
+		const timeout = setTimeout(end, time, err).unref();
+
+		obj.on(event, end);
 	});
-}
-/* eslint-enable @typescript-eslint/no-use-before-define */
-
-function checkInfo(info: object): void {
-	for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
-		if(!(key in info)){
-			throw new Error('Missing keys in data');
-		}
-	}
 }

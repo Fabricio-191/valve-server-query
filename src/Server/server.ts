@@ -1,22 +1,40 @@
 /* eslint-disable new-cap */
-import { debug, resolveHostname } from '../utils';
+import { debug } from '../utils';
 import Connection, { PrivateConnection } from '../connection';
 import * as parsers from './serverParsers';
+import { checkOptions, type RawOptions, type ServerData } from './options';
+
+enum RequestType {
+	INFO = 0x54,
+	PLAYERS = 0x55,
+	RULES = 0x56,
+	CHALLENGE = 0x57,
+	PING = 0x69,
+}
+
+enum ResponseType {
+	INFO = 0x49,
+	GOLDSOURCE_INFO = 0x6D,
+	PLAYERS = 0x44,
+	RULES = 0x45,
+	CHALLENGE = 0x41,
+	PING = 0x6A,
+}
 
 const FFFFFFFFh = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
 	INFO_BASE: Buffer.from([
-		...FFFFFFFFh, 0x54,
+		...FFFFFFFFh, RequestType.INFO,
 		...Buffer.from('Source Engine Query\0'),
 	]),
 	INFO(key: Buffer | [] = []){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
-	CHALLENGE(code = 0x57, key = FFFFFFFFh){
+	CHALLENGE(code = RequestType.CHALLENGE, key = FFFFFFFFh){
 		return Buffer.from([ ...FFFFFFFFh, code, ...key ]);
 	},
-	PING: Buffer.from([ ...FFFFFFFFh, 0x69 ]),
+	PING: Buffer.from([ ...FFFFFFFFh, RequestType.PING ]),
 };
 
 export default class Server{
@@ -40,17 +58,17 @@ export default class Server{
 
 		let command = COMMANDS.INFO();
 		if(this.data.info.challenge){
-			const response = await this.connection.query(command, 0x41);
+			const response = await this.connection.query(command, ResponseType.CHALLENGE);
 			const key = response.slice(-4);
 
 			command = COMMANDS.INFO(key);
 		}
 
 		const requests = this.data.info.goldSource ? [
-			this.connection.query(command, 0x49),
-			this.connection.awaitResponse([0x6D]),
+			this.connection.query(command, ResponseType.INFO),
+			this.connection.awaitResponse([ResponseType.GOLDSOURCE_INFO]),
 		] : [
-			this.connection.query(command, 0x49),
+			this.connection.query(command, ResponseType.INFO),
 		];
 
 		const responses = await Promise.all(requests);
@@ -63,14 +81,14 @@ export default class Server{
 			throw new Error('Not connected');
 		}
 
-		const key = await this.challenge(0x55);
+		const key = await this.challenge(RequestType.PLAYERS);
 
-		if(key[0] === 0x44 && key.length > 5){
+		if(key[0] === ResponseType.PLAYERS && key.length > 5){
 			return parsers.players(Buffer.from(key), this.data);
 		}
 
 		const command = Buffer.from([
-			...FFFFFFFFh, 0x55, ...key.slice(1),
+			...FFFFFFFFh, RequestType.PLAYERS, ...key.slice(1),
 		]);
 		const response = await this.connection.query(command, 0x44);
 
@@ -86,16 +104,16 @@ export default class Server{
 			throw new Error('Not connected');
 		}
 
-		const key = await this.challenge(0x56);
+		const key = await this.challenge(RequestType.RULES);
 
-		if(key[0] === 0x45 && key.length > 5){
+		if(key[0] === ResponseType.RULES && key.length > 5){
 			return parsers.rules(Buffer.from(key));
 		}
 
 		const command = Buffer.from([
-			...FFFFFFFFh, 0x56, ...key.slice(1),
+			...FFFFFFFFh, RequestType.RULES, ...key.slice(1),
 		]);
-		const response = await this.connection.query(command, 0x45);
+		const response = await this.connection.query(command, ResponseType.RULES);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
 			throw new Error('Wrong server response');
@@ -116,7 +134,7 @@ export default class Server{
 
 		try{
 			const start = Date.now();
-			await this.connection.query(COMMANDS.PING, 0x6A);
+			await this.connection.query(COMMANDS.PING, ResponseType.PING);
 
 			return Date.now() - start;
 		}catch(e){
@@ -138,7 +156,7 @@ export default class Server{
 		// 0x41 normal challenge response
 		// 0x44 truncated rules response
 		// 0x45 truncated players response
-		const response = await this.connection.query(command, 0x41, code - 0b10001);
+		const response = await this.connection.query(command, ResponseType.CHALLENGE, code - 0b10001);
 
 		return response;
 	}
@@ -195,12 +213,12 @@ async function aloneGetInfo(connection: Connection<ServerData>, challenge: Buffe
 
 	const responses = [];
 
-	connection.awaitResponse([0x6d])
+	connection.awaitResponse([ResponseType.GOLDSOURCE_INFO])
 		.then(data => responses.push(data))
 		.catch(() => { /* do nothing */ });
 
-	const INFO = await connection.awaitResponse([0x49, 0x41]);
-	if(INFO[0] === 0x41){
+	const INFO = await connection.awaitResponse([ResponseType.INFO, ResponseType.CHALLENGE]);
+	if(INFO[0] === ResponseType.CHALLENGE){
 		if(challenge !== null){
 			throw new Error('Wrong server response');
 		}
@@ -215,82 +233,3 @@ async function aloneGetInfo(connection: Connection<ServerData>, challenge: Buffe
 		needsChallenge: challenge !== null,
 	}, ...responses.map(parsers.serverInfo)) as AloneServerInfo;
 }
-
-// #region parse data
-interface RawOptions {
-	ip?: string;
-	port?: number;
-	timeout?: number;
-	debug?: boolean;
-	enableWarns?: boolean;
-}
-
-export interface ServerData {
-	address: string;
-
-	ip: string;
-	ipFormat: 4 | 6;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
-
-	appID: number;
-	multiPacketGoldSource: boolean;
-	protocol: number;
-	info: {
-		challenge: boolean;
-		goldSource: boolean;
-	};
-}
-
-const DEFAULT_DATA: ServerData = {
-	address: '127.0.0.1:27015',
-	ip: '127.0.0.1',
-	ipFormat: 4,
-
-	port: 27015,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-
-	appID: -1,
-	multiPacketGoldSource: false,
-	protocol: -1,
-	info: {
-		challenge: false,
-		goldSource: false,
-	},
-} as const;
-
-async function checkOptions(data: Partial<ServerData>): Promise<void> {
-	if(typeof data !== 'object' || data === null){
-		throw Error("'options' must be an object");
-	}
-
-	for(const key in DEFAULT_DATA){
-		if(!(key in data)){
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-			data[key] = DEFAULT_DATA[key];
-		}
-	}
-
-	if(
-		typeof data.port !== 'number' || isNaN(data.port) ||
-		data.port < 0 || data.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof data.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof data.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(typeof data.timeout !== 'number' || isNaN(data.timeout) || data.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof data.ip !== 'string'){
-		throw Error("'ip' should be a string");
-	}
-
-	Object.assign(data, await resolveHostname(data.ip));
-	data.address = `${data.ip}:${data.port}`;
-}
-// #endregion

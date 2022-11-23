@@ -71,7 +71,8 @@ export default class Connection{
 
 		return await new Promise((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
-				if(err) rej(err); else res();
+				if(err) rej(err);
+				else res();
 			});
 		});
 	}
@@ -87,7 +88,6 @@ export default class Connection{
 		) as RCONPacket;
 	}
 
-	/* eslint-disable @typescript-eslint/no-use-before-define */
 	public awaitEvent(
 		event: string,
 		timeoutMsg: string,
@@ -95,11 +95,13 @@ export default class Connection{
 	): Promise<unknown> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
+				/* eslint-disable @typescript-eslint/no-use-before-define */
 				this.socket
 					.off(event, onEvent)
 					.off('error', onError);
 
 				clearTimeout(timeout);
+				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
 
 			const onError = (err: unknown): void => {
@@ -117,5 +119,4 @@ export default class Connection{
 				.on('error', onError);
 		});
 	}
-	/* eslint-enable @typescript-eslint/no-use-before-define */
 }

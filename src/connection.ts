@@ -1,8 +1,8 @@
 import { debug, BufferReader } from './utils';
 import { createSocket, type Socket, type RemoteInfo } from 'dgram';
 
-import type { ServerData } from './Server/server';
-import type { MasterServerData } from './masterServer';
+import type { ServerData } from './Server/options';
+import type { MasterServerData } from './MasterServer/masterServer';
 
 type Data = MasterServerData | ServerData;
 
@@ -134,7 +134,7 @@ function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(!(data.protocol === 7 && MPS_IDS.includes(data.appID))){
 		// info.maxPacketSize = reader.short();
-		reader.offset += 2;
+		reader.addOffset(2);
 	}
 
 	if(info.packets.current === 0 && info.ID & 0x80000000){
@@ -195,13 +195,14 @@ export default class Connection<T extends Data> {
 		});
 	}
 
-	/* eslint-disable @typescript-eslint/no-use-before-define */
 	public async awaitResponse(responseHeaders: number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
+				/* eslint-disable @typescript-eslint/no-use-before-define */
 				this.socket.off('packet', onPacket);
 				this.socket.off('error', onError);
 				clearTimeout(timeout);
+				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
 
 			const onError = (err: unknown): void => {
@@ -219,7 +220,6 @@ export default class Connection<T extends Data> {
 			this.socket.on('error', onError);
 		});
 	}
-	/* eslint-enable @typescript-eslint/no-use-before-define */
 
 	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
 		await this.send(command);
