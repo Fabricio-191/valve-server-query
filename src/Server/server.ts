@@ -1,8 +1,9 @@
 /* eslint-disable new-cap */
 import { debug } from '../utils';
-import Connection, { PrivateConnection } from '../connection';
+import Connection, { PrivateConnection } from './connection';
 import * as parsers from './serverParsers';
 import { checkOptions, type RawOptions, type ServerData } from './options';
+export type { FinalServerInfo } from './serverParsers';
 
 enum RequestType {
 	INFO = 0x54,
@@ -21,20 +22,20 @@ enum ResponseType {
 	PING = 0x6A,
 }
 
-const FFFFFFFFh = [0xFF, 0xFF, 0xFF, 0xFF] as const;
+const FFFFFFFF = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
 const COMMANDS = {
 	INFO_BASE: Buffer.from([
-		...FFFFFFFFh, RequestType.INFO,
+		...FFFFFFFF, RequestType.INFO,
 		...Buffer.from('Source Engine Query\0'),
 	]),
 	INFO(key: Buffer | [] = []){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
-	CHALLENGE(code = RequestType.CHALLENGE, key = FFFFFFFFh){
-		return Buffer.from([ ...FFFFFFFFh, code, ...key ]);
+	CHALLENGE(code = RequestType.CHALLENGE, key = FFFFFFFF){
+		return Buffer.from([ ...FFFFFFFF, code, ...key ]);
 	},
-	PING: Buffer.from([ ...FFFFFFFFh, RequestType.PING ]),
+	PING: Buffer.from([ ...FFFFFFFF, RequestType.PING ]),
 };
 
 export default class Server{
@@ -47,7 +48,7 @@ export default class Server{
 			this.connection = new Connection(this.data);
 		}
 	}
-	private readonly connection: Connection<ServerData> | PrivateConnection<ServerData>;
+	private readonly connection: Connection;
 	public data: ServerData;
 	public isConnected = false;
 
@@ -88,7 +89,7 @@ export default class Server{
 		}
 
 		const command = Buffer.from([
-			...FFFFFFFFh, RequestType.PLAYERS, ...key.slice(1),
+			...FFFFFFFF, RequestType.PLAYERS, ...key.slice(1),
 		]);
 		const response = await this.connection.query(command, 0x44);
 
@@ -111,7 +112,7 @@ export default class Server{
 		}
 
 		const command = Buffer.from([
-			...FFFFFFFFh, RequestType.RULES, ...key.slice(1),
+			...FFFFFFFF, RequestType.RULES, ...key.slice(1),
 		]);
 		const response = await this.connection.query(command, ResponseType.RULES);
 
@@ -166,7 +167,7 @@ export default class Server{
 			throw new Error('Server: already connected.');
 		}
 		await checkOptions(this.data);
-		await this.connection.connect();
+		this.connection.connect();
 
 		const info = await aloneGetInfo(this.connection);
 		if(this.data.debug) debug('SERVER connected');
@@ -204,7 +205,7 @@ export default class Server{
 }
 
 type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
-async function aloneGetInfo(connection: Connection<ServerData>, challenge: Buffer | null = null): Promise<AloneServerInfo> {
+async function aloneGetInfo(connection: Connection, challenge: Buffer | null = null): Promise<AloneServerInfo> {
 	if(challenge === null){
 		await connection.send(COMMANDS.INFO());
 	}else{

@@ -1,6 +1,7 @@
 import { createConnection, type Socket } from 'net';
 import { BufferReader, debug } from '../utils';
-import type { Data, RCONPacket, PacketType } from './RCON';
+import type { RCONPacket, PacketType } from './RCON';
+import type { Data } from './options';
 
 function parseRCONPacket(buffer: Buffer): RCONPacket {
 	const reader = new BufferReader(buffer);

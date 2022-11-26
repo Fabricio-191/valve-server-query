@@ -120,7 +120,24 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 	return info;
 }
 
-export function players(buffer: Buffer, { appID }: ServerData): Players {
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+function parseTime(raw: number){
+	if(!raw || raw === -1) return null;
+
+	const hours = Math.floor(raw / 3600)								|| 0;
+	const minutes = Math.floor(raw / 60) - hours * 60					|| 0;
+	const seconds = Math.floor(raw)		 - hours * 3600 - minutes * 60	|| 0;
+
+	return {
+		hours,
+		minutes,
+		seconds,
+		raw,
+		start: new Date(Date.now() - raw),
+	};
+}
+
+export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const playerList: Player[] = [];
 
@@ -133,7 +150,7 @@ export function players(buffer: Buffer, { appID }: ServerData): Players {
 				index: reader.byte(),
 				name: reader.string(),
 				score: reader.long(),
-				timeOnline: reader.float(),
+				timeOnline: parseTime(reader.float()),
 			});
 		}
 
@@ -147,12 +164,18 @@ export function players(buffer: Buffer, { appID }: ServerData): Players {
 		reader.addOffset(1);
 
 		while(reader.hasRemaining){
-			playerList.push({
-				index: reader.byte(),
-				name: reader.string(),
-				score: reader.long(),
-				timeOnline: reader.float(),
-			});
+			try{
+				playerList.push({
+					index: reader.byte(),
+					name: reader.string(),
+					score: reader.long(),
+					timeOnline: parseTime(reader.float()),
+				});
+			}catch{
+				// eslint-disable-next-line no-console
+				if(enableWarns) console.warn('player info not terminated');
+				return playerList.filter(x => x.timeOnline !== null);
+			}
 		}
 	}
 
@@ -259,7 +282,7 @@ interface Player {
 	/** Player's score (usually "frags" or "kills"). */
 	score: number;
 	/** Time in miliseconds that the player has been connected to the server. */
-	timeOnline: number;
+	timeOnline: ReturnType<typeof parseTime>;
 }
 
 interface TheShipPlayer extends Player{

@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
-import { Server, RCON, MasterServer } from '../src';
+import { Server, RCON, MasterServer, type FinalServerInfo } from '../src';
 import type { EventEmitter } from 'events';
 import { existsSync, writeFileSync } from 'fs';
 
+
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '',
-	port: 12,
-	password: '',
+	ip: '85.190.155.139',
+	port: 27015,
+	password: 'cosas',
 
 	enableWarns: false,
 	debug: false,
@@ -42,19 +43,15 @@ function checkInfo(info: object): void {
 	}
 }
 
-describe('Server (unconnected socket)', () => {
-	it('static getInfo()', async function(){
-		this.retries(3);
-
+describe.only('Server (unconnected socket)', () => {
+	it('static getInfo()', async () => {
 		const info = await Server.getInfo(options);
 
 		checkInfo(info);
-		result.server['static getInfo()'] = info;
 	});
 
 	const server = new Server(options);
 	it('connect', async function(){
-		this.retries(3);
 		this.slow(9000);
 		this.timeout(10000);
 
@@ -106,7 +103,6 @@ describe('Server (unconnected socket)', () => {
 describe('Server (connected socket)', () => {
 	const server = new Server(options, true);
 	it('connect', async function(){
-		this.retries(3);
 		this.slow(9000);
 		this.timeout(10000);
 
@@ -155,10 +151,41 @@ describe('Server (connected socket)', () => {
 	*/
 });
 
+
 const byteRegex = '(?:(?:[1-9]?\\d)|(?:1\\d\\d)|(?:2[0-4]\\d)|(?:25[0-5]))'; // 0 - 255
 const portRegex = '((?:[0-5]?\\d{1,4})|(?:6[0-4]\\d{3})|(?:65[0-4]\\d{2})|(?:655[0-2]\\d)|(?:6553[0-5]))'; // 0 - 65535
 
 const ipv4RegexWithPort = new RegExp(`^((?:${byteRegex}\\.){3}${byteRegex}):${portRegex}$`);
+
+/*
+
+const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
+
+function checkIP(ip: unknown): void {
+	if(typeof ip !== 'string'){
+		throw new MyError('IP is not a string');
+	}
+
+	const matches = ipv4RegexWithPort.exec(ip);
+
+	if(!matches){
+		throw new MyError('IP is not valid');
+	}
+
+	for(let i = 1; i < 5; i++){
+		const num = Number(matches[i]);
+		if(num < 0 || num > 255){
+			throw new MyError('Field in IP is not valid');
+		}
+	}
+
+	const port = Number(matches[5]);
+	if(port < 0 || port > 65535){
+		throw new MyError('Port in IP is not valid');
+	}
+}
+
+*/
 describe('MasterServer', () => {
 	it('query', async () => {
 		// eslint-disable-next-line new-cap
@@ -184,7 +211,6 @@ describe('MasterServer', () => {
 		result.MasterServer = IPs;
 	});
 
-	/*
 	it('filter', async function(){
 		this.slow(14000);
 		this.timeout(15000);
@@ -197,6 +223,7 @@ describe('MasterServer', () => {
 					.addFlag('secure')
 			);
 
+		// eslint-disable-next-line new-cap
 		const IPs = await MasterServer({
 			// debug: true,
 			filter,
@@ -208,10 +235,14 @@ describe('MasterServer', () => {
 			// eslint-disable-next-line @typescript-eslint/no-shadow
 			const [ip, port] = address.split(':') as [string, string];
 
-			return Server.getInfo({
+			const server = new Server({
 				ip,
 				port: parseInt(port),
 			});
+			return (async () => {
+				await server.connect();
+				return await server.getInfo();
+			})();
 		})))
 			.filter(x => x.status === 'fulfilled') as PromiseFulfilledResult<FinalServerInfo>[];
 
@@ -224,18 +255,15 @@ describe('MasterServer', () => {
 			)
 			.length;
 
-		if(results.length - satisfiesFilter < results.length * 0.1){ // master servers are not perfect
+		if(results.length - satisfiesFilter < results.length * 0.1){ // (10% error margin) master servers are not perfect
 			throw new Error('Filter is not working well');
 		}
 	});
-	*/
 });
 
 describe('RCON', () => {
 	const rcon = new RCON(options);
-	it('connect and authenticate', async function(){
-		this.retries(3);
-
+	it('connect and authenticate', async () => {
 		await rcon.connect();
 	});
 
@@ -314,9 +342,9 @@ after(() => {
 		path,
 		JSON.stringify(
 			result,
-			(_key, value: unknown) => {
-				if(typeof value === 'bigint') return value.toString() + 'n';
-				return value;
+			(_, v: unknown) => {
+				if(typeof v === 'bigint') return v.toString() + 'n';
+				return v;
 			},
 			'\t'
 		)

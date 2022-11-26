@@ -1,120 +1,19 @@
-import { BufferWriter, BufferReader, type ValueIn, resolveHostname } from '../utils';
-import Connection from '../connection';
+import { BufferWriter, BufferReader } from '../utils';
+import Connection from './connection';
 import Filter from './filter';
-
-const REGIONS = {
-	US_EAST: 0,
-	US_WEST: 1,
-	SOUTH_AMERICA: 2,
-	EUROPE: 3,
-	ASIA: 4,
-	AUSTRALIA: 5,
-	MIDDLE_EAST: 6,
-	AFRICA: 7,
-	OTHER: 0xFF,
-} as const;
-
-// #region options
-const DEFAULT_DATA: Required<RawOptions> = {
-	ip: 'hl2master.steampowered.com',
-	port: 27011,
-	timeout: 5000,
-	debug: false,
-	enableWarns: true,
-
-	quantity: 200,
-	region: 'OTHER',
-	filter: new Filter(),
-} as const;
-
-interface RawOptions {
-	ip?: string;
-	port?: number;
-	timeout?: number;
-	debug?: boolean;
-	enableWarns?: boolean;
-
-	quantity?: number | 'all';
-	region?: keyof typeof REGIONS;
-	filter?: Filter;
-}
-
-export interface MasterServerData {
-	address: string;
-	ip: string;
-	ipFormat: 4 | 6;
-	port: number;
-	timeout: number;
-	debug: boolean;
-	enableWarns: boolean;
-	quantity: number;
-	region: ValueIn<typeof REGIONS>;
-	filter: string;
-}
-
-type MixedOptions = {
-	[key in keyof MasterServerData]: key extends keyof RawOptions ?
-		Exclude<RawOptions[key], undefined> | MasterServerData[key] : MasterServerData[key];
-};
-
-async function parseData(rawData: RawOptions): Promise<MasterServerData> {
-	if(typeof rawData !== 'object' || rawData === null){
-		throw Error("'options' must be an object");
-	}
-	const data = Object.assign({}, DEFAULT_DATA, rawData) as MixedOptions;
-
-	if(
-		typeof data.port !== 'number' || isNaN(data.port) ||
-		data.port < 0 || data.port > 65535
-	){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof data.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
-	}else if(typeof data.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
-	}else if(typeof data.timeout !== 'number' || isNaN(data.timeout) || data.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof data.ip !== 'string'){
-		throw Error("'ip' should be a string");
-	}
-
-	Object.assign(data, await resolveHostname(data.ip));
-	data.address = `${data.ip}:${data.port}`;
-
-	if(data.quantity === 'all') data.quantity = Infinity;
-	if(data.filter instanceof Filter){
-		data.filter = data.filter.filters.join('');
-	}
-	if(data.region in REGIONS){
-		data.region = REGIONS[data.region] as ValueIn<typeof REGIONS>;
-	}else{
-		throw new Error(`unknown region: ${data.region}`);
-	}
-
-	if(typeof data.filter !== 'string'){
-		throw Error("'filter' must be an instance of MasterServer.Filter or a string");
-	}else if(typeof data.quantity !== 'number' || isNaN(data.quantity) || data.quantity <= 0){
-		throw Error("'quantity' must be a number greater than zero");
-	}
-
-	return data as MasterServerData;
-}
-// #endregion
+import { parseData, type RawOptions } from './options';
 
 export default async function MasterServer(options: RawOptions = {}): Promise<string[]> {
 	const data = await parseData(options);
 	const connection = new Connection(data);
 	connection.connect();
 	const servers: string[] = [];
+	let last = '0.0.0.0:0';
 
-	while(data.quantity > servers.length){
-		const last = servers.pop();
-
-		if(last === '0.0.0.0:0') break;
-
+	do{
 		const command = new BufferWriter()
 			.byte(0x31, data.region)
-			.string(last ?? '0.0.0.0:0')
+			.string(last)
 			.string(data.filter)
 			.end();
 
@@ -130,7 +29,9 @@ export default async function MasterServer(options: RawOptions = {}): Promise<st
 		}
 
 		servers.push(...parseServerList(buffer));
-	}
+
+		last = servers[servers.length - 1] as string;
+	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
 
 	connection.destroy();
 	return servers;
@@ -139,11 +40,14 @@ export default async function MasterServer(options: RawOptions = {}): Promise<st
 MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {
-	const reader = new BufferReader(buffer, 2);
-	const servers = [];
+	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port
+	if(!Number.isInteger(amount)) throw new Error('invalid server list');
 
-	while(reader.hasRemaining){
-		servers.push(`${reader.byte()}.${reader.byte()}.${reader.byte()}.${reader.byte()}:${reader.short(true, 'BE')}`);
+	const reader = new BufferReader(buffer, 2); // skip header
+	const servers = Array<string>(amount);
+
+	for(let i = 0; i < amount; i++){
+		servers[i] = `${reader.byte()}.${reader.byte()}.${reader.byte()}.${reader.byte()}:${reader.short(true, 'BE')}`;
 	}
 
 	return servers;

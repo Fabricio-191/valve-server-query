@@ -1,12 +1,9 @@
-import { debug, BufferReader } from './utils';
+import { debug, BufferReader } from '../utils';
 import { createSocket, type Socket, type RemoteInfo } from 'dgram';
 
-import type { ServerData } from './Server/options';
-import type { MasterServerData } from './MasterServer/masterServer';
+import type { ServerData } from './options';
 
-type Data = MasterServerData | ServerData;
-
-const connections = new Map<string, Connection<Data>>();
+const connections = new Map<string, Connection>();
 const sockets: Record<4 | 6, Socket | null> = {
 	4: null,
 	6: null,
@@ -35,12 +32,12 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 }
 
 // #region packetHandler
-function packetHandler(buffer: Buffer, connection: Connection<Data>): Buffer | null {
+function packetHandler(buffer: Buffer, connection: Connection): Buffer | null {
 	const header = buffer.readInt32LE();
 	if(header === -1){
 		return buffer.slice(4);
 	}else if(header === -2){
-		const packet = handleMultiplePackets(buffer, connection as Connection<ServerData>);
+		const packet = handleMultiplePackets(buffer, connection);
 		if(packet) return packetHandler(packet, connection);
 	}else{
 		if(connection.data.debug) debug('SERVER cannot parse multi-packet', buffer);
@@ -53,7 +50,7 @@ function packetHandler(buffer: Buffer, connection: Connection<Data>): Buffer | n
 	return null;
 }
 
-function handleMultiplePackets(buffer: Buffer, connection: Connection<ServerData>): Buffer | null {
+function handleMultiplePackets(buffer: Buffer, connection: Connection): Buffer | null {
 	if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
 		// only valid in the first packet
 		connection.data.multiPacketGoldSource = true;
@@ -160,13 +157,13 @@ function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 }
 // #endregion
 
-export default class Connection<T extends Data> {
-	constructor(data: T) {
+export default class Connection {
+	constructor(data: ServerData) {
 		this.data = data;
 	}
 	public socket!: Socket;
 	public readonly packetsQueues: Record<number, [MultiPacket, ...MultiPacket[]]> = {};
-	public readonly data: T;
+	public readonly data: ServerData;
 
 	public connect(): void {
 		this.socket = getSocket(this.data.ipFormat);
@@ -225,8 +222,7 @@ export default class Connection<T extends Data> {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {
-			this.send(command)
-				.catch(() => { /* do nothing */ });
+			this.send(command).catch(() => { /* do nothing */ });
 		}, this.data.timeout / 2)
 			.unref();
 
@@ -235,7 +231,7 @@ export default class Connection<T extends Data> {
 	}
 }
 
-export class PrivateConnection<T extends Data> extends Connection<T> {
+export class PrivateConnection extends Connection{
 	public connect(): Promise<void> {
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
 			.on('message', buffer => {
