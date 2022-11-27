@@ -33,7 +33,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	if(reader.byte() === 0x6D) return goldSourceServerInfo(reader);
 
-	// @ts-expect-error missing properties will be added later
+	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {
 		protocol: reader.byte(),
 		goldSource: false,
@@ -49,7 +49,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 		},
 		type: SERVER_TYPES[reader.char()] as ServerType || null,
 		OS: OPERATIVE_SYSTEMS[reader.char()] as OS,
-		visibility: reader.byte() ? 'private' : 'public',
+		hasPassword: reader.byte() === 1,
 		VAC: reader.byte() === 1,
 	};
 
@@ -103,7 +103,7 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 		OS: OPERATIVE_SYSTEMS[
 			reader.char().toLowerCase()
 		] as OS,
-		visibility: reader.byte() ? 'private' : 'public',
+		hasPassword: Boolean(reader.byte()),
 		mod: reader.byte() ? {
 			link: reader.string(),
 			downloadLink: reader.string(),
@@ -205,28 +205,38 @@ export function rules(buffer: Buffer): Rules {
 }
 
 // #region types
-type ServerType = ValueIn<typeof SERVER_TYPES>;
+type ServerType = ValueIn<typeof SERVER_TYPES> | null;
 type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
 
-export interface ServerInfo {
+export interface GoldSourceServerInfo {
 	address: string;
-	protocol: number;
-	goldSource: boolean;
 	name: string;
 	map: string;
 	folder: string;
 	game: string;
-	appID: number;
 	players: {
 		online: number;
 		max: number;
 		bots: number;
 	};
-	type: ServerType | null;
+	protocol: number;
+	goldSource: boolean;
+	type: ServerType;
 	OS: OS;
-	visibility: 'private' | 'public';
+	hasPassword: boolean;
+	mod: false | {
+		link: string;
+		downloadLink: string;
+		version: number;
+		size: number;
+		multiplayerOnly: boolean;
+		ownDLL: boolean;
+	};
 	VAC: boolean;
-	// EDF
+}
+
+export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
+	appID: number;
 	version?: string;
 	port?: number;
 	steamID?: bigint;
@@ -244,37 +254,10 @@ export interface TheShipServerInfo extends ServerInfo {
 	duration: number;
 }
 
-export interface GoldSourceServerInfo {
-	address: string;
-	name: string;
-	map: string;
-	folder: string;
-	game: string;
-	players: {
-		online: number;
-		max: number;
-		bots: number;
-	};
-	protocol: number;
-	goldSource: boolean;
-	type: ServerType;
-	OS: OS;
-	visibility: string;
-	mod: false | {
-		link: string;
-		downloadLink: string;
-		version: number;
-		size: number;
-		multiplayerOnly: boolean;
-		ownDLL: boolean;
-	};
-	VAC: boolean;
-}
-
 export type FinalServerInfo = ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
 
 /** Info from a player in the server. */
-interface Player {
+export interface Player {
 	/* Index of the player. */
 	index: number;
 	/** Name of the player. */
@@ -285,7 +268,7 @@ interface Player {
 	timeOnline: ReturnType<typeof parseTime>;
 }
 
-interface TheShipPlayer extends Player{
+export interface TheShipPlayer extends Player{
 	/** Player's deaths (Only for "the ship" servers). */
 	deaths: number;
 	/** Player's money (Only for "the ship" servers). */

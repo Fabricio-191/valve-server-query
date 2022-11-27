@@ -27,7 +27,6 @@ export interface RCONPacket {
 	body: string;
 }
 
-const LONG = ['cvarlist', 'status'] as const;
 export default class RCON extends EventEmitter{
 	constructor(options: RawOptions){
 		super();
@@ -54,8 +53,7 @@ export default class RCON extends EventEmitter{
 		await this.connection.send(makeCommand(ID, PacketType.Command, command));
 		const packet = await this.connection.awaitResponse(PacketType.CommandResponse, ID);
 
-		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-		if(packet.body.length > 500 || multiPacket || LONG.includes(command)){
+		if(packet.body.length > 500 || multiPacket || command === 'status' || command === 'cvarlist'){ // multipacket response
 			const ID2 = this._getID();
 			await this.connection.send(makeCommand(ID2, 2));
 

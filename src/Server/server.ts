@@ -157,7 +157,7 @@ export default class Server{
 		return response;
 	}
 
-	public async connect(): Promise<void> {
+	public async initialize(): Promise<void> {
 		if(this.isConnected){
 			throw new Error('Server: already connected.');
 		}
@@ -178,7 +178,7 @@ export default class Server{
 		this.isConnected = true;
 	}
 
-	public disconnect(): void {
+	public destroy(): void {
 		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
@@ -195,6 +195,26 @@ export default class Server{
 
 		connection.destroy();
 		return info;
+	}
+
+	public static async getPlayers(options: RawOptions): Promise<parsers.Players> {
+		const server = new Server(options);
+		await server.initialize();
+
+		const players = await server.getPlayers();
+		server.destroy();
+
+		return players;
+	}
+
+	public static async getRules(options: RawOptions): Promise<parsers.Rules> {
+		const server = new Server(options);
+		await server.initialize();
+
+		const rules = await server.getRules();
+		server.destroy();
+
+		return rules;
 	}
 }
 

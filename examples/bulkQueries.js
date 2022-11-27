@@ -39,6 +39,15 @@ async function getServerData(address){
 		.filter(result => result.status === 'fulfilled')
 		.map(result => result.value);
 
+	const errors = results
+		.filter(result => result.status === 'rejected')
+		.reduce((acc, result) => {
+			acc[result.reason] = (acc[result.reason] || 0) + 1;
+			return acc;
+		}, {});
+
+	console.log(errors);
+
 	console.log('Servers with succesful queries:', succesful.length);
 	console.log('Time elapsed:', Date.now() - start, 'ms');
 })()

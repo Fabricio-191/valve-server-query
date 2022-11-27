@@ -98,8 +98,7 @@ export function debug(
 	string: string,
 	thing?: Buffer
 ): void {
-	string = `\x1B[33m${string}\x1B[0m`;
-	if(thing instanceof Buffer){
+	if(thing){
 		const parts = Buffer.from(thing)
 			.toString('hex')
 			.match(/../g) as string[];
@@ -111,10 +110,10 @@ export function debug(
 		}>`.replace(/(?<!00 )00 00(?! 00)/g, '\x1B[31m00 00\x1B[00m');
 
 		// eslint-disable-next-line no-console
-		console.log(string, str, '\n');
+		console.log(`\x1B[33m${string}\x1B[0m`, str, '\n');
 	}else{
 		// eslint-disable-next-line no-console
-		console.log(string, '\n');
+		console.log(`\x1B[33m${string}\x1B[0m`, '\n');
 	}
 }
 

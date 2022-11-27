@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
-import { Server, RCON, MasterServer, type FinalServerInfo } from '../src';
+import { Server, RCON, MasterServer, FinalServerInfo } from '../src';
 import type { EventEmitter } from 'events';
 import { existsSync, writeFileSync } from 'fs';
 
@@ -43,7 +43,7 @@ function checkInfo(info: object): void {
 	}
 }
 
-describe.only('Server (unconnected socket)', () => {
+describe('Server ', () => {
 	it('static getInfo()', async () => {
 		const info = await Server.getInfo(options);
 
@@ -100,64 +100,13 @@ describe.only('Server (unconnected socket)', () => {
 	*/
 });
 
-describe('Server (connected socket)', () => {
-	const server = new Server(options, true);
-	it('connect', async function(){
-		this.slow(9000);
-		this.timeout(10000);
-
-		await server.connect();
-	});
-
-	it('getInfo()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		const info = await server.getInfo();
-
-		checkInfo(info);
-		result.server.getInfo = info;
-	});
-
-	it('getPlayers()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getPlayers = await server.getPlayers();
-	});
-
-	it('getRules()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getRules = await server.getRules();
-	});
-
-	it('getPing()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getPing = await server.getPing();
-	});
-
-	/*
-	it('lastPing', () => {
-		if(!server) throw new MyError('Server not connected');
-
-		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
-			throw new MyError('Server.lastPing is not a number');
-		}else if(server.lastPing <= -1){
-			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
-		}
-
-		result.server.lastPing = server.lastPing;
-	});
-	*/
-});
-
+/*
 
 const byteRegex = '(?:(?:[1-9]?\\d)|(?:1\\d\\d)|(?:2[0-4]\\d)|(?:25[0-5]))'; // 0 - 255
 const portRegex = '((?:[0-5]?\\d{1,4})|(?:6[0-4]\\d{3})|(?:65[0-4]\\d{2})|(?:655[0-2]\\d)|(?:6553[0-5]))'; // 0 - 65535
 
 const ipv4RegexWithPort = new RegExp(`^((?:${byteRegex}\\.){3}${byteRegex}):${portRegex}$`);
-
-/*
+*/
 
 const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
 
@@ -185,7 +134,6 @@ function checkIP(ip: unknown): void {
 	}
 }
 
-*/
 describe('MasterServer', () => {
 	it('query', async () => {
 		// eslint-disable-next-line new-cap
@@ -198,15 +146,11 @@ describe('MasterServer', () => {
 
 		if(!Array.isArray(IPs)){
 			throw new Error('ips is not an array');
-		}else if(IPs.length === 0){
-			throw new Error('ips is empty');
-		}else if(IPs.some(x => typeof x !== 'string')){
-			throw new Error('ips contains non-string values');
-		}else if(IPs.some(str => !ipv4RegexWithPort.test(str))){
-			throw new Error('ips contains invalid IPs');
-		}else if(Math.abs(IPs.length - 900) > 100){
+		}else if(Math.abs(IPs.length - 900) > 100){ // 900 ± 100
 			throw new Error('ips does not have ~900 servers');
 		}
+
+		IPs.forEach(checkIP);
 
 		result.MasterServer = IPs;
 	});
@@ -216,8 +160,10 @@ describe('MasterServer', () => {
 		this.timeout(15000);
 
 		const filter = new MasterServer.Filter()
-			.add('map', 'de_dust2')
+			.add('appid', 730)
 			.addFlag('linux')
+			.addFlag('dedicated')
+			.addFlag('password')
 			.addNOR(
 				new MasterServer.Filter()
 					.addFlag('secure')
@@ -231,26 +177,25 @@ describe('MasterServer', () => {
 			quantity: 1000,
 		});
 
-		const results = (await Promise.allSettled(IPs.map(address => {
+		const results = await Promise.allSettled(IPs.map(address => {
 			// eslint-disable-next-line @typescript-eslint/no-shadow
 			const [ip, port] = address.split(':') as [string, string];
 
-			const server = new Server({
+			return Server.getInfo({
 				ip,
 				port: parseInt(port),
 			});
-			return (async () => {
-				await server.connect();
-				return await server.getInfo();
-			})();
-		})))
-			.filter(x => x.status === 'fulfilled') as PromiseFulfilledResult<FinalServerInfo>[];
+		}))
 
 		const satisfiesFilter = results
+			.filter(x => x.status === 'fulfilled')
+			// @ts-expect-error 
 			.map(x => x.value)
-			.filter(x =>
+			.filter((x: FinalServerInfo) =>
+				x.appID === 730 &&
 				x.OS === 'linux' &&
-				x.map === 'de_dust2' &&
+				x.type === 'dedicated' &&
+				x.hasPassword &&
 				!x.VAC
 			)
 			.length;
@@ -335,11 +280,8 @@ describe('RCON', () => {
 });
 
 after(() => {
-	const path = existsSync('./test') ?
-		'./test/result.json' : './result.json';
-
 	writeFileSync(
-		path,
+		'./test/result.json',
 		JSON.stringify(
 			result,
 			(_, v: unknown) => {

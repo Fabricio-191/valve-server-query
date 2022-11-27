@@ -23,7 +23,7 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
 	if(!connection) return;
 
-	if(connection.data.debug) debug('recieved:', buffer);
+	if(connection.data.debug) debug('SERVER recieved:', buffer);
 
 	const packet = packetHandler(buffer, connection);
 	if(!packet) return;
@@ -72,8 +72,8 @@ function handleMultiplePackets(buffer: Buffer, connection: Connection): Buffer |
 
 	delete connection.packetsQueues[packet.ID];
 
-	// Checks that all the packets were parsed as goldsource
 	if(connection.data.multiPacketGoldSource){
+		// Checks that all the packets were parsed as goldsource
 		for(let i = 0; i < queue.length; i++){
 			const p = queue[i] as MultiPacket;
 
@@ -181,7 +181,7 @@ export default class Connection {
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('sent:', command);
+		if(this.data.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(

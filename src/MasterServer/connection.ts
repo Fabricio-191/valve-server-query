@@ -23,7 +23,7 @@ function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
 	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
 	if(!connection) return;
 
-	if(connection.data.debug) debug('recieved:', buffer);
+	if(connection.data.debug) debug('MASTERSERVER recieved:', buffer);
 
 	const header = buffer.readInt32LE();
 	if(header !== -1){
@@ -56,7 +56,7 @@ export default class Connection {
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('sent:', command);
+		if(this.data.debug) debug('MASTERSERVER sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(
