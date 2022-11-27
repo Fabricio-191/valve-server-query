@@ -17,9 +17,10 @@
 	<img src="https://github.com/Fabricio-191/simplest.db/actions/workflows/node.js.yml/badge.svg">
 </a>
 
-</br>  
+</br>
 
-This module allows you to: 
+This module allows you to:
+
 * Easily make queries to servers running valve games
 * Make queries to valve master servers
 * Use a remote console to control your server remotely

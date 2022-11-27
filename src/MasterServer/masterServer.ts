@@ -7,6 +7,7 @@ export default async function MasterServer(options: RawOptions = {}): Promise<st
 	const data = await parseData(options);
 	const connection = new Connection(data);
 	connection.connect();
+
 	const servers: string[] = [];
 	let last = '0.0.0.0:0';
 

@@ -101,7 +101,7 @@ interface MultiPacket {
 	// bzip?: true;
 }
 
-const MPS_IDS = [ 215, 17550, 17700, 240 ] as const;
+const MPS_IDS = [ 215, 240, 17550, 17700 ] as const;
 function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
@@ -166,6 +166,10 @@ export default class Connection {
 	public readonly data: ServerData;
 
 	public connect(): void {
+		if(connections.has(this.data.address)){
+			throw new Error('Already connected');
+		}
+
 		this.socket = getSocket(this.data.ipFormat);
 		this.socket.setMaxListeners(this.socket.getMaxListeners() + 10);
 		connections.set(this.data.address, this);
@@ -231,6 +235,7 @@ export default class Connection {
 	}
 }
 
+/*
 export class PrivateConnection extends Connection{
 	public connect(): Promise<void> {
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
@@ -273,3 +278,4 @@ export class PrivateConnection extends Connection{
 		});
 	}
 }
+*/

@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /*
 Example of how to make multiple queries to multiple servers, all at the same time
 */

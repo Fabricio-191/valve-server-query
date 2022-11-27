@@ -1,6 +1,5 @@
 /* eslint-disable new-cap */
-import { debug } from '../utils';
-import Connection, { PrivateConnection } from './connection';
+import Connection from './connection';
 import * as parsers from './serverParsers';
 import { checkOptions, type RawOptions, type ServerData } from './options';
 export type { FinalServerInfo } from './serverParsers';
@@ -28,7 +27,7 @@ const COMMANDS = {
 	INFO_BASE: Buffer.from([
 		...FFFFFFFF, RequestType.INFO,
 		...Buffer.from('Source Engine Query\0'),
-	]),
+	]), // Buffer.from('\xFF\xFF\xFF\xFF\x54Source Engine Query\0')
 	INFO(key: Buffer | [] = []){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},
@@ -39,14 +38,10 @@ const COMMANDS = {
 };
 
 export default class Server{
-	constructor(options: RawOptions, privateConnection = false){
+	constructor(options: RawOptions){
 		// @ts-expect-error data is incomplete at this point
 		this.data = options;
-		if(privateConnection){
-			this.connection = new PrivateConnection(this.data);
-		}else{
-			this.connection = new Connection(this.data);
-		}
+		this.connection = new Connection(this.data);
 	}
 	private readonly connection: Connection;
 	public data: ServerData;
@@ -170,7 +165,6 @@ export default class Server{
 		this.connection.connect();
 
 		const info = await aloneGetInfo(this.connection);
-		if(this.data.debug) debug('SERVER connected');
 
 		Object.assign(this.data, {
 			info: {
