@@ -1,7 +1,7 @@
 import { createConnection, type Socket } from 'net';
 import { BufferReader, debug } from '../utils';
 import type { RCONPacket, PacketType } from './RCON';
-import type { Data } from './options';
+import type { RCONData } from '../options';
 
 function parseRCONPacket(buffer: Buffer): RCONPacket {
 	const reader = new BufferReader(buffer);
@@ -16,7 +16,7 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 }
 
 export default class Connection{
-	constructor(data: Data){
+	constructor(data: RCONData){
 		this.data = data;
 
 		this.socket = createConnection(data.port, data.ip)
@@ -54,7 +54,7 @@ export default class Connection{
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 	}
 	public socket: Socket;
-	public data: Data;
+	public data: RCONData;
 	public _connected: Promise<unknown> | null;
 
 	public remaining = 0;

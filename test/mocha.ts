@@ -2,13 +2,11 @@
 /* eslint-env mocha */
 import { Server, RCON, MasterServer, FinalServerInfo } from '../src';
 import type { EventEmitter } from 'events';
-import { existsSync, writeFileSync } from 'fs';
-
+import { writeFileSync } from 'fs';
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '85.190.155.139',
-	port: 27015,
+	ip: '213.239.207.78:33035',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -43,65 +41,7 @@ function checkInfo(info: object): void {
 	}
 }
 
-describe('Server ', () => {
-	it('static getInfo()', async () => {
-		const info = await Server.getInfo(options);
-
-		checkInfo(info);
-	});
-
-	const server = new Server(options);
-	it('connect', async function(){
-		this.slow(9000);
-		this.timeout(10000);
-
-		await server.connect();
-	});
-
-	it('getInfo()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		const info = await server.getInfo();
-
-		checkInfo(info);
-		result.server.getInfo = info;
-	});
-
-	it('getPlayers()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getPlayers = await server.getPlayers();
-	});
-
-	it('getRules()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getRules = await server.getRules();
-	});
-
-	it('getPing()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getPing = await server.getPing();
-	});
-
-	/*
-	it('lastPing', () => {
-		if(!server) throw new MyError('Server not connected');
-
-		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
-			throw new MyError('Server.lastPing is not a number');
-		}else if(server.lastPing <= -1){
-			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
-		}
-
-		result.server.lastPing = server.lastPing;
-	});
-	*/
-});
-
 /*
-
 const byteRegex = '(?:(?:[1-9]?\\d)|(?:1\\d\\d)|(?:2[0-4]\\d)|(?:25[0-5]))'; // 0 - 255
 const portRegex = '((?:[0-5]?\\d{1,4})|(?:6[0-4]\\d{3})|(?:65[0-4]\\d{2})|(?:655[0-2]\\d)|(?:6553[0-5]))'; // 0 - 65535
 
@@ -206,10 +146,86 @@ describe('MasterServer', () => {
 	});
 });
 
+describe('Server ', () => {
+	it('static getInfo()', async () => {
+		const info = await Server.getInfo(options);
+
+		checkInfo(info);
+	});
+
+	const server = new Server();
+	it('connect', async function(){
+		this.slow(9000);
+		this.timeout(10000);
+
+		await server.connect(options);
+	});
+
+	it('getInfo()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		const info = await server.getInfo();
+
+		checkInfo(info);
+		result.server.getInfo = info;
+	});
+
+	it('getPlayers()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getPlayers = await server.getPlayers();
+	});
+
+	it('getRules()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getRules = await server.getRules();
+	});
+
+	it('getPing()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getPing = await server.getPing();
+	});
+
+	it('lastPing', () => {
+		if(!server) throw new MyError('Server not connected');
+
+		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
+			throw new MyError('Server.lastPing is not a number');
+		}else if(server.lastPing <= -1){
+			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
+		}
+
+		result.server.lastPing = server.lastPing;
+	});
+
+	it('should work in random servers', async function(){
+		this.slow(20000);
+		this.timeout(30000);
+
+		for(const address of result.MasterServer){
+			const [ip, port] = address.split(':') as [string, string];
+
+			const server = new Server();
+
+			await server.connect({
+				ip,
+				port: parseInt(port),
+				timeout: 10000,
+			});
+
+			const info = await server.getInfo();
+			checkInfo(info);
+		}
+	});
+});
+
+
 describe('RCON', () => {
-	const rcon = new RCON(options);
+	const rcon = new RCON();
 	it('connect and authenticate', async () => {
-		await rcon.connect();
+		await rcon.connect(options);
 	});
 
 	it("exec('sv_gravity') (single packet response)", async () => {

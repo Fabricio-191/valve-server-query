@@ -1,7 +1,7 @@
 import { debug, BufferReader } from '../utils';
 import { createSocket, type Socket, type RemoteInfo } from 'dgram';
 
-import type { ServerData } from './options';
+import type { ServerData } from '../options';
 
 const connections = new Map<string, Connection>();
 const sockets: Record<4 | 6, Socket | null> = {
@@ -222,16 +222,22 @@ export default class Connection {
 		});
 	}
 
+	public lastPing = -1;
 	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
 		await this.send(command);
-
+		
+		const start = Date.now();
 		const timeout = setTimeout(() => {
 			this.send(command).catch(() => { /* do nothing */ });
 		}, this.data.timeout / 2)
 			.unref();
 
-		return await this.awaitResponse(responseHeaders)
+		const buffer = await this.awaitResponse(responseHeaders)
 			.finally(() => clearTimeout(timeout));
+
+		this.lastPing = Date.now() - start;
+
+		return buffer;
 	}
 }
 

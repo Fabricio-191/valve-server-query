@@ -1,10 +1,10 @@
 import { BufferWriter, BufferReader } from '../utils';
 import Connection from './connection';
 import Filter from './filter';
-import { parseData, type RawOptions } from './options';
+import { parseMasterServerOptions, type RawMasterServerOptions } from '../options';
 
-export default async function MasterServer(options: RawOptions = {}): Promise<string[]> {
-	const data = await parseData(options);
+export default async function MasterServer(options: RawMasterServerOptions = {}): Promise<string[]> {
+	const data = await parseMasterServerOptions(options);
 	const connection = new Connection(data);
 	connection.connect();
 

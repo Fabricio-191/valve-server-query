@@ -1,57 +1,42 @@
 import { debug } from '../utils';
-import { createSocket, type Socket, type RemoteInfo } from 'dgram';
+import { createSocket } from 'dgram';
 
-import type { MasterServerData } from './options';
+import type { MasterServerData } from '../options';
 
 const connections = new Map<string, Connection>();
-const sockets: Record<4 | 6, Socket | null> = {
-	4: null,
-	6: null,
-};
-
-function getSocket(ipFormat: 4 | 6): Socket {
-	if(sockets[ipFormat] !== null) return sockets[ipFormat] as Socket;
-
-	sockets[ipFormat] = createSocket(`udp${ipFormat}`)
-		.on('message', handleMessage)
-		.unref();
-
-	return sockets[ipFormat]!;
-}
-
-function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
-	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
-	if(!connection) return;
-
-	if(connection.data.debug) debug('MASTERSERVER recieved:', buffer);
-
-	const header = buffer.readInt32LE();
-	if(header !== -1){
-		if(header === -2){
-			throw new Error('Multi-packet not supported');
-		}else{
-			throw new Error('Invalid packet');
+const socket = createSocket('udp4')
+	.on('message', (buffer, rinfo) => {
+		const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
+		if(!connection) return;
+	
+		if(connection.data.debug) debug('MASTERSERVER recieved:', buffer);
+	
+		const header = buffer.readInt32LE();
+		if(header !== -1){
+			if(header === -2){
+				throw new Error('Multi-packet shouldn\'t happen in master servers wtf are u doing ?');
+			}else{
+				throw new Error('Invalid packet');
+			}
 		}
-	}
-
-	connection.socket.emit('packet', buffer.slice(4));
-}
+	
+		socket.emit('packet', buffer.slice(4));
+	})
+	.unref();
 
 export default class Connection {
 	constructor(data: MasterServerData) {
 		this.data = data;
 	}
-	public socket!: Socket;
 	public readonly data: MasterServerData;
 
 	public connect(): void {
-		this.socket = getSocket(this.data.ipFormat);
-		this.socket.setMaxListeners(this.socket.getMaxListeners() + 10);
+		socket.setMaxListeners(socket.getMaxListeners() + 10);
 		connections.set(this.data.address, this);
 	}
 
 	public destroy(): void {
-		this.socket.setMaxListeners(this.socket.getMaxListeners() - 10);
+		socket.setMaxListeners(socket.getMaxListeners() - 10);
 		connections.delete(this.data.address);
 	}
 
@@ -59,7 +44,7 @@ export default class Connection {
 		if(this.data.debug) debug('MASTERSERVER sent:', command);
 
 		return new Promise((res, rej) => {
-			this.socket.send(
+			socket.send(
 				Buffer.from(command),
 				this.data.port,
 				this.data.ip,
@@ -75,8 +60,8 @@ export default class Connection {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
-				this.socket.off('packet', onPacket);
-				this.socket.off('error', onError);
+				socket.off('packet', onPacket);
+				socket.off('error', onError);
 				clearTimeout(timeout);
 				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
@@ -92,8 +77,8 @@ export default class Connection {
 
 			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
 
-			this.socket.on('packet', onPacket);
-			this.socket.on('error', onError);
+			socket.on('packet', onPacket);
+			socket.on('error', onError);
 		});
 	}
 

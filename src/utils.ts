@@ -1,5 +1,23 @@
 import { promises as dns } from 'dns';
-import { isIP } from 'net';
+
+export async function resolveHostname(string: string): Promise<{
+	ipFormat: 4 | 6;
+	ip: string;
+}> {
+	try{
+		const r = await dns.lookup(string, { verbatim: false });
+		if(r.family !== 4 && r.family !== 6){
+			throw Error('The IP address is not IPv4 or IPv6');
+		}
+
+		return {
+			ipFormat: r.family,
+			ip: r.address,
+		};
+	}catch(e){
+		throw Error("'ip' is not a valid IP address or hostname");
+	}
+}
 
 export type ValueIn<T> = T[keyof T];
 
@@ -114,30 +132,5 @@ export function debug(
 	}else{
 		// eslint-disable-next-line no-console
 		console.log(`\x1B[33m${string}\x1B[0m`, '\n');
-	}
-}
-
-export async function resolveHostname(string: string): Promise<{
-	ipFormat: 4 | 6;
-	ip: string;
-}> {
-	const ipFormat = isIP(string) as 0 | 4 | 6;
-	if(ipFormat !== 0) return {
-		ipFormat,
-		ip: string,
-	};
-
-	try{
-		const r = await dns.lookup(string, { verbatim: false });
-		if(r.family !== 4 && r.family !== 6){
-			throw Error('The IP address is not IPv4 or IPv6');
-		}
-
-		return {
-			ipFormat: r.family,
-			ip: r.address,
-		};
-	}catch(e){
-		throw Error("'ip' is not a valid IP address or hostname");
 	}
 }

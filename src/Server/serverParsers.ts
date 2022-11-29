@@ -1,5 +1,5 @@
 import { BufferReader, type ValueIn } from '../utils';
-import type { ServerData } from './options';
+import type { ServerData } from '../options';
 
 // #region constants
 const OPERATIVE_SYSTEMS = {
@@ -68,7 +68,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	const EDF = reader.byte();
 
 	// 1111 0001
-	if(EDF & 0x80) info.port = reader.short(true);
+	if(EDF & 0x80) info.gamePort = reader.short(true);
 	if(EDF & 0x10) info.steamID = reader.bigUInt();
 	if(EDF & 0x40) info.tv = {
 		port: reader.short(),
@@ -238,7 +238,7 @@ export interface GoldSourceServerInfo {
 export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
 	appID: number;
 	version?: string;
-	port?: number;
+	gamePort?: number;
 	steamID?: bigint;
 	tv?: {
 		port: number;

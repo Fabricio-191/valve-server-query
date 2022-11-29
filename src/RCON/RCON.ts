@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { debug, BufferWriter } from '../utils';
 import Connection from './connection';
-import { parseData, type RawOptions, type Data } from './options';
+import { parseRCONOptions, type RawRCONOptions } from '../options';
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 	return new BufferWriter()
@@ -28,13 +28,10 @@ export interface RCONPacket {
 }
 
 export default class RCON extends EventEmitter{
-	constructor(options: RawOptions){
+	constructor(){
 		super();
-		// @ts-expect-error data is incomplete at this point
-		this.options = options;
 	}
 	public connection!: Connection;
-	private readonly options: Data;
 	private _auth: Promise<void> | null = null;
 
 	public async _ready(): Promise<void> {
@@ -79,8 +76,8 @@ export default class RCON extends EventEmitter{
 		this.connection.socket.destroy();
 	}
 
-	public async connect(): Promise<void> {
-		const data = await parseData(this.options);
+	public async connect(options: RawRCONOptions): Promise<void> {
+		const data = await parseRCONOptions(options);
 
 		if(data.debug) debug('RCON connecting...');
 		const connection = this.connection = new Connection(data);

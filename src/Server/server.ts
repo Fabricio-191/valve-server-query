@@ -1,7 +1,7 @@
 /* eslint-disable new-cap */
 import Connection from './connection';
 import * as parsers from './serverParsers';
-import { checkOptions, type RawOptions, type ServerData } from './options';
+import { parseServerOptions, type RawServerOptions, type ServerData } from '../options';
 export type { FinalServerInfo } from './serverParsers';
 
 enum RequestType {
@@ -22,7 +22,7 @@ enum ResponseType {
 }
 
 const FFFFFFFF = [0xFF, 0xFF, 0xFF, 0xFF] as const;
-const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
+const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ];
 const COMMANDS = {
 	INFO_BASE: Buffer.from([
 		...FFFFFFFF, RequestType.INFO,
@@ -38,19 +38,17 @@ const COMMANDS = {
 };
 
 export default class Server{
-	constructor(options: RawOptions){
-		// @ts-expect-error data is incomplete at this point
-		this.data = options;
-		this.connection = new Connection(this.data);
-	}
-	private readonly connection: Connection;
-	public data: ServerData;
+	private connection!: Connection;
+	public data!: ServerData;
 	public isConnected = false;
 
+	public get lastPing(): number {
+		if(!this.isConnected) throw new Error('Not connected');
+		return this.connection.lastPing;
+	}
+
 	public async getInfo(): Promise<parsers.FinalServerInfo> {
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
+		if(!this.isConnected) throw new Error('Not connected');
 
 		let command = COMMANDS.INFO();
 		if(this.data.info.challenge){
@@ -73,9 +71,7 @@ export default class Server{
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
+		if(!this.isConnected) throw new Error('Not connected');
 
 		const key = await this.challenge(RequestType.PLAYERS);
 
@@ -96,9 +92,7 @@ export default class Server{
 	}
 
 	public async getRules(): Promise<parsers.Rules>{
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
+		if(!this.isConnected) throw new Error('Not connected');
 
 		const key = await this.challenge(RequestType.RULES);
 
@@ -119,9 +113,7 @@ export default class Server{
 	}
 
 	public async getPing(): Promise<number> {
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
+		if(!this.isConnected) throw new Error('Not connected');
 
 		if(this.data.enableWarns){
 			// eslint-disable-next-line no-console
@@ -139,12 +131,9 @@ export default class Server{
 	}
 
 	public async challenge(code: number): Promise<Buffer> {
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
+		if(!this.isConnected) throw new Error('Not connected');
 
 		const command = COMMANDS.CHALLENGE();
-		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		if(!CHALLENGE_IDS.includes(this.data.appID)){
 			command[4] = code;
 		}
@@ -157,11 +146,14 @@ export default class Server{
 		return response;
 	}
 
-	public async initialize(): Promise<void> {
+	public async connect(options: RawServerOptions): Promise<this> {
 		if(this.isConnected){
 			throw new Error('Server: already connected.');
 		}
-		await checkOptions(this.data);
+		
+		this.data = await parseServerOptions(options);;
+		this.connection = new Connection(this.data);
+		
 		this.connection.connect();
 
 		const info = await aloneGetInfo(this.connection);
@@ -176,6 +168,7 @@ export default class Server{
 		});
 
 		this.isConnected = true;
+		return this;
 	}
 
 	public destroy(): void {
@@ -186,10 +179,10 @@ export default class Server{
 		this.isConnected = false;
 	}
 
-	public static async getInfo(options: RawOptions): Promise<parsers.FinalServerInfo> {
-		await checkOptions(options);
+	public static async getInfo(options: RawServerOptions): Promise<parsers.FinalServerInfo> {
+		const data = await parseServerOptions(options);
 
-		const connection = new Connection(options as ServerData);
+		const connection = new Connection(data);
 		connection.connect();
 		const info = await aloneGetInfo(connection);
 
@@ -197,9 +190,9 @@ export default class Server{
 		return info;
 	}
 
-	public static async getPlayers(options: RawOptions): Promise<parsers.Players> {
-		const server = new Server(options);
-		await server.initialize();
+	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
+		const server = new Server();
+		await server.connect(options);
 
 		const players = await server.getPlayers();
 		server.destroy();
@@ -207,9 +200,9 @@ export default class Server{
 		return players;
 	}
 
-	public static async getRules(options: RawOptions): Promise<parsers.Rules> {
-		const server = new Server(options);
-		await server.initialize();
+	public static async getRules(options: RawServerOptions): Promise<parsers.Rules> {
+		const server = new Server();
+		await server.connect(options);
 
 		const rules = await server.getRules();
 		server.destroy();
