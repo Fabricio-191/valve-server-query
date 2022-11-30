@@ -221,7 +221,6 @@ describe('Server ', () => {
 	});
 });
 
-
 describe('RCON', () => {
 	const rcon = new RCON();
 	it('connect and authenticate', async () => {
@@ -294,6 +293,10 @@ describe('RCON', () => {
 		await rcon.authenticate('cosas');
 	});
 });
+
+describe('options', () => {
+	
+})
 
 after(() => {
 	writeFileSync(

@@ -13,7 +13,7 @@ const REGIONS = {
 	OTHER: 0xFF,
 } as const;
 
-
+// #region data types
 interface BaseData {
 	address: string;
 
@@ -44,7 +44,9 @@ export interface ServerData extends BaseData {
 		goldSource: boolean;
 	};
 }
+// #endregion
 
+// #region raw options
 interface BaseRawOptions {
 	ip?: string;
 	port?: number | string;
@@ -53,19 +55,16 @@ interface BaseRawOptions {
 	enableWarns?: boolean;
 }
 
-export interface RawMasterServerOptions extends BaseRawOptions {
+export type RawRCONOptions = BaseRawOptions & { password: string };
+export type RawServerOptions = BaseRawOptions | string;;
+export type RawMasterServerOptions = (BaseRawOptions & {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
 	filter?: Filter;
-}
+}) | string;
+// #endregion
 
-export interface RawRCONOptions extends BaseRawOptions {
-	password: string;
-}
-
-export type RawServerOptions = BaseRawOptions;
-
-
+// #region options
 const DEFAULT_OPTIONS = {
 	ip: '127.0.0.1',
 	port: 27015,
@@ -96,7 +95,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	region: 'OTHER',
 	filter: new Filter(),
 } as const;
-
+// #endregion
 
 async function parseBaseOptions<T>(options: T & Required<BaseRawOptions>): Promise<BaseData & T> {
 	if(options.ip.includes(':')){
@@ -133,6 +132,8 @@ async function parseBaseOptions<T>(options: T & Required<BaseRawOptions>): Promi
 }
 
 export function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
+	if(typeof options === 'string') options = { ip: options };
+
 	return parseBaseOptions({
 		...DEFAULT_SERVER_OPTIONS,
 		...options,
@@ -140,6 +141,8 @@ export function parseServerOptions(options: RawServerOptions): Promise<ServerDat
 }
 
 export async function parseMasterServerOptions(options: RawMasterServerOptions): Promise<MasterServerData> {
+	if(typeof options === 'string') options = { ip: options };
+
 	const parsedOptions = await parseBaseOptions({
 		...DEFAULT_MASTER_SERVER_OPTIONS,
 		...options,
@@ -162,7 +165,6 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 		filter: parsedOptions.filter.toString(),
 	};
 }
-
 
 export async function parseRCONOptions(options: RawRCONOptions): Promise<RCONData> {
 	const parsedOptions = await parseBaseOptions({

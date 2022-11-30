@@ -1,8 +1,7 @@
 /* eslint-disable new-cap */
 import Connection from './connection';
-import * as parsers from './serverParsers';
+import * as parsers from './parsers';
 import { parseServerOptions, type RawServerOptions, type ServerData } from '../options';
-export type { FinalServerInfo } from './serverParsers';
 
 enum RequestType {
 	INFO = 0x54,
@@ -27,7 +26,7 @@ const COMMANDS = {
 	INFO_BASE: Buffer.from([
 		...FFFFFFFF, RequestType.INFO,
 		...Buffer.from('Source Engine Query\0'),
-	]), // Buffer.from('\xFF\xFF\xFF\xFF\x54Source Engine Query\0')
+	]),
 	INFO(key: Buffer | [] = []){
 		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
 	},

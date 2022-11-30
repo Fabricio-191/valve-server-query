@@ -9,7 +9,7 @@ export type {
 	FinalServerInfo,
 	Player,
 	TheShipPlayer
-} from './Server/serverParsers';
+} from './Server/parsers';
 
 export { Server, MasterServer, RCON };
 export default {
