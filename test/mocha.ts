@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
-import { Server, RCON, MasterServer, FinalServerInfo } from '../src';
+import type { FinalServerInfo } from '../src';
+import { Server, RCON, MasterServer } from '../src';
 import type { EventEmitter } from 'events';
 import { writeFileSync } from 'fs';
 
@@ -125,12 +127,12 @@ describe('MasterServer', () => {
 				ip,
 				port: parseInt(port),
 			});
-		}))
+		}));
 
 		const satisfiesFilter = results
 			.filter(x => x.status === 'fulfilled')
-			// @ts-expect-error 
-			.map(x => x.value)
+			// @ts-expect-error promise are fullfiled
+			.map(x => x.value as FinalServerInfo)
 			.filter((x: FinalServerInfo) =>
 				x.appID === 730 &&
 				x.OS === 'linux' &&
@@ -295,8 +297,8 @@ describe('RCON', () => {
 });
 
 describe('options', () => {
-	
-})
+
+});
 
 after(() => {
 	writeFileSync(

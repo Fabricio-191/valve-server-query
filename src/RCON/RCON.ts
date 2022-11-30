@@ -28,9 +28,6 @@ export interface RCONPacket {
 }
 
 export default class RCON extends EventEmitter{
-	constructor(){
-		super();
-	}
 	public connection!: Connection;
 	private _auth: Promise<void> | null = null;
 

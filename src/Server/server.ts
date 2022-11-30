@@ -149,10 +149,10 @@ export default class Server{
 		if(this.isConnected){
 			throw new Error('Server: already connected.');
 		}
-		
-		this.data = await parseServerOptions(options);;
+
+		this.data = await parseServerOptions(options);
 		this.connection = new Connection(this.data);
-		
+
 		this.connection.connect();
 
 		const info = await aloneGetInfo(this.connection);

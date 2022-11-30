@@ -225,7 +225,7 @@ export default class Connection {
 	public lastPing = -1;
 	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
 		await this.send(command);
-		
+
 		const start = Date.now();
 		const timeout = setTimeout(() => {
 			this.send(command).catch(() => { /* do nothing */ });

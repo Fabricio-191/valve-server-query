@@ -47,7 +47,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			max: reader.byte(),
 			bots: reader.byte(),
 		},
-		type: SERVER_TYPES[reader.char()] as ServerType || null,
+		type: SERVER_TYPES[reader.char()] as ServerType ?? null,
 		OS: OPERATIVE_SYSTEMS[reader.char()] as OS,
 		hasPassword: reader.byte() === 1,
 		VAC: reader.byte() === 1,
@@ -246,7 +246,7 @@ export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
 	};
 	keywords?: string[];
 	gameID?: bigint;
-}
+};
 
 export interface TheShipServerInfo extends ServerInfo {
 	mode: ValueIn<typeof THE_SHIP_MODES>;

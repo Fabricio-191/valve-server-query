@@ -8,9 +8,9 @@ const socket = createSocket('udp4')
 	.on('message', (buffer, rinfo) => {
 		const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
 		if(!connection) return;
-	
+
 		if(connection.data.debug) debug('MASTERSERVER recieved:', buffer);
-	
+
 		const header = buffer.readInt32LE();
 		if(header !== -1){
 			if(header === -2){
@@ -19,7 +19,7 @@ const socket = createSocket('udp4')
 				throw new Error('Invalid packet');
 			}
 		}
-	
+
 		socket.emit('packet', buffer.slice(4));
 	})
 	.unref();

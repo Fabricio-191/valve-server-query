@@ -56,12 +56,12 @@ interface BaseRawOptions {
 }
 
 export type RawRCONOptions = BaseRawOptions & { password: string };
-export type RawServerOptions = BaseRawOptions | string;;
-export type RawMasterServerOptions = (BaseRawOptions & {
+export type RawServerOptions = BaseRawOptions | string;
+export type RawMasterServerOptions = string | BaseRawOptions & {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
 	filter?: Filter;
-}) | string;
+};
 // #endregion
 
 // #region options
@@ -97,7 +97,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 } as const;
 // #endregion
 
-async function parseBaseOptions<T>(options: T & Required<BaseRawOptions>): Promise<BaseData & T> {
+async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
 	if(options.ip.includes(':')){
 		[options.ip, options.port] = options.ip.split(':') as [string, string];
 	}
@@ -127,8 +127,8 @@ async function parseBaseOptions<T>(options: T & Required<BaseRawOptions>): Promi
 		...options,
 		ip,
 		ipFormat,
-		address: ip + ':' + options.port,
-	}
+		address: `${ip}:${options.port}`,
+	};
 }
 
 export function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
@@ -147,7 +147,7 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 		...DEFAULT_MASTER_SERVER_OPTIONS,
 		...options,
 	});
-	
+
 	if(typeof parsedOptions.quantity !== 'number' || isNaN(parsedOptions.quantity) || parsedOptions.quantity < 0){
 		throw Error("'quantity' should be a number greater than zero");
 	}else if(typeof parsedOptions.region !== 'string'){

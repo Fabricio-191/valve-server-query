@@ -16,7 +16,7 @@ client.on('ready', async () => {
 	await server.connect();
 
 	const data = await server.getInfo();
-	Object.assign(serverData, data)
+	Object.assign(serverData, data);
 
 	serverData.battlemetrics = await getBattlemetricsURL();
 });

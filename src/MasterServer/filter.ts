@@ -88,4 +88,7 @@ export default class Filter{
 
 		return this;
 	}
+	public toString(): string {
+		return this.filters.join('');
+	}
 }
