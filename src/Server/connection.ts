@@ -1,35 +1,7 @@
 import { debug, BufferReader } from '../utils';
-import { createSocket, type Socket, type RemoteInfo } from 'dgram';
+import { createSocket, type Socket } from 'dgram';
 
 import type { ServerData } from '../options';
-
-const connections = new Map<string, Connection>();
-const sockets: Record<4 | 6, Socket | null> = {
-	4: null,
-	6: null,
-};
-
-function getSocket(ipFormat: 4 | 6): Socket {
-	if(sockets[ipFormat] !== null) return sockets[ipFormat] as Socket;
-
-	sockets[ipFormat] = createSocket(`udp${ipFormat}`)
-		.on('message', handleMessage)
-		.unref();
-
-	return sockets[ipFormat]!;
-}
-
-function handleMessage(buffer: Buffer, rinfo: RemoteInfo): void {
-	const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
-	if(!connection) return;
-
-	if(connection.data.debug) debug('SERVER recieved:', buffer);
-
-	const packet = packetHandler(buffer, connection);
-	if(!packet) return;
-
-	connection.socket.emit('packet', packet);
-}
 
 // #region packetHandler
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | null {
@@ -135,10 +107,10 @@ function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 	}
 
 	if(info.packets.current === 0 && info.ID & 0x80000000){
-		// eslint-disable-next-line no-console
-		console.warn('Bzip decompression is for old engines and it could be supported but i didn\'t found any server to test it, so if you need it you could hand me the ip and port of the server so i can add it and test it');
-
 		throw new Error('BZip is not supported');
+		/*
+		I have queried almost every server possible and I have never seen a server that uses bzip.
+		*/
 
 		/*
 		info.bzip = {
@@ -160,24 +132,31 @@ function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 export default class Connection {
 	constructor(data: ServerData) {
 		this.data = data;
+		this.socket = createSocket(`udp${this.data.ipFormat}`)
+			.on('message', buffer => {
+				if(buffer.length === 0) return;
+
+				if(this.data.debug) debug('SERVER recieved:', buffer);
+
+				const packet = packetHandler(buffer, this);
+				if(!packet) return;
+
+				this.socket.emit('packet', packet);
+			})
+			.unref();
 	}
-	public socket!: Socket;
+	public socket: Socket;
 	public readonly packetsQueues: Record<number, [MultiPacket, ...MultiPacket[]]> = {};
 	public readonly data: ServerData;
 
-	public connect(): void {
-		if(connections.has(this.data.address)){
-			throw new Error('Already connected');
-		}
-
-		this.socket = getSocket(this.data.ipFormat);
-		this.socket.setMaxListeners(this.socket.getMaxListeners() + 10);
-		connections.set(this.data.address, this);
-	}
-
-	public destroy(): void {
-		this.socket.setMaxListeners(this.socket.getMaxListeners() - 10);
-		connections.delete(this.data.address);
+	public connect(): Promise<void> {
+		return new Promise((res, rej) => {
+			// @ts-expect-error asdasdasd
+			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
+				if(err) return rej(err);
+				res();
+			});
+		});
 	}
 
 	public async send(command: Buffer): Promise<void> {
@@ -186,8 +165,6 @@ export default class Connection {
 		return new Promise((res, rej) => {
 			this.socket.send(
 				Buffer.from(command),
-				this.data.port,
-				this.data.ip,
 				err => {
 					if(err) return rej(err);
 					res();
@@ -240,48 +217,3 @@ export default class Connection {
 		return buffer;
 	}
 }
-
-/*
-export class PrivateConnection extends Connection{
-	public connect(): Promise<void> {
-		this.socket = createSocket(`udp${this.data.ipFormat}`)
-			.on('message', buffer => {
-				if(buffer.length === 0) return;
-
-				if(this.data.debug) debug('SERVER recieved:', buffer);
-
-				const packet = packetHandler(buffer, this);
-				if(!packet) return;
-
-				this.socket.emit('packet', packet);
-			})
-			.unref();
-
-		return new Promise((res, rej) => {
-			// @ts-expect-error asdasdasd
-			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
-				if(err) return rej(err);
-				res();
-			});
-		});
-	}
-
-	public destroy(): void {
-		this.socket.close();
-	}
-
-	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('SERVER sent:', command);
-
-		return new Promise((res, rej) => {
-			this.socket.send(
-				Buffer.from(command),
-				err => {
-					if(err) return rej(err);
-					res();
-				}
-			);
-		});
-	}
-}
-*/

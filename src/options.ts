@@ -1,7 +1,7 @@
 import { type ValueIn, resolveHostname } from './utils';
 import Filter from './MasterServer/filter';
 
-const REGIONS = {
+export const REGIONS = {
 	US_EAST: 0,
 	US_WEST: 1,
 	SOUTH_AMERICA: 2,
@@ -147,6 +147,10 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 		...DEFAULT_MASTER_SERVER_OPTIONS,
 		...options,
 	});
+
+	if(parsedOptions.quantity === 'all'){
+		parsedOptions.quantity = Infinity;
+	}
 
 	if(typeof parsedOptions.quantity !== 'number' || isNaN(parsedOptions.quantity) || parsedOptions.quantity < 0){
 		throw Error("'quantity' should be a number greater than zero");

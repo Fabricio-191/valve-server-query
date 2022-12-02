@@ -297,7 +297,7 @@ describe('RCON', () => {
 });
 
 describe('options', () => {
-
+	
 });
 
 after(() => {
@@ -332,4 +332,15 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 
 		obj.on(event, end);
 	});
+}
+
+async function shouldThrowError(fn: () => unknown, error: unknown): Promise<void> {
+	try{
+		await fn();
+	}catch(e){
+		if(e.message !== error) throw e;
+		return;
+	}
+
+	throw new Error('Error not thrown');
 }

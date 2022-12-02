@@ -4,19 +4,22 @@ export async function resolveHostname(string: string): Promise<{
 	ipFormat: 4 | 6;
 	ip: string;
 }> {
+	// eslint-disable-next-line @typescript-eslint/init-declarations
+	let r;
 	try{
-		const r = await dns.lookup(string, { verbatim: false });
-		if(r.family !== 4 && r.family !== 6){
-			throw Error('The IP address is not IPv4 or IPv6');
-		}
-
-		return {
-			ipFormat: r.family,
-			ip: r.address,
-		};
+		r = await dns.lookup(string, { verbatim: false });
 	}catch(e){
 		throw Error("'ip' is not a valid IP address or hostname");
 	}
+
+	if(r.family !== 4 && r.family !== 6){
+		throw Error('');
+	}
+
+	return {
+		ipFormat: r.family,
+		ip: r.address,
+	};
 }
 
 export type ValueIn<T> = T[keyof T];

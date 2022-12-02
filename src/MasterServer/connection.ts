@@ -1,53 +1,51 @@
 import { debug } from '../utils';
-import { createSocket } from 'dgram';
+import { createSocket, type Socket } from 'dgram';
 
 import type { MasterServerData } from '../options';
-
-const connections = new Map<string, Connection>();
-const socket = createSocket('udp4')
-	.on('message', (buffer, rinfo) => {
-		const connection = connections.get(`${rinfo.address}:${rinfo.port}`);
-		if(!connection) return;
-
-		if(connection.data.debug) debug('MASTERSERVER recieved:', buffer);
-
-		const header = buffer.readInt32LE();
-		if(header !== -1){
-			if(header === -2){
-				throw new Error('Multi-packet shouldn\'t happen in master servers wtf are u doing ?');
-			}else{
-				throw new Error('Invalid packet');
-			}
-		}
-
-		socket.emit('packet', buffer.slice(4));
-	})
-	.unref();
 
 export default class Connection {
 	constructor(data: MasterServerData) {
 		this.data = data;
+		this.socket = createSocket(`udp${this.data.ipFormat}`)
+			.on('message', buffer => {
+				if(this.data.debug) debug('MASTERSERVER recieved:', buffer);
+
+				const header = buffer.readInt32LE();
+				if(header !== -1){
+					if(header === -2){
+						throw new Error('Multi-packet shouldn\'t happen in master servers wtf are u doing ?');
+					}else{
+						throw new Error('Invalid packet');
+					}
+				}
+
+				this.socket.emit('packet', buffer.slice(4));
+			})
+			.unref();
 	}
 	public readonly data: MasterServerData;
+	private readonly socket: Socket;
 
-	public connect(): void {
-		socket.setMaxListeners(socket.getMaxListeners() + 10);
-		connections.set(this.data.address, this);
+	public connect(): Promise<void> {
+		return new Promise((res, rej) => {
+			// @ts-expect-error asdasdasd
+			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
+				if(err) return rej(err);
+				res();
+			});
+		});
 	}
 
 	public destroy(): void {
-		socket.setMaxListeners(socket.getMaxListeners() - 10);
-		connections.delete(this.data.address);
+		this.socket.close();
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('MASTERSERVER sent:', command);
+		if(this.data.debug) debug('SERVER sent:', command);
 
 		return new Promise((res, rej) => {
-			socket.send(
+			this.socket.send(
 				Buffer.from(command),
-				this.data.port,
-				this.data.ip,
 				err => {
 					if(err) return rej(err);
 					res();
@@ -60,8 +58,8 @@ export default class Connection {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
-				socket.off('packet', onPacket);
-				socket.off('error', onError);
+				this.socket.off('packet', onPacket);
+				this.socket.off('error', onError);
 				clearTimeout(timeout);
 				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
@@ -77,8 +75,8 @@ export default class Connection {
 
 			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
 
-			socket.on('packet', onPacket);
-			socket.on('error', onError);
+			this.socket.on('packet', onPacket);
+			this.socket.on('error', onError);
 		});
 	}
 

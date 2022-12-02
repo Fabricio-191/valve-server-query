@@ -152,8 +152,7 @@ export default class Server{
 
 		this.data = await parseServerOptions(options);
 		this.connection = new Connection(this.data);
-
-		this.connection.connect();
+		await this.connection.connect();
 
 		const info = await aloneGetInfo(this.connection);
 
@@ -174,7 +173,7 @@ export default class Server{
 		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
-		this.connection.destroy();
+		this.connection.socket.close();
 		this.isConnected = false;
 	}
 
@@ -182,10 +181,10 @@ export default class Server{
 		const data = await parseServerOptions(options);
 
 		const connection = new Connection(data);
-		connection.connect();
+		await connection.connect();
 		const info = await aloneGetInfo(connection);
 
-		connection.destroy();
+		connection.socket.close();
 		return info;
 	}
 
