@@ -7,11 +7,11 @@ import { writeFileSync } from 'fs';
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33022',
+	ip: '213.239.207.78:33020',
 	password: 'cosas',
 
 	enableWarns: false,
-	debug: true,
+	debug: false,
 };
 
 const result = {
@@ -52,15 +52,10 @@ const ipv4RegexWithPort = new RegExp(`^((?:${byteRegex}\\.){3}${byteRegex}):${po
 const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
 
 function checkIP(ip: unknown): void {
-	if(typeof ip !== 'string'){
-		throw new MyError('IP is not a string');
-	}
+	if(typeof ip !== 'string') throw new MyError('IP is not a string');
 
 	const matches = ipv4RegexWithPort.exec(ip);
-
-	if(!matches){
-		throw new MyError('IP is not valid');
-	}
+	if(!matches) throw new MyError('IP is not valid');
 
 	for(let i = 1; i < 5; i++){
 		const num = Number(matches[i]);
@@ -76,7 +71,7 @@ function checkIP(ip: unknown): void {
 }
 
 describe('Server', () => {
-	it.only('static getInfo()', async () => {
+	it('static getInfo()', async () => {
 		const info = await Server.getInfo(options);
 
 		checkInfo(info);

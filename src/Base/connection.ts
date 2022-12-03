@@ -8,7 +8,10 @@ export default abstract class BaseConnection {
 		this.data = data;
 
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
-			.on('message', buffer => this.onMessage(buffer))
+			.on('message', buffer => {
+				if(this.data.debug) debug('recieved:', buffer);
+				this.onMessage(buffer);
+			})
 			.unref();
 	}
 	public readonly data: BaseData;

@@ -3,24 +3,6 @@ import type { ServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
 
 // #region packetHandler
-function packetHandler(buffer: Buffer, connection: Connection): Buffer | null {
-	const header = buffer.readInt32LE();
-	if(header === -1){
-		return buffer.slice(4);
-	}else if(header === -2){
-		const packet = handleMultiplePackets(buffer, connection);
-		if(packet) return packetHandler(packet, connection);
-	}else{
-		if(connection.data.debug) debug('SERVER cannot parse packet', buffer);
-		if(connection.data.enableWarns){
-			// eslint-disable-next-line no-console
-			console.warn("Warning: a packet couln't be handled");
-		}
-	}
-
-	return null;
-}
-
 function handleMultiplePackets(buffer: Buffer, connection: Connection): Buffer | null {
 	/*
 	First packets in each multi-packet:
@@ -133,8 +115,19 @@ export default class Connection extends BaseConnection {
 	public readonly packetsQueues: Record<number, [MultiPacket, ...MultiPacket[]]> = {};
 
 	protected onMessage(buffer: Buffer): void {
-		const packet = packetHandler(buffer, this);
-		if(packet) this.socket.emit('packet', packet);
+		const header = buffer.readInt32LE();
+		if(header === -1){
+			this.socket.emit('packet', buffer.slice(4));
+		}else if(header === -2){
+			const packet = handleMultiplePackets(buffer, this);
+			if(packet) this.socket.emit('packet', packet);
+		}else{
+			if(this.data.debug) debug('SERVER cannot parse packet', buffer);
+			if(this.data.enableWarns){
+				// eslint-disable-next-line no-console
+				console.warn("Warning: a packet couln't be handled");
+			}
+		}
 	}
 
 	public lastPing = -1;

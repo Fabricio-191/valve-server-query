@@ -41,6 +41,38 @@ export default class Server{
 	public data!: ServerData;
 	public isConnected = false;
 
+	public async connect(options: RawServerOptions): Promise<this> {
+		if(this.isConnected){
+			throw new Error('Server: already connected.');
+		}
+
+		this.data = await parseServerOptions(options);
+		this.connection = new Connection(this.data);
+		await this.connection.connect();
+
+		const info = await aloneGetInfo(this.connection);
+
+		Object.assign(this.data, {
+			info: {
+				challenge: info.needsChallenge,
+				goldSource: info.goldSource,
+			},
+			appID: info.appID,
+			protocol: info.protocol,
+		});
+
+		this.isConnected = true;
+		return this;
+	}
+
+	public destroy(): void {
+		if(!this.isConnected){
+			throw new Error('Not connected');
+		}
+		this.connection.destroy();
+		this.isConnected = false;
+	}
+
 	public get lastPing(): number {
 		if(!this.isConnected) throw new Error('Not connected');
 		return this.connection.lastPing;
@@ -143,38 +175,6 @@ export default class Server{
 		const response = await this.connection.query(command, ResponseType.CHALLENGE, code - 0b10001);
 
 		return response;
-	}
-
-	public async connect(options: RawServerOptions): Promise<this> {
-		if(this.isConnected){
-			throw new Error('Server: already connected.');
-		}
-
-		this.data = await parseServerOptions(options);
-		this.connection = new Connection(this.data);
-		await this.connection.connect();
-
-		const info = await aloneGetInfo(this.connection);
-
-		Object.assign(this.data, {
-			info: {
-				challenge: info.needsChallenge,
-				goldSource: info.goldSource,
-			},
-			appID: info.appID,
-			protocol: info.protocol,
-		});
-
-		this.isConnected = true;
-		return this;
-	}
-
-	public destroy(): void {
-		if(!this.isConnected){
-			throw new Error('Not connected');
-		}
-		this.connection.destroy();
-		this.isConnected = false;
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<parsers.FinalServerInfo> {
