@@ -1,5 +1,5 @@
 import Server from './Server/server';
-import MasterServer from './MasterServer/masterServer';
+import * as MasterServer from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
 
 export type {
@@ -12,8 +12,4 @@ export type {
 } from './Server/parsers';
 
 export { Server, MasterServer, RCON };
-export default {
-	Server,
-	MasterServer,
-	RCON,
-};
+export default { Server, MasterServer, RCON };

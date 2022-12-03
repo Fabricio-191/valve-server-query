@@ -53,8 +53,8 @@ export default class Connection{
 
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 	}
+	public readonly data: RCONData;
 	public socket: Socket;
-	public data: RCONData;
 	public _connected: Promise<unknown> | null;
 
 	public remaining = 0;

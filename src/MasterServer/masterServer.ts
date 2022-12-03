@@ -6,9 +6,9 @@ import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServe
 
 const regions = [0, 1, 2, 3, 4, 5, 6, 7, 255] as const;
 
-export default async function MasterServer(options: RawMasterServerOptions = {}): Promise<string[]> {
+export { Filter };
+export async function query(options: RawMasterServerOptions = {}): Promise<string[]> {
 	const data = await parseMasterServerOptions(options);
-
 	const connection = new Connection(data);
 	await connection.connect();
 
@@ -16,6 +16,22 @@ export default async function MasterServer(options: RawMasterServerOptions = {})
 
 	connection.destroy();
 	return servers;
+}
+
+export async function allRegions(options: Omit<RawMasterServerOptions, 'region'> = {}): Promise<string[]> {
+	const data = await parseMasterServerOptions(options);
+	const connection = new Connection(data);
+	await connection.connect();
+
+	const servers = await Promise.all(
+		regions.map(region => getServers(connection, {
+			...data,
+			region,
+		}))
+	);
+
+	connection.destroy();
+	return servers.flat();
 }
 
 async function getServers(connection: Connection, data: MasterServerData): Promise<string[]> {
@@ -47,23 +63,6 @@ async function getServers(connection: Connection, data: MasterServerData): Promi
 
 	return servers;
 }
-
-async function allRegions(options: RawMasterServerOptions = {}): Promise<string[]> {
-	const data = await parseMasterServerOptions(options);
-	const connection = new Connection(data);
-	await connection.connect();
-
-	const servers = await Promise.all(
-		regions.map(region => getServers(connection, {
-			...data,
-			region,
-		))
-	);
-
-	return servers.flat();
-}
-
-MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {
 	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port

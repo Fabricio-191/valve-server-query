@@ -78,8 +78,7 @@ function checkIP(ip: unknown): void {
 
 describe('MasterServer', () => {
 	it('query', async () => {
-		// eslint-disable-next-line new-cap
-		const IPs = await MasterServer({
+		const IPs = await MasterServer.query({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
@@ -102,17 +101,16 @@ describe('MasterServer', () => {
 		this.timeout(15000);
 
 		const filter = new MasterServer.Filter()
-			.add('appid', 730)
+			.add('app_id', 730)
 			.addFlag('linux')
 			.addFlag('dedicated')
-			.addFlag('password')
+			.addFlag('has_password')
 			.addNOR(
 				new MasterServer.Filter()
-					.addFlag('secure')
+					.addFlag('has_vac')
 			);
 
-		// eslint-disable-next-line new-cap
-		const IPs = await MasterServer({
+		const IPs = await MasterServer.query({
 			// debug: true,
 			filter,
 			region: 'SOUTH_AMERICA',

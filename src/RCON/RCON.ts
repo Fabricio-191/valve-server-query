@@ -28,7 +28,7 @@ export interface RCONPacket {
 }
 
 export default class RCON extends EventEmitter{
-	public connection!: Connection;
+	private connection!: Connection;
 	private _auth: Promise<void> | null = null;
 
 	public async _ready(): Promise<void> {
@@ -67,10 +67,36 @@ export default class RCON extends EventEmitter{
 		return packet.body;
 	}
 
-	public destroy(): void {
-		this.removeAllListeners();
-		this.connection.socket.removeAllListeners();
-		this.connection.socket.destroy();
+	public async authenticate(password: string): Promise<void> {
+		if(this._auth !== null) return await this._auth;
+		await this.connection._ready();
+
+		if(typeof password !== 'string' || password === ''){
+			throw new Error('RCON password must be a non-empty string');
+		}
+
+		const ID = this._getID();
+		await this.connection.send(makeCommand(ID, PacketType.Auth, password));
+
+		const EXEC_RESPONSE = this.connection.awaitResponse(PacketType.CommandResponse, ID);
+		const AUTH_RESPONSE = this.connection.awaitResponse(PacketType.AuthResponse, ID);
+
+		this._auth = (async () => {
+			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
+
+			if(firstResponse.type === 2){
+				if(firstResponse.ID === -1){
+					throw new Error('RCON: wrong password');
+				}
+			}else if((await AUTH_RESPONSE).ID === -1){
+				throw new Error('RCON: wrong password');
+			}
+		})();
+
+		await this._auth;
+		this.connection.data.password = password;
+
+		if(this.connection.data.debug) debug('RCON autenticated');
 	}
 
 	public async connect(options: RawRCONOptions): Promise<void> {
@@ -132,36 +158,10 @@ export default class RCON extends EventEmitter{
 		}
 	}
 
-	public async authenticate(password: string): Promise<void> {
-		if(this._auth !== null) return await this._auth;
-		await this.connection._ready();
-
-		if(typeof password !== 'string' || password === ''){
-			throw new Error('RCON password must be a non-empty string');
-		}
-
-		const ID = this._getID();
-		await this.connection.send(makeCommand(ID, PacketType.Auth, password));
-
-		const EXEC_RESPONSE = this.connection.awaitResponse(PacketType.CommandResponse, ID);
-		const AUTH_RESPONSE = this.connection.awaitResponse(PacketType.AuthResponse, ID);
-
-		this._auth = (async () => {
-			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
-
-			if(firstResponse.type === 2){
-				if(firstResponse.ID === -1){
-					throw new Error('RCON: wrong password');
-				}
-			}else if((await AUTH_RESPONSE).ID === -1){
-				throw new Error('RCON: wrong password');
-			}
-		})();
-
-		await this._auth;
-		this.connection.data.password = password;
-
-		if(this.connection.data.debug) debug('RCON autenticated');
+	public destroy(): void {
+		this.removeAllListeners();
+		this.connection.socket.removeAllListeners();
+		this.connection.socket.destroy();
 	}
 
 	private _lastID = 0x33333333;

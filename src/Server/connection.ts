@@ -145,7 +145,7 @@ export default class Connection {
 			})
 			.unref();
 	}
-	public socket: Socket;
+	public readonly socket: Socket;
 	public readonly packetsQueues: Record<number, [MultiPacket, ...MultiPacket[]]> = {};
 	public readonly data: ServerData;
 
