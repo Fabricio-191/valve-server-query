@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
-import { debug, BufferWriter } from '../utils';
+import { debug, BufferWriter } from '../Base/utils';
 import Connection from './connection';
-import { parseRCONOptions, type RawRCONOptions } from '../options';
+import { parseRCONOptions, type RawRCONOptions } from '../Base/options';
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 	return new BufferWriter()

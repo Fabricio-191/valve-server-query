@@ -1,7 +1,7 @@
 /* eslint-disable new-cap */
 import Connection from './connection';
 import * as parsers from './parsers';
-import { parseServerOptions, type RawServerOptions, type ServerData } from '../options';
+import { parseServerOptions, type RawServerOptions, type ServerData } from '../Base/options';
 
 enum RequestType {
 	INFO = 0x54,
@@ -173,7 +173,7 @@ export default class Server{
 		if(!this.isConnected){
 			throw new Error('Not connected');
 		}
-		this.connection.socket.close();
+		this.connection.destroy();
 		this.isConnected = false;
 	}
 
@@ -184,7 +184,7 @@ export default class Server{
 		await connection.connect();
 		const info = await aloneGetInfo(connection);
 
-		connection.socket.close();
+		connection.destroy();
 		return info;
 	}
 

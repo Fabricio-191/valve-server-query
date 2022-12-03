@@ -1,8 +1,8 @@
 /* eslint-disable new-cap */
-import { BufferWriter, BufferReader } from '../utils';
+import { BufferWriter, BufferReader } from '../Base/utils';
 import Connection from './connection';
 import Filter from './filter';
-import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../options';
+import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../Base/options';
 
 const regions = [0, 1, 2, 3, 4, 5, 6, 7, 255] as const;
 
@@ -24,10 +24,7 @@ export async function allRegions(options: Omit<RawMasterServerOptions, 'region'>
 	await connection.connect();
 
 	const servers = await Promise.all(
-		regions.map(region => getServers(connection, {
-			...data,
-			region,
-		}))
+		regions.map(region => getServers(connection, { ...data, region }))
 	);
 
 	connection.destroy();

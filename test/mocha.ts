@@ -1,18 +1,17 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
-import type { FinalServerInfo } from '../src';
-import { Server, RCON, MasterServer } from '../src';
 import type { EventEmitter } from 'events';
+import { Server, RCON, MasterServer, type FinalServerInfo } from '../src';
 import { writeFileSync } from 'fs';
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33035',
+	ip: '49.12.122.244:33022',
 	password: 'cosas',
 
 	enableWarns: false,
-	debug: false,
+	debug: true,
 };
 
 const result = {
@@ -75,6 +74,61 @@ function checkIP(ip: unknown): void {
 		throw new MyError('Port in IP is not valid');
 	}
 }
+
+describe('Server', () => {
+	it.only('static getInfo()', async () => {
+		const info = await Server.getInfo(options);
+
+		checkInfo(info);
+	});
+
+	const server = new Server();
+	it('connect', async function(){
+		this.slow(9000);
+		this.timeout(10000);
+
+		await server.connect(options);
+	});
+
+	it('getInfo()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		const info = await server.getInfo();
+
+		checkInfo(info);
+		result.server.getInfo = info;
+	});
+
+	it('getPlayers()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getPlayers = await server.getPlayers();
+	});
+
+	it('getRules()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getRules = await server.getRules();
+	});
+
+	it('getPing()', async () => {
+		if(!server) throw new MyError('Server not connected');
+
+		result.server.getPing = await server.getPing();
+	});
+
+	it('lastPing', () => {
+		if(!server) throw new MyError('Server not connected');
+
+		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
+			throw new MyError('Server.lastPing is not a number');
+		}else if(server.lastPing <= -1){
+			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
+		}
+
+		result.server.lastPing = server.lastPing;
+	});
+});
 
 describe('MasterServer', () => {
 	it('query', async () => {
@@ -140,81 +194,6 @@ describe('MasterServer', () => {
 
 		if(results.length - satisfiesFilter < results.length * 0.1){ // (10% error margin) master servers are not perfect
 			throw new Error('Filter is not working well');
-		}
-	});
-});
-
-describe('Server ', () => {
-	it('static getInfo()', async () => {
-		const info = await Server.getInfo(options);
-
-		checkInfo(info);
-	});
-
-	const server = new Server();
-	it('connect', async function(){
-		this.slow(9000);
-		this.timeout(10000);
-
-		await server.connect(options);
-	});
-
-	it('getInfo()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		const info = await server.getInfo();
-
-		checkInfo(info);
-		result.server.getInfo = info;
-	});
-
-	it('getPlayers()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getPlayers = await server.getPlayers();
-	});
-
-	it('getRules()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getRules = await server.getRules();
-	});
-
-	it('getPing()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
-		result.server.getPing = await server.getPing();
-	});
-
-	it('lastPing', () => {
-		if(!server) throw new MyError('Server not connected');
-
-		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
-			throw new MyError('Server.lastPing is not a number');
-		}else if(server.lastPing <= -1){
-			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
-		}
-
-		result.server.lastPing = server.lastPing;
-	});
-
-	it('should work in random servers', async function(){
-		this.slow(20000);
-		this.timeout(30000);
-
-		for(const address of result.MasterServer){
-			const [ip, port] = address.split(':') as [string, string];
-
-			const server = new Server();
-
-			await server.connect({
-				ip,
-				port: parseInt(port),
-				timeout: 10000,
-			});
-
-			const info = await server.getInfo();
-			checkInfo(info);
 		}
 	});
 });
@@ -292,26 +271,15 @@ describe('RCON', () => {
 	});
 });
 
-describe('options', () => {
-	const server = new Server();
-
-	it('should throw on invalid options', () => {
-		shouldThrowError(() => new Server({ ip: '' }), 'Invalid IP');
-	});
-});
-
 after(() => {
-	writeFileSync(
-		'./test/result.json',
-		JSON.stringify(
-			result,
-			(_, v: unknown) => {
-				if(typeof v === 'bigint') return v.toString() + 'n';
-				return v;
-			},
-			'\t'
-		)
-	);
+	writeFileSync('./test/result.json', JSON.stringify(
+		result,
+		(_, v: unknown) => {
+			if(typeof v === 'bigint') return v.toString() + 'n';
+			return v;
+		},
+		'\t'
+	));
 });
 
 let id = 1;
@@ -334,6 +302,7 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 	});
 }
 
+/*
 async function shouldThrowError(fn: () => unknown, error: unknown): Promise<void> {
 	try{
 		await fn();
@@ -344,3 +313,4 @@ async function shouldThrowError(fn: () => unknown, error: unknown): Promise<void
 
 	throw new Error('Error not thrown');
 }
+*/

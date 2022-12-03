@@ -1,5 +1,5 @@
 import { type ValueIn, resolveHostname } from './utils';
-import Filter from './MasterServer/filter';
+import Filter from '../MasterServer/filter';
 
 export const REGIONS = {
 	US_EAST: 0,
@@ -14,7 +14,7 @@ export const REGIONS = {
 } as const;
 
 // #region data types
-interface BaseData {
+export interface BaseData {
 	address: string;
 
 	ip: string;

@@ -1,5 +1,5 @@
-import { BufferReader, type ValueIn } from '../utils';
-import type { ServerData } from '../options';
+import { BufferReader, type ValueIn } from '../Base/utils';
+import type { ServerData } from '../Base/options';
 
 // #region constants
 const OPERATIVE_SYSTEMS = {

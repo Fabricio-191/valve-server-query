@@ -1,7 +1,6 @@
-import { debug, BufferReader } from '../utils';
-import { createSocket, type Socket } from 'dgram';
-
-import type { ServerData } from '../options';
+import { debug, BufferReader } from '../Base/utils';
+import type { ServerData } from '../Base/options';
+import BaseConnection from '../Base/connection';
 
 // #region packetHandler
 function packetHandler(buffer: Buffer, connection: Connection): Buffer | null {
@@ -12,10 +11,10 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | null {
 		const packet = handleMultiplePackets(buffer, connection);
 		if(packet) return packetHandler(packet, connection);
 	}else{
-		if(connection.data.debug) debug('SERVER cannot parse multi-packet', buffer);
+		if(connection.data.debug) debug('SERVER cannot parse packet', buffer);
 		if(connection.data.enableWarns){
 			// eslint-disable-next-line no-console
-			console.error(new Error("Warning: a multi-packet couln't be handled"));
+			console.warn("Warning: a packet couln't be handled");
 		}
 	}
 
@@ -23,8 +22,18 @@ function packetHandler(buffer: Buffer, connection: Connection): Buffer | null {
 }
 
 function handleMultiplePackets(buffer: Buffer, connection: Connection): Buffer | null {
+	/*
+	First packets in each multi-packet:
+	GoldSource: 4 bytes header + 4 bytes id + 1 byte packets nums + PAYLOADSTARTSHERE
+	Source:     4 bytes header + 4 bytes id + 1 byte total packets + 1 byte current packet + 2 bytes size + PAYLOADSTARTSHERE
+
+	Payloads always start with a -1 header
+	the gouldsource payload starts at byte 9
+	The source payload starts at byte 10 or 12
+
+	If it's the first multi packet, and it's goldsource, at byte 9 it's going to be the -1 header
+	*/
 	if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
-		// only valid in the first packet
 		connection.data.multiPacketGoldSource = true;
 	}
 
@@ -119,74 +128,13 @@ function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 }
 // #endregion
 
-export default class Connection {
-	constructor(data: ServerData) {
-		this.data = data;
-		this.socket = createSocket(`udp${this.data.ipFormat}`)
-			.on('message', buffer => {
-				if(buffer.length === 0) return;
-
-				if(this.data.debug) debug('SERVER recieved:', buffer);
-
-				const packet = packetHandler(buffer, this);
-				if(!packet) return;
-
-				this.socket.emit('packet', packet);
-			})
-			.unref();
-	}
-	public readonly socket: Socket;
+export default class Connection extends BaseConnection {
+	public readonly data!: ServerData;
 	public readonly packetsQueues: Record<number, [MultiPacket, ...MultiPacket[]]> = {};
-	public readonly data: ServerData;
 
-	public connect(): Promise<void> {
-		return new Promise((res, rej) => {
-			// @ts-expect-error asdasdasd
-			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
-				if(err) return rej(err);
-				res();
-			});
-		});
-	}
-
-	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('SERVER sent:', command);
-
-		return new Promise((res, rej) => {
-			this.socket.send(
-				Buffer.from(command),
-				err => {
-					if(err) return rej(err);
-					res();
-				}
-			);
-		});
-	}
-
-	public async awaitResponse(responseHeaders: number[]): Promise<Buffer> {
-		return new Promise((res, rej) => {
-			const clear = (): void => {
-				/* eslint-disable @typescript-eslint/no-use-before-define */
-				this.socket.off('packet', onPacket);
-				this.socket.off('error', onError);
-				clearTimeout(timeout);
-				/* eslint-enable @typescript-eslint/no-use-before-define */
-			};
-
-			const onError = (err: unknown): void => {
-				clear(); rej(err);
-			};
-			const onPacket = (buffer: Buffer): void => {
-				if(!responseHeaders.includes(buffer[0]!)) return;
-
-				clear(); res(buffer);
-			};
-
-			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
-
-			this.socket.on('packet', onPacket);
-			this.socket.on('error', onError);
-		});
+	protected onMessage(buffer: Buffer): void {
+		const packet = packetHandler(buffer, this);
+		if(packet) this.socket.emit('packet', packet);
 	}
 
 	public lastPing = -1;
