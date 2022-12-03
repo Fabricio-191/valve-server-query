@@ -1,133 +1,101 @@
+const flags = {
+	dedicated: '\\dedicated\\1',
+	not_dedicated: '\\nand\\1\\dedicated\\1',
+	secure: '\\secure\\1',
+	not_secure: '\\nand\\1\\secure\\1',
+	linux: '\\linux\\1',
+	not_linux: '\\nand\\1\\linux\\1',
+	empty: '\\noplayers\\1',
+	not_empty: '\\empty\\1',
+	full: '\\nand\\1\\full\\1',
+	not_full: '\\full\\1',
+	whitelisted: '\\nand\\1\\white\\1',
+	not_whitelisted: '\\white\\1',
+	proxy: '\\proxy\\1',
+	not_proxy: '\\nand\\1\\proxy\\1',
+} as const;
+type Flag = keyof typeof flags;
+
 export default class Filter{
 	private readonly filters: string[] = [];
 
-	private _add1(key: string, value: string[]): this {
-		if(!Array.isArray(value)) throw new Error('value must be an array');
-		this.filters.push(`${key}${value.join(',')}`);
-		return this;
-	}
-
-	private _add2(key: string, value: string): this {
-		if(typeof value !== 'string') throw new Error('value must be a string');
-		this.filters.push(`${key}${value}`);
-		return this;
-	}
-
-	private _add3(key: string, value: number): this {
-		if(typeof value !== 'number' || isNaN(value) || !Number.isFinite(value) || !Number.isInteger(value)){
-			throw new Error('value must be a number');
+	private _add(key: string, type: unknown, value: unknown = null): this {
+		// eslint-disable-next-line default-case
+		switch(type){
+			case null:
+				this.filters.push(value as string);
+				break;
+			case 'array':
+				if(!Array.isArray(value)) throw new Error('value must be an array');
+				this.filters.push(`${key}${value.join(',')}`);
+				break;
+			case 'string':
+				if(typeof value !== 'string') throw new Error('value must be a string');
+				this.filters.push(`${key}${value}`);
+				break;
+			case 'number':
+				if(typeof value !== 'number' || isNaN(value) || !Number.isFinite(value) || !Number.isInteger(value)){
+					throw new Error('value must be a number');
+				}
+				this.filters.push(`${key}${value}`);
+				break;
 		}
-		this.filters.push(`${key}${value}`);
+
 		return this;
 	}
 
-	private _add4(value: string): this {
-		this.filters.push(value);
-		return this;
+	public hasTags(tags: string[]): this {
+		return this._add('\\gametype\\', 'array', tags);
 	}
 
-	public tags(tags: string[]): this {
-		return this._add1('\\gametype\\', tags);
+	public hasTagsL4D2(tags: string[]): this {
+		return this._add('\\gamedata\\', 'array', tags);
 	}
 
-	public tagsL4D2(tags: string[]): this {
-		return this._add1('\\gamedata\\', tags);
-	}
-
-	public someTagsL4F2(tags: string[]): this {
-		return this._add1('\\gamedataor\\', tags);
+	public hasSomeTagsL4F2(tags: string[]): this {
+		return this._add('\\gamedataor\\', 'array', tags);
 	}
 
 	public map(map: string): this {
-		return this._add2('\\map\\', map);
+		return this._add('\\map\\', 'string', map);
 	}
 
 	public mod(mod: string): this {
-		return this._add2('\\gamedir\\', mod);
+		return this._add('\\gamedir\\', 'string', mod);
 	}
 
 	public address(address: string): this {
-		return this._add2('\\gameaddr\\', address);
+		return this._add('\\gameaddr\\', 'string', address);
 	}
 
 	public nameMatch(name: string): this {
-		return this._add2('\\name_match\\', name);
+		return this._add('\\name_match\\', 'string', name);
 	}
 
 	public versionMatch(version: string): this {
-		return this._add2('\\version_match\\', version);
+		return this._add('\\version_match\\', 'string', version);
 	}
 
 	public notAppId(appId: number): this {
-		return this._add3('\\napp\\', appId);
+		return this._add('\\napp\\', 'number', appId);
 	}
 
 	public appId(appId: number): this {
-		return this._add3('\\appid\\', appId);
+		return this._add('\\appid\\', 'number', appId);
 	}
 
-	public isDedicated(): this {
-		return this._add4('\\dedicated\\1');
-	}
+	public is(flag: Flag): this {
+		if(!(flag in flags)) throw new Error('invalid flag');
 
-	public isNotDedicated(): this {
-		return this._add4('\\nand\\1\\dedicated\\1');
-	}
-
-	public isSecure(): this {
-		return this._add4('\\secure\\1');
-	}
-
-	public isNotSecure(): this {
-		return this._add4('\\nand\\1\\secure\\1');
-	}
-
-	public isLinux(): this {
-		return this._add4('\\linux\\1');
-	}
-
-	public isNotLinux(): this {
-		return this._add4('\\nand\\1\\linux\\1');
-	}
-
-	public isEmpty(): this {
-		return this._add4('\\noplayers\\1');
-	}
-
-	public isNotEmpty(): this {
-		return this._add4('\\empty\\1');
-	}
-
-	public isNotFull(): this {
-		return this._add4('\\full\\1');
-	}
-
-	public isFull(): this {
-		return this._add4('\\nand\\1\\full\\1');
+		return this._add(flags[flag], null);
 	}
 
 	public hasPassword(): this {
-		return this._add4('\\nand\\password\\0');
+		return this._add('\\nand\\password\\0', null);
 	}
 
 	public hasNoPassword(): this {
-		return this._add4('\\password\\0');
-	}
-
-	public whitelisted(): this {
-		return this._add4('\\white\\1');
-	}
-
-	public notWhitelisted(): this {
-		return this._add4('\\nand\\1\\white\\1');
-	}
-
-	public isProxy(): this {
-		return this._add4('\\proxy\\1');
-	}
-
-	public isNotProxy(): this {
-		return this._add4('\\nand\\1\\proxy\\1');
+		return this._add('\\password\\0', null);
 	}
 
 	public addNOR(filter: Filter): this {
