@@ -1,4 +1,5 @@
-const flags = {
+/* eslint-disable @typescript-eslint/brace-style */
+const FLAGS = {
 	dedicated: '\\dedicated\\1',
 	not_dedicated: '\\nand\\1\\dedicated\\1',
 	secure: '\\secure\\1',
@@ -13,89 +14,69 @@ const flags = {
 	not_whitelisted: '\\white\\1',
 	proxy: '\\proxy\\1',
 	not_proxy: '\\nand\\1\\proxy\\1',
+	passwordProtected: '\\nand\\1\\password\\0',
+	notPasswordProtected: '\\password\\0',
 } as const;
-type Flag = keyof typeof flags;
+type Flag = keyof typeof FLAGS;
 
 export default class Filter{
 	private readonly filters: string[] = [];
 
-	private _add(key: string, type: unknown, value: unknown = null): this {
-		// eslint-disable-next-line default-case
-		switch(type){
-			case null:
-				this.filters.push(value as string);
-				break;
-			case 'array':
-				if(!Array.isArray(value)) throw new Error('value must be an array');
-				this.filters.push(`${key}${value.join(',')}`);
-				break;
-			case 'string':
-				if(typeof value !== 'string') throw new Error('value must be a string');
-				this.filters.push(`${key}${value}`);
-				break;
-			case 'number':
-				if(typeof value !== 'number' || isNaN(value) || !Number.isFinite(value) || !Number.isInteger(value)){
-					throw new Error('value must be a number');
-				}
-				this.filters.push(`${key}${value}`);
-				break;
-		}
+	private _add(key: string, value: unknown): this {
+		if(typeof value !== 'string') throw new Error('value must be a string');
+		this.filters.push(`${key}${value}`);
 
 		return this;
 	}
 
 	public hasTags(tags: string[]): this {
-		return this._add('\\gametype\\', 'array', tags);
+		if(!Array.isArray(tags)) throw new Error('value must be an array');
+		this.filters.push(`\\gametype\\${tags.join(',')}`);
+
+		return this;
 	}
 
 	public hasTagsL4D2(tags: string[]): this {
-		return this._add('\\gamedata\\', 'array', tags);
+		if(!Array.isArray(tags)) throw new Error('value must be an array');
+		this.filters.push(`\\gamedata\\${tags.join(',')}`);
+
+		return this;
 	}
 
-	public hasSomeTagsL4F2(tags: string[]): this {
-		return this._add('\\gamedataor\\', 'array', tags);
+	public hasAnyTagsL4F2(tags: string[]): this {
+		if(!Array.isArray(tags)) throw new Error('value must be an array');
+		this.filters.push(`\\gamedataor\\${tags.join(',')}`);
+
+		return this;
 	}
 
-	public map(map: string): this {
-		return this._add('\\map\\', 'string', map);
-	}
-
-	public mod(mod: string): this {
-		return this._add('\\gamedir\\', 'string', mod);
-	}
-
-	public address(address: string): this {
-		return this._add('\\gameaddr\\', 'string', address);
-	}
-
-	public nameMatch(name: string): this {
-		return this._add('\\name_match\\', 'string', name);
-	}
-
-	public versionMatch(version: string): this {
-		return this._add('\\version_match\\', 'string', version);
-	}
+	public map(map: string): this { return this._add('\\map\\', map); }
+	public mod(mod: string): this { return this._add('\\gamedir\\', mod); }
+	public address(address: string): this { return this._add('\\gameaddr\\', address); }
+	public nameMatch(name: string): this { return this._add('\\name_match\\', name); }
+	public versionMatch(version: string): this { return this._add('\\version_match\\', version); }
 
 	public notAppId(appId: number): this {
-		return this._add('\\napp\\', 'number', appId);
+		if(!Number.isInteger(appId)) throw new Error('value must be a number');
+
+		this.filters.push(`\\napp\\${appId}`);
+		return this;
 	}
 
 	public appId(appId: number): this {
-		return this._add('\\appid\\', 'number', appId);
+		if(!Number.isInteger(appId)) throw new Error('value must be a number');
+
+		this.filters.push(`\\appid\\${appId}`);
+		return this;
 	}
 
-	public is(flag: Flag): this {
-		if(!(flag in flags)) throw new Error('invalid flag');
+	public is(...flags: Flag[]): this {
+		for(const flag of flags){
+			if(!(flag in FLAGS)) throw new Error('invalid flag');
+			this.filters.push(FLAGS[flag]);
+		}
 
-		return this._add(flags[flag], null);
-	}
-
-	public hasPassword(): this {
-		return this._add('\\nand\\password\\0', null);
-	}
-
-	public hasNoPassword(): this {
-		return this._add('\\password\\0', null);
+		return this;
 	}
 
 	public addNOR(filter: Filter): this {
@@ -127,3 +108,17 @@ export default class Filter{
 		return this.filters.join('');
 	}
 }
+
+/*
+new MasterServer.Filter()
+	.hasTags(['coop', 'versus'])
+	.map('c1m1_hotel')
+	.mod('l4d2')
+	.address('111.111.111.111') // port supported too
+	.nameMatch('my server *') // (can use * as a wildcard)
+	.versionMatch('4.*') // (can use * as a wildcard)
+	.appId(240) // (240 is the appid for L4D2)
+	.hasPassword()
+	.is('dedicated', 'not_proxy', 'not_whitelisted', 'not_full')
+	.is('secure')
+*/

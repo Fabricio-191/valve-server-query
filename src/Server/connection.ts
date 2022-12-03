@@ -111,16 +111,6 @@ function parseMultiPacket(buffer: Buffer, data: ServerData): MultiPacket {
 		/*
 		I have queried almost every server possible and I have never seen a server that uses bzip.
 		*/
-
-		/*
-		info.bzip = {
-			uncompressedSize: reader.long(),
-			CRC32_sum: reader.long(),
-		};
-
-		reader.offset += 8;
-		info.bzip = true;
-		*/
 	}
 
 	info.payload = reader.remaining();

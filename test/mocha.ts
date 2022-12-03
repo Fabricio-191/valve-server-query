@@ -101,13 +101,11 @@ describe('MasterServer', () => {
 		this.timeout(15000);
 
 		const filter = new MasterServer.Filter()
-			.add('app_id', 730)
-			.addFlag('linux')
-			.addFlag('dedicated')
-			.addFlag('has_password')
+			.appId(730)
+			.is('linux', 'dedicated', 'passwordProtected')
 			.addNOR(
 				new MasterServer.Filter()
-					.addFlag('has_vac')
+					.is('secure')
 			);
 
 		const IPs = await MasterServer.query({
@@ -295,7 +293,11 @@ describe('RCON', () => {
 });
 
 describe('options', () => {
-	
+	const server = new Server();
+
+	it('should throw on invalid options', () => {
+		shouldThrowError(() => new Server({ ip: '' }), 'Invalid IP');
+	});
 });
 
 after(() => {
