@@ -1,13 +1,25 @@
 /* eslint-disable new-cap */
 import { BufferWriter, BufferReader } from '../Base/utils';
-import Connection from './connection';
 import Filter from './filter';
 import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../Base/options';
+import BaseConnection from '../Base/connection';
 
-const regions = [0, 1, 2, 3, 4, 5, 6, 7, 255] as const;
+class Connection extends BaseConnection {
+	public readonly data!: MasterServerData;
 
-export { Filter };
-export async function query(options: RawMasterServerOptions = {}): Promise<string[]> {
+	public onMessage(buffer: Buffer): void {
+		const header = buffer.readInt32LE();
+		if(header === -1){
+			this.socket.emit('packet', buffer.slice(4));
+		}else if(header === -2){
+			throw new Error('Multi-packet shouldn\'t happen in master servers');
+		}else{
+			throw new Error('Invalid packet');
+		}
+	}
+}
+
+export default async function MasterServer(options: RawMasterServerOptions = {}): Promise<string[]> {
 	const data = await parseMasterServerOptions(options);
 	const connection = new Connection(data);
 	await connection.connect();
@@ -18,17 +30,12 @@ export async function query(options: RawMasterServerOptions = {}): Promise<strin
 	return servers;
 }
 
-export async function allRegions(options: Omit<RawMasterServerOptions, 'region'> = {}): Promise<string[]> {
-	const data = await parseMasterServerOptions(options);
-	const connection = new Connection(data);
-	await connection.connect();
-
-	const servers = await Promise.all(
-		regions.map(region => getServers(connection, { ...data, region }))
-	);
-
-	connection.destroy();
-	return servers.flat();
+function makeCommand(last: string, region: number, filter: string): Buffer {
+	return new BufferWriter()
+		.byte(0x31, region)
+		.string(last)
+		.string(filter)
+		.end();
 }
 
 async function getServers(connection: Connection, data: MasterServerData): Promise<string[]> {
@@ -36,11 +43,7 @@ async function getServers(connection: Connection, data: MasterServerData): Promi
 	let last = '0.0.0.0:0';
 
 	do{
-		const command = new BufferWriter()
-			.byte(0x31, data.region)
-			.string(last)
-			.string(data.filter)
-			.end();
+		const command = makeCommand(last, data.region, data.filter.toString());
 
 		// eslint-disable-next-line @typescript-eslint/init-declarations
 		let buffer: Buffer;
@@ -60,6 +63,8 @@ async function getServers(connection: Connection, data: MasterServerData): Promi
 
 	return servers;
 }
+
+MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {
 	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port

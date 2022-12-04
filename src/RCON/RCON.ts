@@ -3,16 +3,6 @@ import { debug, BufferWriter } from '../Base/utils';
 import Connection from './connection';
 import { parseRCONOptions, type RawRCONOptions } from '../Base/options';
 
-function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
-	return new BufferWriter()
-		.long(Buffer.byteLength(body) + 10)
-		.long(ID)
-		.long(type)
-		.string(body)
-		.byte(0)
-		.end();
-}
-
 export enum PacketType {
 	Auth = 3,
 	AuthResponse = 2,
@@ -25,6 +15,16 @@ export interface RCONPacket {
 	ID: number;
 	type: PacketType;
 	body: string;
+}
+
+function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
+	return new BufferWriter()
+		.long(Buffer.byteLength(body) + 10)
+		.long(ID)
+		.long(type)
+		.string(body)
+		.byte(0)
+		.end();
 }
 
 export default class RCON extends EventEmitter{

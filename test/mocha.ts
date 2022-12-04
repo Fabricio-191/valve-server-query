@@ -1,3 +1,4 @@
+/* eslint-disable new-cap */
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
@@ -7,7 +8,7 @@ import { writeFileSync } from 'fs';
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33020',
+	ip: '213.239.207.78:33031',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -127,7 +128,7 @@ describe('Server', () => {
 
 describe('MasterServer', () => {
 	it('query', async () => {
-		const IPs = await MasterServer.query({
+		const IPs = await MasterServer({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
@@ -157,7 +158,7 @@ describe('MasterServer', () => {
 					.is('secure')
 			);
 
-		const IPs = await MasterServer.query({
+		const IPs = await MasterServer({
 			// debug: true,
 			filter,
 			region: 'SOUTH_AMERICA',

@@ -1,5 +1,5 @@
 import Server from './Server/server';
-import * as MasterServer from './MasterServer/masterServer';
+import MasterServer from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
 
 export type {

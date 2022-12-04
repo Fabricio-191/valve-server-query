@@ -117,16 +117,16 @@ export class BufferReader{
 
 export function debug(
 	string: string,
-	thing?: Buffer
+	buffer?: Buffer
 ): void {
-	if(thing){
-		const parts = Buffer.from(thing)
+	if(buffer){
+		const parts = Buffer.from(buffer)
 			.toString('hex')
 			.match(/../g) as string[];
 
 		const str = `<Buffer ${
-			thing.length > 300 ?
-				`${parts.slice(0, 20).join(' ')} ...${thing.length - 20} bytes` :
+			buffer.length > 300 ?
+				`${parts.slice(0, 20).join(' ')} ...${buffer.length - 20} bytes` :
 				parts.join(' ')
 		}>`.replace(/(?<!00 )00 00(?! 00)/g, '\x1B[31m00 00\x1B[00m');
 
