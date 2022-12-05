@@ -132,6 +132,7 @@ async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promi
 }
 
 export function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
+	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { ip: options };
 
 	return parseBaseOptions({
@@ -141,6 +142,7 @@ export function parseServerOptions(options: RawServerOptions): Promise<ServerDat
 }
 
 export async function parseMasterServerOptions(options: RawMasterServerOptions): Promise<MasterServerData> {
+	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { ip: options };
 
 	const parsedOptions = await parseBaseOptions({
@@ -170,7 +172,8 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 	};
 }
 
-export async function parseRCONOptions(options: RawRCONOptions): Promise<RCONData> {
+export async function parseRCONOptions(options: RawRCONOptions | null = null): Promise<RCONData> {
+	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	const parsedOptions = await parseBaseOptions({
 		...DEFAULT_OPTIONS,
 		...options,

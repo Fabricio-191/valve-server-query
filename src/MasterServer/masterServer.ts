@@ -32,11 +32,12 @@ export default async function MasterServer(options: RawMasterServerOptions = {})
 	const connection = new Connection(data);
 	await connection.connect();
 
+	const filter = data.filter.toString();
 	const servers: string[] = [];
 	let last = '0.0.0.0:0';
 
 	do{
-		const command = makeCommand(last, data.region, data.filter.toString());
+		const command = makeCommand(last, data.region, filter);
 
 		// eslint-disable-next-line @typescript-eslint/init-declarations
 		let buffer: Buffer;

@@ -1,6 +1,10 @@
 import { createConnection, type Socket } from 'net';
 import { BufferReader, debug } from '../Base/utils';
 import type { RCONData } from '../Base/options';
+import type RCON from './RCON';
+
+// eslint-disable-next-line no-promise-executor-return
+const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export enum PacketType {
 	Auth = 3,
@@ -29,8 +33,9 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 }
 
 export default class Connection{
-	constructor(data: RCONData){
+	constructor(rcon: RCON, data: RCONData){
 		this.data = data;
+		this.rcon = rcon;
 
 		this.socket = createConnection(data.port, data.ip)
 			.unref()
@@ -64,22 +69,45 @@ export default class Connection{
 				}
 			});
 
-		this._connected = this.awaitEvent('connect', 'Connection timeout.');
+		const onError = (err?: Error): void => {
+			if(this.data.debug) debug('RCON disconnected.');
+
+			this._reset();
+
+			this.rcon.emit(
+				'disconnect',
+				err ? err.message : 'The server closed the connection.'
+			);
+		};
+
+		this.socket
+			.on('end', onError)
+			.on('error', onError);
 	}
 	public readonly data: RCONData;
+	private readonly rcon: RCON;
 	public socket: Socket;
-	public _connected: Promise<unknown> | false;
 
 	public remaining = 0;
 	public buffers: Buffer[] = [];
 
-	public async _ready(): Promise<void> {
-		if(this._connected) await this._connected;
-		else throw new Error('Connection is closed.');
+	public _connected: Promise<unknown> | false = false;
+	public _auth: Promise<unknown> | false = false;
+
+	public async mustBeConnected(): Promise<void> {
+		if(!this._connected) throw new Error('RCON: not connected/ing.');
+		await this._connected;
+	}
+
+	public async mustBeAuth(): Promise<void> {
+		await this.mustBeConnected();
+
+		if(!this._auth) throw new Error('RCON: not authenticated/ing.');
+		await this._auth;
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		await this._ready();
+		await this.mustBeConnected();
 
 		if(this.data.debug) debug('RCON sending:', command);
 
@@ -92,7 +120,7 @@ export default class Connection{
 	}
 
 	public async awaitResponse(type: PacketType, ID: number): Promise<RCONPacket> {
-		await this._ready();
+		await this.mustBeConnected();
 
 		return await this.awaitEvent(
 			'packet',
@@ -132,5 +160,37 @@ export default class Connection{
 				.on(event, onEvent)
 				.on('error', onError);
 		});
+	}
+
+	public async connect(): Promise<void> {
+		if(this._connected !== false) return;
+
+		// Tiny delay to avoid "Error: Already connected" while reconnecting
+		await delay(10);
+		if(this.data.debug) debug('RCON connecting...');
+
+		this._connected = this.awaitEvent('connect', 'Connection timeout.');
+
+		this.socket.connect(this.data.port, this.data.ip).unref();
+
+		await this._connected;
+		if(this.data.debug) debug('RCON connected');
+
+		try{
+			await this.rcon.authenticate(this.data.password);
+		}catch(e: unknown){
+			this._auth = false;
+			if(e instanceof Error && e.message !== 'RCON: wrong password') throw e;
+
+			if(this.data.debug) debug('RCON password changed.');
+			this.rcon.emit('passwordChange');
+		}
+	}
+
+	public _reset(): void {
+		this.buffers = [];
+		this.remaining = 0;
+		this._connected = false;
+		this._auth = false;
 	}
 }
