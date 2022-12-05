@@ -6,9 +6,11 @@ import type { EventEmitter } from 'events';
 import { Server, RCON, MasterServer, type FinalServerInfo } from '../src';
 import { writeFileSync } from 'fs';
 
+const doNothing = (): void => { /* do nothing */ };
+
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33031',
+	ip: 'localhost:27015',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -194,7 +196,7 @@ describe('MasterServer', () => {
 	});
 });
 
-describe('RCON', () => {
+describe.only('RCON', () => {
 	const rcon = new RCON();
 	it('connect and authenticate', async () => {
 		await rcon.connect(options);
@@ -232,19 +234,19 @@ describe('RCON', () => {
 	});
 
 	it('should reconnect', async () => {
-		rcon.exec('sv_gravity 0').catch(() => { /* do nothing */ });
+		rcon.exec('sv_gravity 0').catch(doNothing);
 
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 		await rcon.reconnect();
 
-		rcon.exec('sv_gravity 0').catch(() => { /* do nothing */ });
+		rcon.exec('sv_gravity 0').catch(doNothing);
 
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 		await rcon.reconnect();
 	});
 
 	it('should manage password changes', async () => {
-		rcon.exec('rcon_password cosas2').catch(() => { /* do nothing */ });
+		rcon.exec('rcon_password cosas2').catch(doNothing);
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 
 		await Promise.all([
@@ -255,7 +257,7 @@ describe('RCON', () => {
 		await rcon.authenticate('cosas2');
 
 
-		rcon.exec('rcon_password cosas').catch(() => { /* do nothing */ });
+		rcon.exec('rcon_password cosas').catch(doNothing);
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 
 		await Promise.all([

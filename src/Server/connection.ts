@@ -120,7 +120,7 @@ export default class Connection extends BaseConnection {
 			this.socket.emit('packet', buffer.slice(4));
 		}else if(header === -2){
 			const packet = handleMultiplePackets(buffer, this);
-			if(packet) this.socket.emit('packet', packet);
+			if(packet) this.onMessage(packet);
 		}else{
 			if(this.data.debug) debug('SERVER cannot parse packet', buffer);
 			if(this.data.enableWarns){
@@ -135,7 +135,9 @@ export default class Connection extends BaseConnection {
 		await this.send(command);
 
 		const start = Date.now();
+		let i = 0;
 		const timeout = setTimeout(() => {
+			i++;
 			this.send(command).catch(() => { /* do nothing */ });
 		}, this.data.timeout / 2)
 			.unref();
@@ -143,8 +145,22 @@ export default class Connection extends BaseConnection {
 		const buffer = await this.awaitResponse(responseHeaders)
 			.finally(() => clearTimeout(timeout));
 
-		this.lastPing = Date.now() - start;
+		if(i === 0){
+			this.lastPing = Date.now() - start;
+		}
 
 		return buffer;
 	}
 }
+
+/*
+// eslint-disable-next-line no-promise-executor-return
+const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+function retries(fn: () => Promise<void>, retries: number, delayTime: number): Promise<void> {
+	return fn().catch(err => {
+		if(retries === 0) throw err;
+		return delay(delayTime).then(() => retries(fn, retries - 1, delayTime));
+	});
+}4
+*/

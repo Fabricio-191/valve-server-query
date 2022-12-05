@@ -1,0 +1,11 @@
+{
+	"MasterServer": [],
+	"server": {
+		"lastPing": 0,
+		"getInfo": {},
+		"getPlayers": {},
+		"getRules": {},
+		"getPing": {}
+	},
+	"RCON": {}
+}

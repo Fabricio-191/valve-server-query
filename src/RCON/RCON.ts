@@ -1,21 +1,7 @@
 import { EventEmitter } from 'events';
 import { debug, BufferWriter } from '../Base/utils';
-import Connection from './connection';
+import Connection, { PacketType, type RCONPacket } from './connection';
 import { parseRCONOptions, type RawRCONOptions } from '../Base/options';
-
-export enum PacketType {
-	Auth = 3,
-	AuthResponse = 2,
-	Command = 2,
-	CommandResponse = 0,
-}
-
-export interface RCONPacket {
-	size: number;
-	ID: number;
-	type: PacketType;
-	body: string;
-}
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 	return new BufferWriter()
@@ -27,16 +13,17 @@ function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 		.end();
 }
 
+// I don't like messy code but i had to do it in order to be able to manage reconnections and reauthentication
+
 export default class RCON extends EventEmitter{
 	private connection!: Connection;
-	private _auth: Promise<void> | null = null;
+	private _authenticated: Promise<void> | false = false;
 
 	public async _ready(): Promise<void> {
 		await this.connection._ready();
 
-		if(this._auth === null){
-			throw new Error('RCON: not authenticated.');
-		}else await this._auth;
+		if(this._authenticated) await this._authenticated;
+		else throw new Error('RCON: not authenticated.');
 	}
 
 	public async exec(command: string, multiPacket = false): Promise<string> {
@@ -68,7 +55,9 @@ export default class RCON extends EventEmitter{
 	}
 
 	public async authenticate(password: string): Promise<void> {
-		if(this._auth !== null) return await this._auth;
+		if(this._authenticated){
+			throw new Error('RCON: already authenticated/ing.');
+		}
 		await this.connection._ready();
 
 		if(typeof password !== 'string' || password === ''){
@@ -81,7 +70,7 @@ export default class RCON extends EventEmitter{
 		const EXEC_RESPONSE = this.connection.awaitResponse(PacketType.CommandResponse, ID);
 		const AUTH_RESPONSE = this.connection.awaitResponse(PacketType.AuthResponse, ID);
 
-		this._auth = (async () => {
+		this._authenticated = (async () => {
 			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
 
 			if(firstResponse.type === 2){
@@ -93,26 +82,30 @@ export default class RCON extends EventEmitter{
 			}
 		})();
 
-		await this._auth;
+		await this._authenticated;
 		this.connection.data.password = password;
 
 		if(this.connection.data.debug) debug('RCON autenticated');
+	}
+
+	private _reset(): void {
+		this.connection.buffers = [];
+		this.connection.remaining = 0;
+		this.connection._connected = false;
+		this._authenticated = false;
 	}
 
 	public async connect(options: RawRCONOptions): Promise<void> {
 		const data = await parseRCONOptions(options);
 
 		if(data.debug) debug('RCON connecting...');
-		const connection = this.connection = new Connection(data);
-		await connection._connected;
+		this.connection = new Connection(data);
+		await this.connection._ready();
 
-		const cb = (err?: Error): void => {
+		const onError = (err?: Error): void => {
 			if(this.connection.data.debug) debug('RCON disconnected.');
 
-			connection.buffers = [];
-			connection.remaining = 0;
-			connection._connected = null;
-			this._auth = null;
+			this._reset();
 
 			this.emit(
 				'disconnect',
@@ -120,9 +113,9 @@ export default class RCON extends EventEmitter{
 			);
 		};
 
-		connection.socket
-			.on('end', cb)
-			.on('error', cb);
+		this.connection.socket
+			.on('end', onError)
+			.on('error', onError);
 
 		if(data.debug) debug('RCON connected');
 		await this.authenticate(data.password);
@@ -150,7 +143,7 @@ export default class RCON extends EventEmitter{
 		try{
 			await this.authenticate(this.connection.data.password);
 		}catch(e: unknown){
-			this._auth = null;
+			this._authenticated = false;
 			if(e instanceof Error && e.message !== 'RCON: wrong password') throw e;
 
 			if(this.connection.data.debug) debug('RCON password changed.');

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { BufferReader, type ValueIn } from '../Base/utils';
 import type { ServerData } from '../Base/options';
 
@@ -120,9 +122,8 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 	return info;
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function parseTime(raw: number){
-	if(!raw || raw === -1) return null;
+	if(raw === -1) return null;
 
 	const hours = Math.floor(raw / 3600)								|| 0;
 	const minutes = Math.floor(raw / 60) - hours * 60					|| 0;
@@ -139,14 +140,13 @@ function parseTime(raw: number){
 
 export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
-	const playerList: Player[] = [];
+	const list: Player[] = [];
+	const count = reader.byte();
 
 	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(THE_SHIP_IDS.includes(appID)){
-		const playersCount = reader.byte();
-
-		for(let i = 0; i < playersCount; i++){
-			playerList.push({
+		while(reader.remaining().length !== list.length * 8){
+			list.push({
 				index: reader.byte(),
 				name: reader.string(),
 				score: reader.long(),
@@ -154,18 +154,16 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 			});
 		}
 
-		for(const player of playerList){
+		for(const player of list){
 			Object.assign(player, {
 				deaths: reader.long(),
 				money: reader.long(),
 			});
 		}
 	}else{
-		reader.addOffset(1);
-
 		while(reader.hasRemaining){
 			try{
-				playerList.push({
+				list.push({
 					index: reader.byte(),
 					name: reader.string(),
 					score: reader.long(),
@@ -174,12 +172,11 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 			}catch{
 				// eslint-disable-next-line no-console
 				if(enableWarns) console.warn('player info not terminated');
-				return playerList.filter(x => x.timeOnline !== null);
 			}
 		}
 	}
 
-	return playerList;
+	return { count, list };
 }
 
 export function rules(buffer: Buffer): Rules {
@@ -193,11 +190,12 @@ export function rules(buffer: Buffer): Rules {
 			obj[key] = true;
 		}else if(value === 'False'){
 			obj[key] = false;
-		// @ts-expect-error using isNaN to check if the string is a number
-		}else if(isNaN(value)){
-			obj[key] = value;
 		}else{
-			obj[key] = parseFloat(value);
+			try{
+				obj[key] = Number(value);
+			}catch{
+				obj[key] = value;
+			}
 		}
 	}
 
@@ -256,7 +254,6 @@ export interface TheShipServerInfo extends ServerInfo {
 
 export type FinalServerInfo = ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
 
-/** Info from a player in the server. */
 export interface Player {
 	/* Index of the player. */
 	index: number;
@@ -275,9 +272,11 @@ export interface TheShipPlayer extends Player{
 	money: number;
 }
 
-export type Players = Player[] | TheShipPlayer[];
+export interface Players {
+	count: number;
+	list: Player[] | TheShipPlayer[];
+}
 
-/** An object with server's rules */
 export interface Rules {
 	[key: string]: boolean | number | string;
 }

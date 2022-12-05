@@ -1,7 +1,20 @@
 import { createConnection, type Socket } from 'net';
 import { BufferReader, debug } from '../Base/utils';
-import type { RCONPacket, PacketType } from './RCON';
 import type { RCONData } from '../Base/options';
+
+export enum PacketType {
+	Auth = 3,
+	AuthResponse = 2,
+	Command = 2,
+	CommandResponse = 0,
+}
+
+export interface RCONPacket {
+	size: number;
+	ID: number;
+	type: PacketType;
+	body: string;
+}
 
 function parseRCONPacket(buffer: Buffer): RCONPacket {
 	const reader = new BufferReader(buffer);
@@ -55,19 +68,19 @@ export default class Connection{
 	}
 	public readonly data: RCONData;
 	public socket: Socket;
-	public _connected: Promise<unknown> | null;
+	public _connected: Promise<unknown> | false;
 
 	public remaining = 0;
 	public buffers: Buffer[] = [];
 
 	public async _ready(): Promise<void> {
-		if(this._connected === null){
-			throw new Error('Connection is closed.');
-		}else await this._connected;
+		if(this._connected) await this._connected;
+		else throw new Error('Connection is closed.');
 	}
 
 	public async send(command: Buffer): Promise<void> {
 		await this._ready();
+
 		if(this.data.debug) debug('RCON sending:', command);
 
 		return await new Promise((res, rej) => {

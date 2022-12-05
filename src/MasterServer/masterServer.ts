@@ -19,17 +19,6 @@ class Connection extends BaseConnection {
 	}
 }
 
-export default async function MasterServer(options: RawMasterServerOptions = {}): Promise<string[]> {
-	const data = await parseMasterServerOptions(options);
-	const connection = new Connection(data);
-	await connection.connect();
-
-	const servers = await getServers(connection, data);
-
-	connection.destroy();
-	return servers;
-}
-
 function makeCommand(last: string, region: number, filter: string): Buffer {
 	return new BufferWriter()
 		.byte(0x31, region)
@@ -38,7 +27,11 @@ function makeCommand(last: string, region: number, filter: string): Buffer {
 		.end();
 }
 
-async function getServers(connection: Connection, data: MasterServerData): Promise<string[]> {
+export default async function MasterServer(options: RawMasterServerOptions = {}): Promise<string[]> {
+	const data = await parseMasterServerOptions(options);
+	const connection = new Connection(data);
+	await connection.connect();
+
 	const servers: string[] = [];
 	let last = '0.0.0.0:0';
 
@@ -61,6 +54,7 @@ async function getServers(connection: Connection, data: MasterServerData): Promi
 		last = servers[servers.length - 1] as string;
 	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
 
+	connection.destroy();
 	return servers;
 }
 

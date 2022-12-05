@@ -176,12 +176,9 @@ export async function parseRCONOptions(options: RawRCONOptions): Promise<RCONDat
 		...options,
 	});
 
-	if(typeof parsedOptions.password !== 'string'){
-		throw Error("'password' should be a string");
+	if(typeof parsedOptions.password !== 'string' || parsedOptions.password === ''){
+		throw new Error('RCON password must be a non-empty string');
 	}
 
-	return {
-		...parsedOptions,
-		password: options.password,
-	};
+	return parsedOptions;
 }
