@@ -41,7 +41,7 @@ export default class Server{
 	public data!: ServerData;
 	public isConnected = false;
 
-	public async connect(options: RawServerOptions): Promise<this> {
+	public async connect(options: RawServerOptions = {}): Promise<this> {
 		if(this.isConnected){
 			throw new Error('Server: already connected.');
 		}

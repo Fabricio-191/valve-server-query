@@ -46,16 +46,28 @@ export default class RCON extends EventEmitter{
 		return packet.body;
 	}
 
-	public async connect(options: RawRCONOptions | null = null): Promise<void> {
+	public async connect(options: RawRCONOptions): Promise<void> {
 		const data = await parseRCONOptions(options);
-
-		if(data.debug) debug('RCON connecting...');
 		this.connection = new Connection(this, data);
-		await this.connection.connect();
-		await this.connection.mustBeConnected();
 
-		if(data.debug) debug('RCON connected');
+		await this.connection.connect();
 		await this.authenticate(data.password);
+	}
+
+	public async reconnect(): Promise<void> {
+		await this.connection.connect();
+
+		try{
+			await this.authenticate(this.connection.data.password);
+		}catch(e: unknown){
+			this.connection._auth = false;
+			if(e instanceof Error && e.message === 'RCON: wrong password'){
+				if(this.connection.data.debug) debug('RCON password changed.');
+				this.emit('passwordChange');
+			}
+
+			throw e;
+		}
 	}
 
 	public async authenticate(password: string): Promise<void> {
@@ -84,10 +96,6 @@ export default class RCON extends EventEmitter{
 		this.connection.data.password = password;
 
 		if(this.connection.data.debug) debug('RCON autenticated');
-	}
-
-	public async reconnect(): Promise<void> {
-		await this.connection.connect();
 	}
 
 	public destroy(): void {

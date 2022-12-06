@@ -35,7 +35,6 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 export default class Connection{
 	constructor(rcon: RCON, data: RCONData){
 		this.data = data;
-		this.rcon = rcon;
 
 		this.socket = createConnection(data.port, data.ip)
 			.unref()
@@ -74,7 +73,7 @@ export default class Connection{
 
 			this._reset();
 
-			this.rcon.emit(
+			rcon.emit(
 				'disconnect',
 				err ? err.message : 'The server closed the connection.'
 			);
@@ -85,7 +84,6 @@ export default class Connection{
 			.on('error', onError);
 	}
 	public readonly data: RCONData;
-	private readonly rcon: RCON;
 	public socket: Socket;
 
 	public remaining = 0;
@@ -163,28 +161,21 @@ export default class Connection{
 	}
 
 	public async connect(): Promise<void> {
-		if(this._connected !== false) return;
+		if(this._connected){
+			await this._connected;
+			return;
+		}
 
 		// Tiny delay to avoid "Error: Already connected" while reconnecting
-		await delay(10);
+		await delay(1);
 		if(this.data.debug) debug('RCON connecting...');
 
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 
-		this.socket.connect(this.data.port, this.data.ip).unref();
+		this.socket.connect(this.data.port, this.data.ip);
 
-		await this._connected;
+		await this.mustBeConnected();
 		if(this.data.debug) debug('RCON connected');
-
-		try{
-			await this.rcon.authenticate(this.data.password);
-		}catch(e: unknown){
-			this._auth = false;
-			if(e instanceof Error && e.message !== 'RCON: wrong password') throw e;
-
-			if(this.data.debug) debug('RCON password changed.');
-			this.rcon.emit('passwordChange');
-		}
 	}
 
 	public _reset(): void {
