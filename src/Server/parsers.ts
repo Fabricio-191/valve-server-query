@@ -9,11 +9,16 @@ const OPERATIVE_SYSTEMS = {
 		w: 'windows',
 		m: 'mac',
 		o: 'mac',
+		L: 'linux',
+		W: 'windows',
 	} as const,
 	SERVER_TYPES = {
 		d: 'dedicated',
 		l: 'non-dedicated',
 		p: 'source tv relay',
+		D: 'dedicated',
+		L: 'non-dedicated',
+		P: 'source tv relay',
 	} as const,
 	THE_SHIP_MODES = [
 		'hunt',
@@ -49,8 +54,8 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			max: reader.byte(),
 			bots: reader.byte(),
 		},
-		type: SERVER_TYPES[reader.char()] as ServerType ?? null,
-		OS: OPERATIVE_SYSTEMS[reader.char()] as OS,
+		type: SERVER_TYPES[ reader.char() ] as ServerType,
+		OS: OPERATIVE_SYSTEMS[ reader.char() ] as OS,
 		hasPassword: reader.byte() === 1,
 		VAC: reader.byte() === 1,
 	};
@@ -99,13 +104,9 @@ function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
 		},
 		protocol: reader.byte(),
 		goldSource: true,
-		type: SERVER_TYPES[
-			reader.char().toLowerCase()
-		] as ServerType,
-		OS: OPERATIVE_SYSTEMS[
-			reader.char().toLowerCase()
-		] as OS,
-		hasPassword: Boolean(reader.byte()),
+		type: SERVER_TYPES[ reader.char() ] as ServerType,
+		OS: OPERATIVE_SYSTEMS[ reader.char() ] as OS,
+		hasPassword: reader.byte() === 1,
 		mod: reader.byte() ? {
 			link: reader.string(),
 			downloadLink: reader.string(),
@@ -203,7 +204,7 @@ export function rules(buffer: Buffer): Rules {
 }
 
 // #region types
-type ServerType = ValueIn<typeof SERVER_TYPES> | null;
+type ServerType = ValueIn<typeof SERVER_TYPES>;
 type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
 
 export interface GoldSourceServerInfo {

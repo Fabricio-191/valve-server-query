@@ -10,7 +10,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: 'localhost:27015',
+	ip: '49.12.122.244:33038',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -198,9 +198,8 @@ describe('MasterServer', () => {
 
 describe.only('RCON', () => {
 	const rcon = new RCON();
-	it('connect and authenticate', async () => {
-		await rcon.connect(options);
-	});
+
+	it('connect and authenticate', () => rcon.connect(options));
 
 	it("exec('sv_gravity') (single packet response)", async () => {
 		result.RCON["exec('sv_gravity')"] = await rcon.exec('sv_gravity');

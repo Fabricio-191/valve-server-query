@@ -55,13 +55,13 @@ interface BaseRawOptions {
 	enableWarns?: boolean;
 }
 
-export type RawRCONOptions = BaseRawOptions & { password: string };
+export type RawRCONOptions = string | (BaseRawOptions & { password: string });
 export type RawServerOptions = BaseRawOptions | string;
-export type RawMasterServerOptions = string | BaseRawOptions & {
+export type RawMasterServerOptions = string | (BaseRawOptions & {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
 	filter?: Filter;
-};
+});
 // #endregion
 
 // #region options
@@ -174,6 +174,8 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 
 export async function parseRCONOptions(options: RawRCONOptions | null = null): Promise<RCONData> {
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
+	if(typeof options === 'string') options = { password: options };
+
 	const parsedOptions = await parseBaseOptions({
 		...DEFAULT_OPTIONS,
 		...options,

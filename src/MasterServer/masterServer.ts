@@ -1,11 +1,11 @@
 /* eslint-disable new-cap */
 import { BufferWriter, BufferReader } from '../Base/utils';
 import Filter from './filter';
-import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../Base/options';
+import * as Options from '../Base/options';
 import BaseConnection from '../Base/connection';
 
 class Connection extends BaseConnection {
-	public readonly data!: MasterServerData;
+	public readonly data!: Options.MasterServerData;
 
 	public onMessage(buffer: Buffer): void {
 		const header = buffer.readInt32LE();
@@ -27,8 +27,8 @@ function makeCommand(last: string, region: number, filter: string): Buffer {
 		.end();
 }
 
-export default async function MasterServer(options: RawMasterServerOptions = {}): Promise<string[]> {
-	const data = await parseMasterServerOptions(options);
+export default async function MasterServer(options: Options.RawMasterServerOptions = {}): Promise<string[]> {
+	const data = await Options.parseMasterServerOptions(options);
 	const connection = new Connection(data);
 	await connection.connect();
 
@@ -59,7 +59,11 @@ export default async function MasterServer(options: RawMasterServerOptions = {})
 	return servers;
 }
 
+export const { REGIONS } = Options;
+export { Filter };
+
 MasterServer.Filter = Filter;
+MasterServer.REGIONS = REGIONS;
 
 function parseServerList(buffer: Buffer): string[] {
 	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port

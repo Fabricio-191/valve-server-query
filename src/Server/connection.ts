@@ -7,7 +7,7 @@ function handleMultiplePackets(buffer: Buffer, connection: Connection): Buffer |
 	/*
 	First packets in each multi-packet:
 	GoldSource: 4 bytes header + 4 bytes id + 1 byte packets nums + PAYLOADSTARTSHERE
-	Source:     4 bytes header + 4 bytes id + 1 byte total packets + 1 byte current packet + 2 bytes size + PAYLOADSTARTSHERE
+	Source:     4 bytes header + 4 bytes id + 1 byte total packets + 1 byte current packet + 2 bytes size (optional) + PAYLOADSTARTSHERE
 
 	Payloads always start with a -1 header
 	the gouldsource payload starts at byte 9

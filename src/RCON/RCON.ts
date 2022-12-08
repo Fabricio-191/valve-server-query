@@ -55,7 +55,7 @@ export default class RCON extends EventEmitter{
 	}
 
 	public async reconnect(): Promise<void> {
-		await this.connection.connect();
+		await this.connection.connect(true);
 
 		try{
 			await this.authenticate(this.connection.data.password);
@@ -83,16 +83,19 @@ export default class RCON extends EventEmitter{
 		const EXEC_RESPONSE = this.connection.awaitResponse(PacketType.CommandResponse, ID);
 		const AUTH_RESPONSE = this.connection.awaitResponse(PacketType.AuthResponse, ID);
 
-		const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
+		this.connection._auth = (async function(){
+			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
 
-		if(firstResponse.type === 2){
-			if(firstResponse.ID === -1){
+			if(firstResponse.type === 2){
+				if(firstResponse.ID === -1){
+					throw new Error('RCON: wrong password');
+				}
+			}else if((await AUTH_RESPONSE).ID === -1){
 				throw new Error('RCON: wrong password');
 			}
-		}else if((await AUTH_RESPONSE).ID === -1){
-			throw new Error('RCON: wrong password');
-		}
+		})();
 
+		await this.connection.mustBeAuth();
 		this.connection.data.password = password;
 
 		if(this.connection.data.debug) debug('RCON autenticated');

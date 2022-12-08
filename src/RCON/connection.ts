@@ -69,14 +69,11 @@ export default class Connection{
 			});
 
 		const onError = (err?: Error): void => {
-			if(this.data.debug) debug('RCON disconnected.');
+			const reason = err ? err.message : 'The server closed the connection.';
+			if(this.data.debug) debug(`RCON disconnected: ${reason}`);
 
 			this._reset();
-
-			rcon.emit(
-				'disconnect',
-				err ? err.message : 'The server closed the connection.'
-			);
+			rcon.emit('disconnect', reason);
 		};
 
 		this.socket
@@ -160,7 +157,7 @@ export default class Connection{
 		});
 	}
 
-	public async connect(): Promise<void> {
+	public async connect(reconnect = false): Promise<void> {
 		if(this._connected){
 			await this._connected;
 			return;
@@ -172,7 +169,7 @@ export default class Connection{
 
 		this._connected = this.awaitEvent('connect', 'Connection timeout.');
 
-		this.socket.connect(this.data.port, this.data.ip);
+		if(reconnect) this.socket.connect(this.data.port, this.data.ip);
 
 		await this.mustBeConnected();
 		if(this.data.debug) debug('RCON connected');
