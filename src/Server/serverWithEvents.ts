@@ -29,13 +29,8 @@ interface Events {
 }
 
 declare interface ServerWithEvents {
-	on<T extends keyof Events>(
-		event: T, listener: Events[T]
-	): this;
-
-	emit<T extends keyof Events>(
-		event: T, ...args: Parameters<Events[T]>
-	): boolean;
+	  on<T extends keyof Events>(event: T, listener: Events[T]): this;
+	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
 }
 
 class ServerWithEvents extends EventEmitter {
