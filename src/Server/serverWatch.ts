@@ -1,13 +1,38 @@
 import { EventEmitter } from 'events';
-import Server from './server';
+import type Server from './server';
 import type { FinalServerInfo as ServerInfo, Players, Rules } from './parsers';
-import type { RawServerOptions } from '../Base/options';
 
 type InfoKeys = Array<keyof ServerInfo>;
 type Player = Players['list'][number];
 
+const queries = ['info', 'players', 'rules'] as const;
+
 interface Options {
+	watch: Array<'info' | 'players' | 'rules'>;
 	interval: number;
+}
+type RawOptions = Partial<Options>;
+
+export const DEFAULT_OPTIONS: Options = {
+	watch: ['info', 'players'],
+	interval: 30000,
+};
+
+function parseOptions(options: RawOptions, previousOptions: Options): Options {
+	const data: Options = {
+		...previousOptions,
+		...options,
+	};
+
+	if(data.interval < 1000){
+		throw new Error('The interval must be greater than 1000ms.');
+	}else if(!Array.isArray(data.watch)){
+		throw new Error('The watch option must be an array.');
+	}else if(data.watch.some(item => !queries.includes(item))){
+		throw new Error('The watch option must be an array with only "info", "players" or "rules".');
+	}
+
+	return data;
 }
 
 function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
@@ -28,51 +53,56 @@ interface Events {
 	'error': (err: unknown) => void;
 }
 
-declare interface ServerWithEvents {
+declare interface ServerWatch {
 	  on<T extends keyof Events>(event: T, listener: Events[T]): this;
 	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
 }
 
-class ServerWithEvents extends EventEmitter {
-	constructor(options: Options){
+class ServerWatch extends EventEmitter {
+	constructor(server: Server, options: RawOptions){
 		super();
-		this.options = options;
-		this.server = new Server();
+		this.options = parseOptions(options, DEFAULT_OPTIONS);
+		this.server = server;
+
+		this.update();
+		this.resume();
 	}
-	private readonly options: Options;
 	private readonly server: Server;
+	private options: Options;
 	private interval!: NodeJS.Timeout;
 
 	public info!: ServerInfo;
 	public players!: Players;
 	public rules!: Rules;
 
-	public async connect(options: RawServerOptions): Promise<void> {
-		await this.server.connect(options);
-		await this.update();
-		this.start();
+	public setOptions(options: RawOptions): this {
+		this.options = parseOptions(options, this.options);
+		return this;
 	}
 
-	public start(): void {
-		this.interval = setInterval(() => {
-			this.update().catch(err => {
-				clearInterval(this.interval);
+	public stop(): void {
+		clearInterval(this.interval);
+	}
+
+	public resume(): void {
+		if(this.interval){
+			throw new Error('The watch is already running.');
+		}
+		this.interval = setInterval(() => this.update(), this.options.interval);
+	}
+
+	private update(): void {
+		Promise.all(
+			this.options.watch.map(x => this[`update_${x}`]())
+		)
+			.catch(err => {
 				this.emit('error', err);
 			});
-		}, this.options.interval);
-	}
-
-	private async update(): Promise<void> {
-		await Promise.all([
-			this.updateInfo(),
-			this.updatePlayers(),
-			this.updateRules(),
-		]);
 
 		this.emit('update');
 	}
 
-	private async updateInfo(): Promise<void> {
+	private async update_info(): Promise<void> {
 		const oldInfo = this.info;
 		this.info = await this.server.getInfo();
 
@@ -82,7 +112,7 @@ class ServerWithEvents extends EventEmitter {
 		}
 	}
 
-	private async updatePlayers(): Promise<void> {
+	private async update_players(): Promise<void> {
 		const oldPlayers = this.players;
 		this.players = await this.server.getPlayers();
 		let playersChanged = false;
@@ -106,7 +136,7 @@ class ServerWithEvents extends EventEmitter {
 		}
 	}
 
-	private async updateRules(): Promise<void> {
+	private async update_rules(): Promise<void> {
 		const oldRules = this.rules;
 		this.rules = await this.server.getRules();
 
@@ -117,4 +147,4 @@ class ServerWithEvents extends EventEmitter {
 	}
 }
 
-export default ServerWithEvents;
+export default ServerWatch;
