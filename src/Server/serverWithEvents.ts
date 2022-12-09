@@ -10,28 +10,25 @@ interface Options {
 	interval: number;
 }
 
-function diferentKeys<T>(a: T, b: T): Array<keyof T> {
-	const keys: Array<keyof T> = [];
+function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
+	const keys = Object.keys(a) as Array<keyof T>;
 
-	for(const key in b){
-		if(a[key] !== b[key]){
-			keys.push(key);
-		}
-	}
-	return keys;
+	return keys.filter(key => a[key] !== b[key] && typeof a[key] !== 'object');
 }
 
 interface Events {
 	'infoUpdate': (oldInfo: ServerInfo, newInfo: ServerInfo, changed: InfoKeys) => void;
 	'playersUpdate': (oldPlayers: Players, newPlayers: Players) => void;
+	'rulesUpdate': (oldRules: Rules, newRules: Rules, changed: Array<number | string>) => void;
+
 	'playerJoin': (player: Player) => void;
 	'playerLeave': (player: Player) => void;
-	'rulesUpdate': (oldRules: Rules, newRules: Rules, changed: string[]) => void;
+
 	'update': () => void;
-	'error': () => void;
+	'error': (err: unknown) => void;
 }
 
-declare interface ServerA {
+declare interface ServerWithEvents {
 	on<T extends keyof Events>(
 		event: T, listener: Events[T]
 	): this;
@@ -41,7 +38,7 @@ declare interface ServerA {
 	): boolean;
 }
 
-class ServerA extends EventEmitter {
+class ServerWithEvents extends EventEmitter {
 	constructor(options: Options){
 		super();
 		this.options = options;
@@ -57,18 +54,15 @@ class ServerA extends EventEmitter {
 
 	public async connect(options: RawServerOptions): Promise<void> {
 		await this.server.connect(options);
-
-		this.info = await this.server.getInfo();
-		this.players = await this.server.getPlayers();
-		this.rules = await this.server.getRules();
+		await this.update();
 		this.start();
 	}
 
 	public start(): void {
 		this.interval = setInterval(() => {
-			this.update().catch(() => {
+			this.update().catch(err => {
 				clearInterval(this.interval);
-				this.emit('error');
+				this.emit('error', err);
 			});
 		}, this.options.interval);
 	}
@@ -88,7 +82,6 @@ class ServerA extends EventEmitter {
 		this.info = await this.server.getInfo();
 
 		const changed = diferentKeys(oldInfo, this.info);
-
 		if(changed.length){
 			this.emit('infoUpdate', oldInfo, this.info, changed);
 		}
@@ -122,12 +115,11 @@ class ServerA extends EventEmitter {
 		const oldRules = this.rules;
 		this.rules = await this.server.getRules();
 
-		const changed = diferentKeys(oldRules, this.rules) as string[];
-
+		const changed = diferentKeys(oldRules, this.rules);
 		if(changed.length){
 			this.emit('rulesUpdate', oldRules, this.rules, changed);
 		}
 	}
 }
 
-export default ServerA;
+export default ServerWithEvents;
