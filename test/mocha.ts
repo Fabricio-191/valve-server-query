@@ -10,7 +10,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33004',
+	ip: '213.239.207.78:33021',
 	password: 'cosas',
 
 	enableWarns: false,

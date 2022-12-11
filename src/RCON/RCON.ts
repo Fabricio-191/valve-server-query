@@ -75,9 +75,7 @@ class RCON extends EventEmitter{
 			if(e instanceof Error && e.message === 'RCON: wrong password'){
 				if(this.connection.data.debug) debug('RCON password changed.');
 				this.emit('passwordChange');
-			}
-
-			throw e;
+			}else throw e;
 		}
 	}
 
