@@ -51,8 +51,9 @@ export default abstract class BaseConnection {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
-				this.socket.off('packet', onPacket);
-				this.socket.off('error', onError);
+				this.socket
+					.off('packet', onPacket)
+					.off('error', onError);
 				clearTimeout(timeout);
 				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
@@ -68,8 +69,9 @@ export default abstract class BaseConnection {
 
 			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
 
-			this.socket.on('packet', onPacket);
-			this.socket.on('error', onError);
+			this.socket
+				.on('packet', onPacket)
+				.on('error', onError);
 		});
 	}
 

@@ -33,61 +33,14 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 }
 
 export default class Connection{
-	constructor(rcon: RCON, data: RCONData){
-		this.data = data;
-
-		this.socket = createConnection(data.port, data.ip)
-			.unref()
-			.on('data', (buffer: Buffer) => {
-				if(this.data.debug) debug('RCON recieved:', buffer);
-
-				if(this.remaining === 0){
-					this.remaining = buffer.readUInt32LE() + 4; // size field
-				}
-				this.remaining -= buffer.length;
-
-				if(this.remaining === 0){ // got the whole packet
-					this.buffers.push(buffer);
-					this.socket.emit('packet', parseRCONPacket(
-						Buffer.concat(this.buffers)
-					));
-
-					this.buffers = [];
-				}else if(this.remaining > 0){ // needs more packets
-					this.buffers.push(buffer);
-				}else{ // got more than one packet
-					this.buffers.push(buffer.slice(0, this.remaining));
-					this.socket.emit('packet', parseRCONPacket(
-						Buffer.concat(this.buffers)
-					));
-
-					const excess = this.remaining;
-					this.buffers = [];
-					this.remaining = 0;
-					this.socket.emit('data', buffer.slice(excess));
-				}
-			});
-
-		const onError = (err?: Error): void => {
-			const reason = err ? err.message : 'The server closed the connection.';
-			if(this.data.debug) debug(`RCON disconnected: ${reason}`);
-
-			this._reset();
-			rcon.emit('disconnect', reason);
-		};
-
-		this.socket
-			.on('end', onError)
-			.on('error', onError);
-	}
-	public readonly data: RCONData;
-	public socket: Socket;
+	public data!: RCONData;
+	public socket!: Socket;
 
 	public remaining = 0;
 	public buffers: Buffer[] = [];
 
-	public _connected: Promise<unknown> | false = false;
-	public _auth: Promise<unknown> | false = false;
+	public _connected: Promise<void> | false = false;
+	public _auth: Promise<void> | false = false;
 
 	public async mustBeConnected(): Promise<void> {
 		if(!this._connected) throw new Error('RCON: not connected/ing.');
@@ -102,8 +55,6 @@ export default class Connection{
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		await this.mustBeConnected();
-
 		if(this.data.debug) debug('RCON sending:', command);
 
 		return await new Promise((res, rej) => {
@@ -115,8 +66,6 @@ export default class Connection{
 	}
 
 	public async awaitResponse(type: PacketType, ID: number): Promise<RCONPacket> {
-		await this.mustBeConnected();
-
 		return await this.awaitEvent(
 			'packet',
 			'Response timeout.',
@@ -126,7 +75,7 @@ export default class Connection{
 	}
 
 	public awaitEvent(
-		event: string,
+		event: 'connect' | 'packet',
 		timeoutMsg: string,
 		filter: ((packet: RCONPacket) => unknown) | null = null
 	): Promise<unknown> {
@@ -157,19 +106,67 @@ export default class Connection{
 		});
 	}
 
-	public async connect(reconnect = false): Promise<void> {
-		if(this._connected){
-			await this._connected;
-			return;
+	private onData(buffer: Buffer): void {
+		if(this.remaining === 0){
+			this.remaining = buffer.readUInt32LE() + 4; // size field
 		}
+		this.remaining -= buffer.length;
+
+		if(this.remaining === 0){ // got the whole packet
+			this.buffers.push(buffer);
+			this.socket.emit('packet', parseRCONPacket(
+				Buffer.concat(this.buffers)
+			));
+
+			this.buffers = [];
+		}else if(this.remaining > 0){ // needs more packets
+			this.buffers.push(buffer);
+		}else{ // got more than one packet
+			this.buffers.push(buffer.slice(0, this.remaining));
+			this.socket.emit('packet', parseRCONPacket(
+				Buffer.concat(this.buffers)
+			));
+
+			const excess = this.remaining;
+			this.buffers = [];
+			this.remaining = 0;
+			this.socket.emit('data', buffer.slice(excess));
+		}
+	}
+
+	public async connect(rcon: RCON, data: RCONData): Promise<void> {
+		const onError = (err?: Error): void => {
+			const reason = err ? err.message : 'The server closed the connection.';
+			if(this.data.debug) debug(`RCON disconnected: ${reason}`);
+
+			this._reset();
+			rcon.emit('disconnect', reason);
+		};
+
+		this.data = data;
+		this.socket = createConnection(data.port, data.ip)
+			.unref()
+			.on('data', this.onData.bind(this))
+			.on('end', onError)
+			.on('error', onError);
+
+		if(this.data.debug) debug('RCON reconnecting...');
+
+		this._connected = this.awaitEvent('connect', 'Connection timeout.') as Promise<void>;
+
+		await this.mustBeConnected();
+		if(this.data.debug) debug('RCON connected');
+	}
+
+	public async reconnect(): Promise<void> {
+		if(this._connected) return await this._connected;
 
 		// Tiny delay to avoid "Error: Already connected" while reconnecting
 		await delay(1);
-		if(this.data.debug) debug('RCON connecting...');
+		if(this.data.debug) debug('RCON reconnecting...');
 
-		this._connected = this.awaitEvent('connect', 'Connection timeout.');
-
-		if(reconnect) this.socket.connect(this.data.port, this.data.ip);
+		this._connected = this.awaitEvent('connect', 'Connection timeout.') as Promise<void>;
+		this.socket.connect(this.data.port, this.data.ip);
 
 		await this.mustBeConnected();
 		if(this.data.debug) debug('RCON connected');

@@ -13,10 +13,22 @@ function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 		.end();
 }
 
-// I don't like messy code but i had to do it in order to be able to manage reconnections and reauthentication
+interface Events {
+	'disconnect': (reason?: string) => void;
+	'passwordChange': () => void;
+}
 
-export default class RCON extends EventEmitter{
-	private connection!: Connection;
+declare interface RCON {
+	  on<T extends keyof Events>(event: T, listener: Events[T]): this;
+	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
+}
+
+class RCON extends EventEmitter{
+	constructor(){
+		super();
+		this.connection = new Connection();
+	}
+	private connection: Connection;
 
 	public async exec(command: string, multiPacket = false): Promise<string> {
 		await this.connection.mustBeAuth();
@@ -48,14 +60,13 @@ export default class RCON extends EventEmitter{
 
 	public async connect(options: RawRCONOptions): Promise<void> {
 		const data = await parseRCONOptions(options);
-		this.connection = new Connection(this, data);
 
-		await this.connection.connect();
+		await this.connection.connect(this, data);
 		await this.authenticate(data.password);
 	}
 
 	public async reconnect(): Promise<void> {
-		await this.connection.connect(true);
+		await this.connection.reconnect();
 
 		try{
 			await this.authenticate(this.connection.data.password);
@@ -113,3 +124,5 @@ export default class RCON extends EventEmitter{
 		return this._lastID++;
 	}
 }
+
+export default RCON;

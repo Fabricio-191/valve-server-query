@@ -10,11 +10,11 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33038',
+	ip: '49.12.122.244:33004',
 	password: 'cosas',
 
 	enableWarns: false,
-	debug: false,
+	debug: true,
 };
 
 const result = {
@@ -89,8 +89,6 @@ describe('Server', () => {
 	});
 
 	it('getInfo()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
 		const info = await server.getInfo();
 
 		checkInfo(info);
@@ -98,26 +96,18 @@ describe('Server', () => {
 	});
 
 	it('getPlayers()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
 		result.server.getPlayers = await server.getPlayers();
 	});
 
 	it('getRules()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
 		result.server.getRules = await server.getRules();
 	});
 
 	it('getPing()', async () => {
-		if(!server) throw new MyError('Server not connected');
-
 		result.server.getPing = await server.getPing();
 	});
 
 	it('lastPing', () => {
-		if(!server) throw new MyError('Server not connected');
-
 		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
 			throw new MyError('Server.lastPing is not a number');
 		}else if(server.lastPing <= -1){
@@ -161,21 +151,13 @@ describe('MasterServer', () => {
 			);
 
 		const IPs = await MasterServer({
-			// debug: true,
+			debug: options.debug,
 			filter,
 			region: 'SOUTH_AMERICA',
 			quantity: 1000,
 		});
 
-		const results = await Promise.allSettled(IPs.map(address => {
-			// eslint-disable-next-line @typescript-eslint/no-shadow
-			const [ip, port] = address.split(':') as [string, string];
-
-			return Server.getInfo({
-				ip,
-				port: parseInt(port),
-			});
-		}));
+		const results = await Promise.allSettled(IPs.map(Server.getInfo));
 
 		const satisfiesFilter = results
 			.filter(x => x.status === 'fulfilled')
@@ -196,7 +178,7 @@ describe('MasterServer', () => {
 	});
 });
 
-describe.only('RCON', () => {
+describe('RCON', () => {
 	const rcon = new RCON();
 
 	it('connect and authenticate', () => rcon.connect(options));
@@ -234,7 +216,6 @@ describe.only('RCON', () => {
 
 	it('should reconnect', async () => {
 		rcon.exec('sv_gravity 0').catch(doNothing);
-
 		await shouldFireEvent(rcon, 'disconnect', 3000);
 		await rcon.reconnect();
 
@@ -284,7 +265,7 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 	const err = new Error(`Event ${event} (${id++}) not fired`);
 
 	return new Promise((res, rej) => {
-		const end = (error: unknown): void => {
+		const end = (error?: unknown): void => {
 			obj.off(event, end);
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			clearTimeout(timeout);
@@ -294,8 +275,7 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 		};
 
 		const timeout = setTimeout(end, time, err).unref();
-
-		obj.on(event, end);
+		obj.on(event, () => end());
 	});
 }
 
