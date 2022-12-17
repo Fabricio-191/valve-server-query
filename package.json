@@ -4,9 +4,9 @@
   "typings": "./typings/index.d.ts",
   "scripts": {
     "lint": "npx eslint . --fix",
-    "test": "mocha -r ts-node/register test/mocha.ts --slow 5000 --timeout 6000",
-    "testLib": "mocha test/mocha.js --slow 5000 --timeout 6000 ",
-	"build": "npm run lint && npm t && tsc -p tsconfig.build.json && npm run testLib && npm publish"
+    "mocha": "mocha -r ts-node/register test/mocha.ts --slow 5000 --timeout 6000",
+    "test": "nodemon test/test.ts",
+	"build": "npm run lint && npm t && tsc -p tsconfig.build.json && mocha test/mocha.js --slow 5000 --timeout 6000 && npm publish"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.17.0",

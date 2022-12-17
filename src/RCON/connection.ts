@@ -54,10 +54,10 @@ export default class Connection{
 		await this._auth;
 	}
 
-	public async send(command: Buffer): Promise<void> {
+	public send(command: Buffer): Promise<void> {
 		if(this.data.debug) debug('RCON sending:', command);
 
-		return await new Promise((res, rej) => {
+		return new Promise((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
 				if(err) rej(err);
 				else res();
@@ -65,13 +65,13 @@ export default class Connection{
 		});
 	}
 
-	public async awaitResponse(type: PacketType, ID: number): Promise<RCONPacket> {
-		return await this.awaitEvent(
+	public awaitResponse(type: PacketType, ID: number): Promise<RCONPacket> {
+		return this.awaitEvent(
 			'packet',
 			'Response timeout.',
 			(packet: RCONPacket) => packet.type === type &&
 				(packet.ID === ID || packet.ID === -1)
-		) as RCONPacket;
+		) as Promise<RCONPacket>;
 	}
 
 	public awaitEvent(
@@ -106,34 +106,6 @@ export default class Connection{
 		});
 	}
 
-	private onData(buffer: Buffer): void {
-		if(this.remaining === 0){
-			this.remaining = buffer.readUInt32LE() + 4; // size field
-		}
-		this.remaining -= buffer.length;
-
-		if(this.remaining === 0){ // got the whole packet
-			this.buffers.push(buffer);
-			this.socket.emit('packet', parseRCONPacket(
-				Buffer.concat(this.buffers)
-			));
-
-			this.buffers = [];
-		}else if(this.remaining > 0){ // needs more packets
-			this.buffers.push(buffer);
-		}else{ // got more than one packet
-			this.buffers.push(buffer.slice(0, this.remaining));
-			this.socket.emit('packet', parseRCONPacket(
-				Buffer.concat(this.buffers)
-			));
-
-			const excess = this.remaining;
-			this.buffers = [];
-			this.remaining = 0;
-			this.socket.emit('data', buffer.slice(excess));
-		}
-	}
-
 	public async connect(rcon: RCON, data: RCONData): Promise<void> {
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
@@ -146,9 +118,37 @@ export default class Connection{
 		this.data = data;
 		this.socket = createConnection(data.port, data.ip)
 			.unref()
-			.on('data', this.onData.bind(this))
 			.on('end', onError)
-			.on('error', onError);
+			.on('error', onError)
+			.on('data', buffer => {
+				if(this.remaining === 0){
+					this.remaining = buffer.readUInt32LE() + 4; // size field
+				}
+				this.remaining -= buffer.length;
+
+				if(this.remaining === 0){ // got the whole packet
+					this.buffers.push(buffer);
+					this.socket.emit('packet', parseRCONPacket(
+						Buffer.concat(this.buffers)
+					));
+
+					this.buffers = [];
+				}else if(this.remaining > 0){ // needs more packets
+					this.buffers.push(buffer);
+				}else{ // got more than one packet
+					this.buffers.push(buffer.slice(0, this.remaining));
+					this.socket.emit('packet', parseRCONPacket(
+						Buffer.concat(this.buffers)
+					));
+
+					const excess = this.remaining;
+					this.buffers = [];
+					this.remaining = 0;
+					this.socket.emit('data', buffer.slice(excess));
+				}
+			});
+
+		// could use the close event but wouldn't be able to get the reason
 
 		if(this.data.debug) debug('RCON reconnecting...');
 

@@ -10,7 +10,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33021',
+	ip: '213.239.207.78:33011',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -37,43 +37,15 @@ class MyError extends Error {
 	}
 }
 
-function checkInfo(info: object): void {
-	for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
-		if(!(key in info)){
-			throw new MyError('Missing keys in data');
-		}
-	}
-}
-
-/*
-const byteRegex = '(?:(?:[1-9]?\\d)|(?:1\\d\\d)|(?:2[0-4]\\d)|(?:25[0-5]))'; // 0 - 255
-const portRegex = '((?:[0-5]?\\d{1,4})|(?:6[0-4]\\d{3})|(?:65[0-4]\\d{2})|(?:655[0-2]\\d)|(?:6553[0-5]))'; // 0 - 65535
-
-const ipv4RegexWithPort = new RegExp(`^((?:${byteRegex}\\.){3}${byteRegex}):${portRegex}$`);
-*/
-
-const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
-
-function checkIP(ip: unknown): void {
-	if(typeof ip !== 'string') throw new MyError('IP is not a string');
-
-	const matches = ipv4RegexWithPort.exec(ip);
-	if(!matches) throw new MyError('IP is not valid');
-
-	for(let i = 1; i < 5; i++){
-		const num = Number(matches[i]);
-		if(num < 0 || num > 255){
-			throw new MyError('Field in IP is not valid');
-		}
-	}
-
-	const port = Number(matches[5]);
-	if(port < 0 || port > 65535){
-		throw new MyError('Port in IP is not valid');
-	}
-}
-
 describe('Server', () => {
+	function checkInfo(info: object): void {
+		for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
+			if(!(key in info)){
+				throw new MyError('Missing keys in data');
+			}
+		}
+	}
+
 	it('static getInfo()', async () => {
 		const info = await Server.getInfo(options);
 
@@ -119,6 +91,28 @@ describe('Server', () => {
 });
 
 describe('MasterServer', () => {
+	const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
+
+	function checkIP(ip: unknown): void {
+		if(typeof ip !== 'string') throw new MyError('IP is not a string');
+
+		const matches = ipv4RegexWithPort.exec(ip);
+		if(!matches) throw new MyError('IP is not valid');
+
+		for(let i = 1; i < 5; i++){
+			const num = Number(matches[i]);
+			if(num < 0 || num > 255){
+				throw new MyError('Field in IP is not valid');
+			}
+		}
+
+		const port = Number(matches[5]);
+		if(port < 0 || port > 65535){
+			throw new MyError('Port in IP is not valid');
+		}
+	}
+
+
 	it('query', async () => {
 		const IPs = await MasterServer({
 			region: 'SOUTH_AMERICA',
@@ -128,9 +122,9 @@ describe('MasterServer', () => {
 		});
 
 		if(!Array.isArray(IPs)){
-			throw new Error('ips is not an array');
+			throw new MyError('ips is not an array');
 		}else if(Math.abs(IPs.length - 900) > 100){ // 900 ± 100
-			throw new Error('ips does not have ~900 servers');
+			throw new MyError('ips does not have ~900 servers');
 		}
 
 		IPs.forEach(checkIP);
@@ -173,7 +167,7 @@ describe('MasterServer', () => {
 			.length;
 
 		if(results.length - satisfiesFilter < results.length * 0.1){ // (10% error margin) master servers are not perfect
-			throw new Error('Filter is not working well');
+			throw new MyError('Filter is not working well');
 		}
 	});
 });
@@ -262,7 +256,7 @@ after(() => {
 
 let id = 1;
 function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promise<void> {
-	const err = new Error(`Event ${event} (${id++}) not fired`);
+	const err = new MyError(`Event ${event} (${id++}) not fired`);
 
 	return new Promise((res, rej) => {
 		const end = (error?: unknown): void => {
@@ -278,16 +272,3 @@ function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promis
 		obj.on(event, () => end());
 	});
 }
-
-/*
-async function shouldThrowError(fn: () => unknown, error: unknown): Promise<void> {
-	try{
-		await fn();
-	}catch(e){
-		if(e.message !== error) throw e;
-		return;
-	}
-
-	throw new Error('Error not thrown');
-}
-*/

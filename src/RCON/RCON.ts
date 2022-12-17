@@ -121,6 +121,14 @@ class RCON extends EventEmitter{
 		if(this._lastID === 0x80000000) this._lastID = -0x80000000;
 		return this._lastID++;
 	}
+
+	public ref(): void {
+		this.connection.socket.ref();
+	}
+
+	public unref(): void {
+		this.connection.socket.unref();
+	}
 }
 
 export default RCON;

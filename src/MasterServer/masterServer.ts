@@ -27,6 +27,26 @@ function makeCommand(last: string, region: number, filter: string): Buffer {
 		.end();
 }
 
+export const { REGIONS } = Options;
+export { Filter };
+
+MasterServer.Filter = Filter;
+MasterServer.REGIONS = REGIONS;
+
+function parseServerList(buffer: Buffer): string[] {
+	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port
+	if(!Number.isInteger(amount)) throw new Error('invalid server list');
+
+	const reader = new BufferReader(buffer, 2); // skip header
+	const servers = Array<string>(amount);
+
+	for(let i = 0; i < amount; i++){
+		servers[i] = `${reader.byte()}.${reader.byte()}.${reader.byte()}.${reader.byte()}:${reader.short(true, 'BE')}`;
+	}
+
+	return servers;
+}
+
 export default async function MasterServer(options: Options.RawMasterServerOptions = {}): Promise<string[]> {
 	const data = await Options.parseMasterServerOptions(options);
 	const connection = new Connection(data);
@@ -56,25 +76,6 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
 
 	connection.destroy();
-	return servers;
-}
-
-export const { REGIONS } = Options;
-export { Filter };
-
-MasterServer.Filter = Filter;
-MasterServer.REGIONS = REGIONS;
-
-function parseServerList(buffer: Buffer): string[] {
-	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port
-	if(!Number.isInteger(amount)) throw new Error('invalid server list');
-
-	const reader = new BufferReader(buffer, 2); // skip header
-	const servers = Array<string>(amount);
-
-	for(let i = 0; i < amount; i++){
-		servers[i] = `${reader.byte()}.${reader.byte()}.${reader.byte()}.${reader.byte()}:${reader.short(true, 'BE')}`;
-	}
-
+	if(last === '0.0.0.0:0') servers.pop();
 	return servers;
 }

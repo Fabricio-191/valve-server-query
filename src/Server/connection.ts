@@ -162,5 +162,5 @@ function retries(fn: () => Promise<void>, retries: number, delayTime: number): P
 		if(retries === 0) throw err;
 		return delay(delayTime).then(() => retries(fn, retries - 1, delayTime));
 	});
-}4
+}
 */

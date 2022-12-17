@@ -38,7 +38,38 @@ const OPERATIVE_SYSTEMS = {
 export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
-	if(reader.byte() === 0x6D) return goldSourceServerInfo(reader);
+	if(reader.byte() === 0x6D){
+		const info: GoldSourceServerInfo = {
+			address: reader.string(),
+			name: reader.string().trim(),
+			map: reader.string(),
+			folder: reader.string(),
+			game: reader.string(),
+			players: {
+				online: reader.byte(),
+				bots: -1,
+				max: reader.byte(),
+			},
+			protocol: reader.byte(),
+			goldSource: true,
+			type: SERVER_TYPES[ reader.char() ] as ServerType,
+			OS: OPERATIVE_SYSTEMS[ reader.char() ] as OS,
+			hasPassword: reader.byte() === 1,
+			mod: reader.byte() ? {
+				link: reader.string(),
+				downloadLink: reader.string(),
+				version: reader.addOffset(1).long(), // null byte
+				size: reader.long(),
+				multiplayerOnly: reader.byte() === 1,
+				ownDLL: reader.byte() === 1,
+			} : false,
+			VAC: reader.byte() === 1,
+		};
+
+		info.players.bots = reader.byte();
+
+		return info;
+	}
 
 	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {
@@ -86,39 +117,6 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 		info.gameID = reader.bigUInt();
 		info.appID = Number(info.gameID & 0xFFFFFFn);
 	}
-
-	return info;
-}
-
-function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
-	const info: GoldSourceServerInfo = {
-		address: reader.string(),
-		name: reader.string().trim(),
-		map: reader.string(),
-		folder: reader.string(),
-		game: reader.string(),
-		players: {
-			online: reader.byte(),
-			bots: -1,
-			max: reader.byte(),
-		},
-		protocol: reader.byte(),
-		goldSource: true,
-		type: SERVER_TYPES[ reader.char() ] as ServerType,
-		OS: OPERATIVE_SYSTEMS[ reader.char() ] as OS,
-		hasPassword: reader.byte() === 1,
-		mod: reader.byte() ? {
-			link: reader.string(),
-			downloadLink: reader.string(),
-			version: reader.addOffset(1).long(), // null byte
-			size: reader.long(),
-			multiplayerOnly: reader.byte() === 1,
-			ownDLL: reader.byte() === 1,
-		} : false,
-		VAC: reader.byte() === 1,
-	};
-
-	info.players.bots = reader.byte();
 
 	return info;
 }
