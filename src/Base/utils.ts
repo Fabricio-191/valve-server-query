@@ -22,6 +22,7 @@ export async function resolveHostname(string: string): Promise<{
 	};
 }
 
+export type NonEmptyArray<T> = [T, ...T[]];
 export type ValueIn<T> = T[keyof T];
 
 export class BufferWriter{
@@ -116,7 +117,7 @@ export class BufferReader{
 
 export function debug(
 	string: string,
-	buffer?: Buffer
+	buffer?: Buffer | string
 ): void {
 	if(buffer){
 		const parts = Buffer.from(buffer)

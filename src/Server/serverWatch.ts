@@ -1,8 +1,9 @@
 import { EventEmitter } from 'events';
 import type Server from './server';
 import type { FinalServerInfo as ServerInfo, Players, Rules } from './parsers';
+import type { NonEmptyArray } from '../Base/utils';
 
-type InfoKeys = [keyof ServerInfo, ...Array<keyof ServerInfo>];
+type InfoKeys = NonEmptyArray<keyof ServerInfo>;
 type Player = Players['list'][number];
 
 const queries = ['info', 'players', 'rules'] as const;
@@ -52,7 +53,7 @@ interface Events {
 }
 
 declare interface ServerWatch {
-	  on<T extends keyof Events>(event: T, listener: Events[T]): this;
+	on<T extends keyof Events>(event: T, listener: Events[T]): this;
 	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
 }
 
@@ -62,7 +63,6 @@ class ServerWatch extends EventEmitter {
 		this.options = parseOptions(options, DEFAULT_OPTIONS);
 		this.server = server;
 
-		this.update();
 		this.resume();
 	}
 	private readonly server: Server;
@@ -75,6 +75,9 @@ class ServerWatch extends EventEmitter {
 
 	public setOptions(options: RawOptions): this {
 		this.options = parseOptions(options, this.options);
+		this.stop();
+		this.resume();
+
 		return this;
 	}
 
@@ -84,6 +87,8 @@ class ServerWatch extends EventEmitter {
 
 	public resume(): void {
 		if(this.interval) throw new Error('The watch is already running.');
+		if(this.options.interval === 0) return;
+		this.update();
 		this.interval = setInterval(() => this.update(), this.options.interval);
 	}
 
@@ -104,7 +109,7 @@ class ServerWatch extends EventEmitter {
 
 		const changed = diferentKeys(oldInfo, this.info);
 		if(changed.length){
-			this.emit('infoUpdate', oldInfo, this.info, changed);
+			this.emit('infoUpdate', oldInfo, this.info, changed as InfoKeys);
 		}
 	}
 

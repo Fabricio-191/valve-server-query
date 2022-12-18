@@ -35,6 +35,24 @@ const OPERATIVE_SYSTEMS = {
 	] as const;
 // #endregion
 
+function serverType(type: string): ServerType {
+	if(type in SERVER_TYPES){
+		// @ts-expect-error - this is a valid server type
+		return SERVER_TYPES[ type ] as ServerType;
+	}
+
+	throw new Error(`Unknown server type: ${type}`);
+}
+
+function operativeSystem(OS: string): OS {
+	if(OS in OPERATIVE_SYSTEMS){
+		// @ts-expect-error - this is a valid OS
+		return OPERATIVE_SYSTEMS[ OS ] as OS;
+	}
+
+	throw new Error(`Unknown operative system: ${OS}`);
+}
+
 export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
@@ -52,8 +70,8 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			},
 			protocol: reader.byte(),
 			goldSource: true,
-			type: SERVER_TYPES[ reader.char() ] as ServerType,
-			OS: OPERATIVE_SYSTEMS[ reader.char() ] as OS,
+			type: serverType(reader.char()),
+			OS: operativeSystem(reader.char()),
 			hasPassword: reader.byte() === 1,
 			mod: reader.byte() ? {
 				link: reader.string(),
@@ -85,8 +103,8 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			max: reader.byte(),
 			bots: reader.byte(),
 		},
-		type: SERVER_TYPES[ reader.char() ] as ServerType,
-		OS: OPERATIVE_SYSTEMS[ reader.char() ] as OS,
+		type: serverType(reader.char()),
+		OS: operativeSystem(reader.char()),
 		hasPassword: reader.byte() === 1,
 		VAC: reader.byte() === 1,
 	};

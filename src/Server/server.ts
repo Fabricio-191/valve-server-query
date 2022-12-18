@@ -1,52 +1,53 @@
+/* eslint-disable no-multi-spaces */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable new-cap */
 import Connection from './connection';
 import * as parsers from './parsers';
 import { parseServerOptions, type RawServerOptions, type ServerData } from '../Base/options';
 
-const FFFFFFFF = [0xFF, 0xFF, 0xFF, 0xFF] as const;
 export const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
+function makeCommand(code: number, body = '\xFF\xFF\xFF\xFF'): Buffer {
+	return Buffer.from(`\xFF\xFF\xFF\xFF${String.fromCharCode(code)}${body}`, 'ascii');
+}
+
 export const COMMANDS = {
-	INFO_BASE: Buffer.from([
-		...FFFFFFFF, 0x54,
-		...Buffer.from('Source Engine Query\0'),
-	]),
-	INFO(key: Buffer | [] = []): Buffer {
-		return Buffer.from([ ...COMMANDS.INFO_BASE, ...key ]);
-	},
-	CHALLENGE(code = 0x57, key = FFFFFFFF): Buffer {
-		return Buffer.from([ ...FFFFFFFF, code, ...key ]);
-	},
-	PING: Buffer.from([ ...FFFFFFFF, 0x69 ]),
+	INFO: 						 makeCommand(0x54, 'Source Engine Query\0'),
+	INFO_WITH_KEY: (key = '') => makeCommand(0x54, `Source Engine Query\0${key}`),
+	PLAYERS: (key: string) =>    makeCommand(0x55, key),
+	RULES: (key: string) =>      makeCommand(0x56, key),
+	CHALLENGE: (code = 0x57) =>  makeCommand(code, ''),
+	PING:						 makeCommand(0x69, ''),
 };
 
-type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
-export async function aloneGetInfo(connection: Connection, challenge: Buffer | null = null): Promise<AloneServerInfo> {
-	if(challenge === null){
-		await connection.send(COMMANDS.INFO());
-	}else{
-		await connection.send(COMMANDS.INFO(challenge));
-	}
-
-	const responses = [];
-
-	connection.awaitResponse([0x6D])
+function attemptToCatchGoldSourceInfo(connection: Connection, responses: Buffer[]): void {
+	connection.awaitResponse([0x6D]) // goldsource info
 		.then(data => responses.push(data))
 		.catch(() => { /* do nothing */ });
+}
 
-	const INFO = await connection.awaitResponse([0x49, 0x41]);
-	if(INFO[0] === 0x41){
-		if(challenge !== null){
-			throw new Error('Wrong server response');
-		}
+type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
+export async function aloneGetInfo(connection: Connection): Promise<AloneServerInfo> {
+	const responses: Buffer[] = [];
 
-		// needs challenge
-		return await aloneGetInfo(connection, INFO.slice(1));
+	attemptToCatchGoldSourceInfo(connection, responses);
+
+	let needsChallenge = false;
+	let INFO = await connection.query(COMMANDS.INFO, 0x49, 0x41); // info or challenge
+	if(INFO[0] === 0x41){ // needs challenge
+		needsChallenge = true;
+
+		attemptToCatchGoldSourceInfo(connection, responses);
+
+		INFO = await connection.query(
+			COMMANDS.INFO_WITH_KEY(INFO.slice(1).toString()),
+			0x49
+		); // info
 	}
+
 	responses.push(INFO);
 
 	return Object.assign({
-		address: `${connection.data.ip}:${connection.data.port}`,
-		needsChallenge: challenge !== null,
+		needsChallenge,
 	}, ...responses.map(parsers.serverInfo)) as AloneServerInfo;
 }
 
@@ -56,6 +57,10 @@ export default class Server{
 	private _isConnected = false;
 	public get isConnected(): boolean {
 		return this._isConnected;
+	}
+
+	public get address(): string {
+		return this.data.address;
 	}
 
 	public async connect(options: RawServerOptions = {}): Promise<this> {
@@ -98,12 +103,12 @@ export default class Server{
 	public async getInfo(): Promise<parsers.FinalServerInfo> {
 		if(!this._isConnected) throw new Error('Not connected');
 
-		let command = COMMANDS.INFO();
+		let command = COMMANDS.INFO;
 		if(this.data.info.challenge){
 			const response = await this.connection.query(command, 0x41);
-			const key = response.slice(-4);
+			const key = response.slice(-4).toString();
 
-			command = COMMANDS.INFO(key);
+			command = COMMANDS.INFO_WITH_KEY(key);
 		}
 
 		const requests = this.data.info.goldSource ? [
@@ -127,9 +132,7 @@ export default class Server{
 			return parsers.players(Buffer.from(key), this.data);
 		}
 
-		const command = Buffer.from([
-			...FFFFFFFF, 0x55, ...key.slice(1),
-		]);
+		const command = COMMANDS.PLAYERS(key.slice(1).toString());
 		const response = await this.connection.query(command, 0x44);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
@@ -148,9 +151,7 @@ export default class Server{
 			return parsers.rules(Buffer.from(key));
 		}
 
-		const command = Buffer.from([
-			...FFFFFFFF, 0x56, ...key.slice(1),
-		]);
+		const command = COMMANDS.RULES(key.slice(1).toString());
 		const response = await this.connection.query(command, 0x45);
 
 		if(Buffer.compare(response, Buffer.from(key)) === 0){
@@ -181,17 +182,22 @@ export default class Server{
 	public async challenge(code: number): Promise<Buffer> {
 		if(!this._isConnected) throw new Error('Not connected');
 
-		const command = COMMANDS.CHALLENGE();
 		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-		if(!CHALLENGE_IDS.includes(this.data.appID)){
-			command[4] = code;
-		}
+		const command = CHALLENGE_IDS.includes(this.data.appID) ?
+			COMMANDS.CHALLENGE() :
+			COMMANDS.CHALLENGE(code);
 
 		// 0x41 normal challenge response
 		// 0x44 truncated rules response
 		// 0x45 truncated players response
-		const response = await this.connection.query(command, 0x41, code - 0b10001);
+		return  await this.connection.query(command, 0x41, code - 0b10001);
+	}
 
-		return response;
+	public static async getInfo(options: RawServerOptions = {}): Promise<parsers.FinalServerInfo> {
+		const server = new Server();
+		await server.connect(options);
+		const info = await server.getInfo();
+		server.destroy();
+		return info;
 	}
 }

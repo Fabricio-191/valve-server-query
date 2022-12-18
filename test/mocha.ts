@@ -10,7 +10,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33011',
+	ip: '213.239.207.78:33023',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -37,7 +37,7 @@ class MyError extends Error {
 	}
 }
 
-describe('Server', () => {
+describe.only('Server', () => {
 	function checkInfo(info: object): void {
 		for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
 			if(!(key in info)){
@@ -138,8 +138,8 @@ describe('MasterServer', () => {
 
 		const filter = new MasterServer.Filter()
 			.appId(730)
-			.is('linux', 'dedicated', 'passwordProtected')
-			.addNOR(
+			.is('linux', 'dedicated', 'password_protected')
+			.nor(
 				new MasterServer.Filter()
 					.is('secure')
 			);

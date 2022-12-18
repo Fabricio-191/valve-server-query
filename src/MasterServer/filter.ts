@@ -74,6 +74,16 @@ export default class Filter{
 	public notAppId         (  appId: number  ): this { return this._add   ('\\nappid\\',         checkNum(appId)); }
 	/* eslint-enable no-multi-spaces, @typescript-eslint/space-before-function-paren, @typescript-eslint/func-call-spacing, space-in-parens */
 
+	public addresses(...addresses: string[]): this {
+		const f = new Filter();
+
+		for(const address of addresses){
+			f.address(address);
+		}
+
+		return this.any(f);
+	}
+
 	public is(...flags: Array<keyof typeof FLAGS>): this {
 		for(const flag of flags){
 			if(!(flag in FLAGS)) throw new Error(`invalid flag: ${flag}`);
