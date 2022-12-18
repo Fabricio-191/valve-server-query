@@ -33,7 +33,6 @@ export class BufferWriter{
 
 	public byte(...values: number[]): this {
 		this.buffer.push(...values);
-
 		return this;
 	}
 

@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import type Server from './server';
 import type { FinalServerInfo as ServerInfo, Players, Rules } from './parsers';
 
-type InfoKeys = Array<keyof ServerInfo>;
+type InfoKeys = [keyof ServerInfo, ...Array<keyof ServerInfo>];
 type Player = Players['list'][number];
 
 const queries = ['info', 'players', 'rules'] as const;
@@ -24,9 +24,7 @@ function parseOptions(options: RawOptions, previousOptions: Options): Options {
 		...options,
 	};
 
-	if(data.interval < 1000){
-		throw new Error('The interval must be greater than 1000ms.');
-	}else if(!Array.isArray(data.watch)){
+	if(!Array.isArray(data.watch)){
 		throw new Error('The watch option must be an array.');
 	}else if(data.watch.some(item => !queries.includes(item))){
 		throw new Error('The watch option must be an array with only "info", "players" or "rules".');
@@ -42,15 +40,15 @@ function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
 }
 
 interface Events {
-	'infoUpdate': (oldInfo: ServerInfo, newInfo: ServerInfo, changed: InfoKeys) => void;
-	'playersUpdate': (oldPlayers: Players, newPlayers: Players) => void;
-	'rulesUpdate': (oldRules: Rules, newRules: Rules, changed: Array<number | string>) => void;
+	infoUpdate: (oldInfo: ServerInfo, newInfo: ServerInfo, changed: InfoKeys) => void;
+	playersUpdate: (oldPlayers: Players, newPlayers: Players) => void;
+	rulesUpdate: (oldRules: Rules, newRules: Rules, changed: Array<number | string>) => void;
 
-	'playerJoin': (player: Player) => void;
-	'playerLeave': (player: Player) => void;
+	playerJoin: (player: Player) => void;
+	playerLeave: (player: Player) => void;
 
-	'update': () => void;
-	'error': (err: unknown) => void;
+	update: () => void;
+	error: (err: unknown) => void;
 }
 
 declare interface ServerWatch {
@@ -69,7 +67,7 @@ class ServerWatch extends EventEmitter {
 	}
 	private readonly server: Server;
 	private options: Options;
-	private interval!: NodeJS.Timeout;
+	private interval: NodeJS.Timeout | null = null;
 
 	public info!: ServerInfo;
 	public players!: Players;
@@ -81,13 +79,11 @@ class ServerWatch extends EventEmitter {
 	}
 
 	public stop(): void {
-		clearInterval(this.interval);
+		if(this.interval) clearInterval(this.interval);
 	}
 
 	public resume(): void {
-		if(this.interval){
-			throw new Error('The watch is already running.');
-		}
+		if(this.interval) throw new Error('The watch is already running.');
 		this.interval = setInterval(() => this.update(), this.options.interval);
 	}
 
@@ -144,6 +140,14 @@ class ServerWatch extends EventEmitter {
 		if(changed.length){
 			this.emit('rulesUpdate', oldRules, this.rules, changed);
 		}
+	}
+
+	public unref(): void {
+		if(this.interval) this.interval.unref();
+	}
+
+	public ref(): void {
+		if(this.interval) this.interval.ref();
 	}
 }
 

@@ -114,6 +114,7 @@ class RCON extends EventEmitter{
 		this.removeAllListeners();
 		this.connection.socket.removeAllListeners();
 		this.connection.socket.destroy();
+		this.connection = new Connection();
 	}
 
 	private _lastID = 0x33333333;

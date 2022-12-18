@@ -23,8 +23,8 @@ export default abstract class BaseConnection {
 		return new Promise((res, rej) => {
 			// @ts-expect-error asdasdasd
 			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
-				if(err) return rej(err);
-				res();
+				if(err) rej(err);
+				else res();
 			});
 		});
 	}

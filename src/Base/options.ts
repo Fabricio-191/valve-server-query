@@ -10,7 +10,7 @@ export const REGIONS = {
 	AUSTRALIA: 5,
 	MIDDLE_EAST: 6,
 	AFRICA: 7,
-	OTHER: 0xFF,
+	ANY: 0xFF,
 } as const;
 
 // #region data types
@@ -64,7 +64,7 @@ export type RawMasterServerOptions = string | (BaseRawOptions & {
 });
 // #endregion
 
-// #region options
+// #region default options
 const DEFAULT_OPTIONS = {
 	ip: '127.0.0.1',
 	port: 27015,
@@ -92,7 +92,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	enableWarns: true,
 
 	quantity: 200,
-	region: 'OTHER',
+	region: 'ANY',
 	filter: new Filter(),
 } as const;
 // #endregion

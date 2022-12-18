@@ -52,13 +52,13 @@ const { Server, RCON, MasterServer } = require('@fabricio-191/valve-server-query
 #### Server
 
 ```js
-const server = new Server({
+const server = new Server();
+
+await server.connect({
   ip: '0.0.0.0',
   port: 27015,
   timeout: 3000,
 });
-
-await server.connect();
 
 const info = await server.getInfo();
 console.log(info);
