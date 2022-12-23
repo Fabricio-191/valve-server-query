@@ -45,67 +45,67 @@ enum ResponseHeaders {
 
 type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
 
-async function getInfo(connection: Connection): Promise<AloneServerInfo> {
-	const responses: Buffer[] = [];
+const queries = {
+	async getInfo(connection: Connection): Promise<AloneServerInfo> {
+		const responses: Buffer[] = [];
 
-	// attempt to catch gold source info
-	connection.awaitResponse([0x6D], connection.data.timeout * 1.5) // goldsource info
-		.then(data => responses.push(data))
-		.catch(() => { /* do nothing */ });
+		// attempt to catch gold source info
+		connection.awaitResponse([0x6D], connection.data.timeout * 1.5) // goldsource info
+			.then(data => responses.push(data))
+			.catch(() => { /* do nothing */ });
 
-	let needsChallenge = false;
-	let info = await connection.query(COMMANDS.INFO, 0x49, 0x41); // info or challenge
-	if(info[0] === 0x41){ // needs challenge
-		needsChallenge = true;
+		let needsChallenge = false;
+		let info = await connection.query(COMMANDS.INFO, 0x49, 0x41); // info or challenge
+		if(info[0] === 0x41){ // needs challenge
+			needsChallenge = true;
 
-		info = await connection.query(
-			COMMANDS.INFO_WITH_KEY(info.slice(1)),
-			0x49
-		); // info
-	}
+			info = await connection.query(
+				COMMANDS.INFO_WITH_KEY(info.slice(1)),
+				0x49
+			); // info
+		}
 
-	responses.push(info);
-	await delay(100);
+		responses.push(info);
+		await delay(100);
 
-	return Object.assign({ needsChallenge }, ...responses.map(parsers.serverInfo)) as AloneServerInfo;
-}
+		return Object.assign({ needsChallenge }, ...responses.map(parsers.serverInfo)) as AloneServerInfo;
+	},
+	async getPlayers(connection: Connection): Promise<parsers.Players> {
+		await connection.mustBeConnected();
 
-async function getPlayers(connection: Connection): Promise<parsers.Players> {
-	await connection.mustBeConnected();
+		const key = await connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x44);
 
-	const key = await connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x44);
+		if(key[0] === 0x44 && key.length > 5){ // truncated, doesn't need challenge
+			return parsers.players(key, connection.data);
+		}
 
-	if(key[0] === 0x44 && key.length > 5){ // truncated, doesn't need challenge
-		return parsers.players(key, connection.data);
-	}
+		const command = COMMANDS.PLAYERS(key.slice(1));
+		const response = await connection.query(command, 0x44);
 
-	const command = COMMANDS.PLAYERS(key.slice(1));
-	const response = await connection.query(command, 0x44);
+		if(response.equals(key)){
+			throw new Error('Wrong server response');
+		}
 
-	if(response.equals(key)){
-		throw new Error('Wrong server response');
-	}
+		return parsers.players(response, connection.data);
+	},
+	async getRules(connection: Connection): Promise<parsers.Rules> {
+		await connection.mustBeConnected();
 
-	return parsers.players(response, connection.data);
-}
+		const key = await connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x45);
 
-async function getRules(connection: Connection): Promise<parsers.Rules> {
-	await connection.mustBeConnected();
+		if(key[0] === 0x45 && key.length > 5){
+			return parsers.rules(key);
+		}
 
-	const key = await connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x45);
+		const command = COMMANDS.RULES(key.slice(1));
+		const response = await connection.query(command, 0x45);
 
-	if(key[0] === 0x45 && key.length > 5){
-		return parsers.rules(key);
-	}
+		if(response.equals(key)){
+			throw new Error('Wrong server response');
+		}
 
-	const command = COMMANDS.RULES(key.slice(1));
-	const response = await connection.query(command, 0x45);
+		return parsers.rules(response);
+	},
+};
 
-	if(response.equals(key)){
-		throw new Error('Wrong server response');
-	}
-
-	return parsers.rules(response);
-}
-
-export { getInfo, getPlayers, getRules };
+export default queries;

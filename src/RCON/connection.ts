@@ -52,7 +52,7 @@ export default class Connection{
 	}
 
 	public send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('RCON sending:', command);
+		debug('RCON sending:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
@@ -106,7 +106,7 @@ export default class Connection{
 	public async connect(rcon: RCON, data: RCONData): Promise<void> {
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
-			if(this.data.debug) debug(`RCON disconnected: ${reason}`);
+			debug(`RCON disconnected: ${reason}`);
 
 			this._reset();
 			rcon.emit('disconnect', reason);
@@ -147,12 +147,12 @@ export default class Connection{
 
 		// could use the close event but wouldn't be able to get the reason
 
-		if(this.data.debug) debug('RCON reconnecting...');
+		debug('RCON reconnecting...');
 
 		this._connected = this.awaitEvent('connect', 'Connection timeout.') as Promise<void>;
 
 		await this.mustBeConnected();
-		if(this.data.debug) debug('RCON connected');
+		debug('RCON connected');
 	}
 
 	public async reconnect(): Promise<void> {
@@ -160,13 +160,13 @@ export default class Connection{
 
 		// Tiny delay to avoid "Error: Already connected" while reconnecting
 		await delay(1);
-		if(this.data.debug) debug('RCON reconnecting...');
+		debug('RCON reconnecting...');
 
 		this._connected = this.awaitEvent('connect', 'Connection timeout.') as Promise<void>;
 		this.socket.connect(this.data.port, this.data.ip);
 
 		await this.mustBeConnected();
-		if(this.data.debug) debug('RCON connected');
+		debug('RCON connected');
 	}
 
 	public _reset(): void {

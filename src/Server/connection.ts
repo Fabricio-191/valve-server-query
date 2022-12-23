@@ -29,7 +29,7 @@ export default class Connection extends BaseConnection {
 			const packet = this.handleMultiplePackets(buffer);
 			if(packet) this.onMessage(packet);
 		}else{
-			if(this.data.debug) debug('SERVER cannot parse packet', buffer);
+			debug('SERVER cannot parse packet', buffer);
 			if(this.data.enableWarns){
 				// eslint-disable-next-line no-console
 				console.warn("Warning: a packet couln't be handled");
@@ -51,6 +51,7 @@ export default class Connection extends BaseConnection {
 		*/
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
 			this.data.multiPacketGoldSource = true;
+			debug('SERVER changed packet parsing');
 		}
 
 		const packet = this._parseMultiPacket(buffer);
@@ -58,10 +59,6 @@ export default class Connection extends BaseConnection {
 		if(!this.packetsQueues.has(packet.ID)){
 			this.packetsQueues.set(packet.ID, [packet]);
 			return null;
-		}
-
-		if(this.data.debug && buffer.length > 13 && buffer.readInt32LE(9) === -1){
-			debug('SERVER changed packet parsing in not the first recieved packet');
 		}
 
 		const queue = this.packetsQueues.get(packet.ID)!;

@@ -3,18 +3,18 @@
 /* eslint-disable @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
-import { Server, RCON, MasterServer, type FinalServerInfo } from '../src';
+import { Server, RCON, MasterServer, enableDebug, type FinalServerInfo } from '../src';
 import { writeFileSync } from 'fs';
 
 const doNothing = (): void => { /* do nothing */ };
 
+enableDebug();
+
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33030',
+	ip: '49.12.122.244:33020',
 	password: 'cosas',
-
 	enableWarns: false,
-	debug: false,
 };
 
 const result = {
@@ -92,7 +92,7 @@ describe('Server', () => {
 	});
 });
 
-describe.only('MasterServer', () => {
+describe('MasterServer', () => {
 	const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
 
 	function checkIP(ip: unknown): void {
@@ -122,10 +122,8 @@ describe.only('MasterServer', () => {
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
-			debug: options.debug,
 		});
 
-		console.log(IPs);
 		if(!Array.isArray(IPs)){
 			throw new MyError('ips is not an array');
 		}else if(Math.abs(IPs.length - 900) > 100){ // 900 ± 100
@@ -150,7 +148,6 @@ describe.only('MasterServer', () => {
 			);
 
 		const IPs = await MasterServer({
-			debug: options.debug,
 			filter,
 			region: 'SOUTH_AMERICA',
 			quantity: 1000,

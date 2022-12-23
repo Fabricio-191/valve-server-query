@@ -1,4 +1,5 @@
 import { promises as dns } from 'dns';
+import { writeFileSync } from 'fs';
 
 export async function resolveHostname(string: string): Promise<{
 	ipFormat: 4 | 6;
@@ -119,28 +120,33 @@ export class BufferReader{
 	}
 }
 
+let log: string | null = null;
 export function debug(
 	string: string,
-	buffer?: Buffer | string
+	buffer?: Buffer
 ): void {
+	if(log === null) return;
+
+	log += string;
+
 	if(buffer){
-		const parts = Buffer.from(buffer)
-			.toString('hex')
-			.match(/../g) as string[];
+		const parts = buffer.toString('hex').match(/../g)!;
 
-		const str = `<Buffer ${
-			buffer.length > 300 ?
-				`${parts.slice(0, 20).join(' ')} ...${buffer.length - 20} bytes` :
-				parts.join(' ')
-		}>`.replace(/(?<!00 )00 00(?! 00)/g, '\x1B[31m00 00\x1B[00m');
-
-		// eslint-disable-next-line no-console
-		console.log(`\x1B[33m${string}\x1B[0m`, str, '\n');
-	}else{
-		// eslint-disable-next-line no-console
-		console.log(`\x1B[33m${string}\x1B[0m`, '\n');
+		log += ' ' + parts.slice(0, 20).join(' ') + (
+			parts.length > 20 ? ` ...${parts.length - 20} more bytes` : ''
+		);
 	}
+
+	log += '\n\n';
 }
+
+debug.enable = function enableDebug(): void {
+	log = '';
+
+	process.on('beforeExit', () => {
+		writeFileSync('debug.log', log as string);
+	});
+};
 
 export class DeferredPromise<T> {
 	constructor(executor?: (resolve: (value: PromiseLike<T> | T) => void, reject: (reason?: unknown) => void) => void){

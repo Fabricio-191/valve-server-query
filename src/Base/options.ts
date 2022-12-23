@@ -21,7 +21,6 @@ export interface BaseData {
 	ipFormat: 4 | 6;
 	port: number;
 	timeout: number;
-	debug: boolean;
 	enableWarns: boolean;
 }
 
@@ -51,7 +50,6 @@ interface BaseRawOptions {
 	ip?: string;
 	port?: number | string;
 	timeout?: number;
-	debug?: boolean;
 	enableWarns?: boolean;
 }
 
@@ -69,7 +67,6 @@ const DEFAULT_OPTIONS = {
 	ip: '127.0.0.1',
 	port: 27015,
 	timeout: 5000,
-	debug: false,
 	enableWarns: true,
 } as const;
 
@@ -88,7 +85,6 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	ip: 'hl2master.steampowered.com',
 	port: 27011,
 	timeout: 5000,
-	debug: false,
 	enableWarns: true,
 
 	quantity: 200,
@@ -110,8 +106,6 @@ async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promi
 		options.port < 0 || options.port > 65535
 	){
 		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.debug !== 'boolean'){
-		throw Error("'debug' should be a boolean");
 	}else if(typeof options.enableWarns !== 'boolean'){
 		throw Error("'enableWarns' should be a boolean");
 	}else if(typeof options.timeout !== 'number' || isNaN(options.timeout) || options.timeout < 0){

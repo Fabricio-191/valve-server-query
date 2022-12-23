@@ -12,7 +12,7 @@ class Connection extends BaseConnection {
 		if(this._counter === 25) await delay(1000);
 
 		this._counter++;
-		setTimeout(() => this._counter--, 62000);
+		setTimeout(() => this._counter--, 62000).unref();
 
 		return await super.query(command, ...responseHeaders);
 	}
@@ -29,36 +29,7 @@ class Connection extends BaseConnection {
 	}
 }
 
-function makeCommand(last: string, region: number, filter: string): Buffer {
-	return new BufferWriter()
-		.byte(0x31, region)
-		.string(last)
-		.string(filter)
-		.end();
-}
-
-export const { REGIONS } = Options;
-export { Filter };
-
-MasterServer.Filter = Filter;
-MasterServer.REGIONS = REGIONS;
-
-function parseServerList(buffer: Buffer): string[] {
-	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port
-	if(!Number.isInteger(amount)) throw new Error('invalid server list');
-
-	const reader = new BufferReader(buffer, 2); // skip header
-	const servers = Array<string>(amount);
-
-	for(let i = 0; i < amount; i++){
-		servers[i] = reader.address('BE');
-	}
-
-	return servers;
-}
-
 const connections: Record<string, Connection> = {};
-
 async function getConnection(data: Options.MasterServerData): Promise<Connection> {
 	if(!(data.address in connections)) {
 		const connection = new Connection(data);
@@ -87,5 +58,32 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 	}while(data.quantity !== servers.length && last !== '0.0.0.0:0');
 
 	if(last === '0.0.0.0:0') servers.pop();
+	return servers;
+}
+
+const { REGIONS } = Options;
+MasterServer.Filter = Filter;
+MasterServer.REGIONS = REGIONS;
+export { Filter, REGIONS };
+
+function makeCommand(last: string, region: number, filter: string): Buffer {
+	return new BufferWriter()
+		.byte(0x31, region)
+		.string(last)
+		.string(filter)
+		.end();
+}
+
+function parseServerList(buffer: Buffer): string[] {
+	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port
+	if(!Number.isInteger(amount)) throw new Error('invalid server list');
+
+	const reader = new BufferReader(buffer, 2); // skip header
+	const servers = Array<string>(amount);
+
+	for(let i = 0; i < amount; i++){
+		servers[i] = reader.address('BE');
+	}
+
 	return servers;
 }

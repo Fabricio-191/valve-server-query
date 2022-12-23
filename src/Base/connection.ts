@@ -9,7 +9,7 @@ export default abstract class BaseConnection {
 
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
 			.on('message', buffer => {
-				if(this.data.debug) debug('recieved:', buffer);
+				debug('recieved:', buffer);
 				this.onMessage(buffer);
 			})
 			.unref();
@@ -42,7 +42,7 @@ export default abstract class BaseConnection {
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		if(this.data.debug) debug('sent:', command);
+		debug('sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(
@@ -66,7 +66,9 @@ export default abstract class BaseConnection {
 				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
 
-			const onError = (err: unknown): void => { clear(); rej(err); };
+			const onError = (err: unknown): void => {
+				clear(); rej(err);
+			};
 			const onPacket = (buffer: Buffer): void => {
 				if(!responseHeaders.includes(buffer[0]!)) return;
 

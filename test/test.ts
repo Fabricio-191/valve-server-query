@@ -1,16 +1,17 @@
 /* eslint-disable new-cap */
 /* eslint-disable no-console */
 
-import { MasterServer } from '../src';
+import { MasterServer, enableDebug } from '../src';
+
+enableDebug();
 
 MasterServer({
 	ip: 'hl2master.steampowered.com:27011',
 	region: 'ANY',
-	quantity: Infinity,
-	debug: false,
+	quantity: 20000,
 	timeout: 5000,
 })
-	.then(s => console.log(s.length / 231))
+	.then(s => console.log(s.length))
 	.catch(console.error);
 
 /*

@@ -1,0 +1,124 @@
+sent: 31 ff 30 2e 30 2e 30 2e 30 3a 30 00 00
+
+recieved: ff ff ff ff 66 0a be 32 af 47 69 87 be 06 d2 1a 3f 85 be 7c ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 32 31 37 2e 33 33 2e 38 38 3a 32 37 30 33 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a be d9 21 58 69 97 be d9 21 5a 69 a7 be d9 ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 32 31 37 2e 33 33 2e 38 39 3a 32 37 30 36 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a be d9 21 59 69 bc be d9 21 5a 69 a4 be d9 ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 32 31 37 2e 33 33 2e 38 38 3a 32 37 31 36 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a be d9 21 58 6a 21 be d9 21 58 69 f1 be d9 ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 32 31 37 2e 33 33 2e 38 39 3a 32 37 31 34 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a be d9 21 59 6a 0d be d9 21 57 69 fb be d9 ...1372 more bytes
+
+sent: 31 ff 31 37 39 2e 36 30 2e 37 37 2e 32 30 37 3a 31 36 32 36 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a b3 3c 4d cf 3f 85 ba bd 5a af 3f 85 be d7 ...1372 more bytes
+
+sent: 31 ff 36 36 2e 32 30 33 2e 31 31 33 2e 32 30 3a 32 35 33 35 ...2 more bytes
+
+recieved: ff ff ff ff 66 0a 42 cb 71 14 09 e7 90 16 33 41 09 99 be 62 ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 34 36 2e 32 34 35 2e 31 32 34 3a 31 36 32 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a be 2e f5 7c 3f 85 be 72 28 4d 3f 85 be a2 ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 31 38 39 2e 31 35 30 2e 33 33 3a 31 36 32 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a be bd 96 21 3f 85 be 02 67 7e 3f 85 b5 69 ...1372 more bytes
+
+sent: 31 ff 32 30 30 2e 33 2e 31 38 34 2e 31 32 39 3a 31 36 32 36 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a c8 03 b8 81 3f 85 ba 82 42 e9 69 88 c9 fb ...1372 more bytes
+
+sent: 31 ff 34 35 2e 32 33 35 2e 39 38 2e 36 31 3a 32 37 30 32 38 ...2 more bytes
+
+recieved: ff ff ff ff 66 0a 2d eb 62 3d 69 94 2d eb 62 2c 69 9b 2d eb ...1372 more bytes
+
+sent: 31 ff 34 35 2e 32 33 35 2e 39 38 2e 31 33 30 3a 32 37 30 31 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a 2d eb 62 82 69 89 2d eb 62 28 69 ac 2d eb ...1372 more bytes
+
+sent: 31 ff 31 38 31 2e 32 36 2e 31 33 2e 31 37 36 3a 32 37 30 32 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a b5 1a 0d b0 69 8c 1f 28 d4 bc 69 93 b5 1a ...1372 more bytes
+
+sent: 31 ff 34 35 2e 32 33 35 2e 39 38 2e 32 34 33 3a 32 37 30 34 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a 2d eb 62 f3 69 a0 2d eb 62 2f 69 96 2d eb ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 31 39 32 2e 32 33 30 2e 32 32 30 3a 32 34 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a be c0 e6 dc 09 99 b5 2f 76 a1 09 99 2d eb ...1372 more bytes
+
+sent: 31 ff 31 35 32 2e 31 37 34 2e 32 37 2e 32 31 39 3a 32 37 30 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a 98 ae 1b db 69 78 98 ae 1b db 69 83 ba 7b ...1372 more bytes
+
+sent: 31 ff 31 39 30 2e 34 33 2e 31 35 39 2e 32 31 39 3a 32 37 30 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a be 2b 9f db 69 8c 26 19 61 e4 69 8c be 2b ...1372 more bytes
+
+sent: 31 ff 34 35 2e 31 38 37 2e 32 30 30 2e 31 3a 32 37 30 31 35 ...2 more bytes
+
+recieved: ff ff ff ff 66 0a 2d bb c8 01 69 87 b5 43 90 3b 69 87 c8 8c ...1372 more bytes
+
+sent: 31 ff 31 38 37 2e 31 30 32 2e 33 33 2e 32 30 30 3a 32 37 30 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a bb 66 21 c8 69 87 bb 5f 44 03 69 87 bb 66 ...1372 more bytes
+
+sent: 31 ff 34 35 2e 32 32 38 2e 31 38 39 2e 31 36 39 3a 32 34 35 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a 2d e4 bd a9 09 99 aa 51 29 3a 26 95 b1 89 ...1372 more bytes
+
+sent: 31 ff 31 39 31 2e 31 39 31 2e 31 36 2e 34 36 3a 32 37 30 31 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a bf bf 10 2e 69 88 2d eb 36 b4 6d b0 2d eb ...1372 more bytes
+
+sent: 31 ff 34 35 2e 31 36 34 2e 31 32 34 2e 31 32 31 3a 31 30 30 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a 2d a4 7c 79 27 49 2d a4 7c 57 27 37 2d a4 ...1372 more bytes
+
+sent: 31 ff 34 35 2e 31 36 34 2e 31 32 34 2e 32 33 3a 32 30 30 32 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a 2d a4 7c 17 4e 37 2d a4 7c 63 27 2d 2d a4 ...1372 more bytes
+
+sent: 31 ff 34 35 2e 31 36 34 2e 31 32 34 2e 36 37 3a 33 30 30 30 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a 2d a4 7c 43 75 38 2d a4 7c a7 4e 36 2d a4 ...1372 more bytes
+
+sent: 31 ff 34 35 2e 31 36 34 2e 31 32 34 2e 32 35 3a 32 30 30 34 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a 2d a4 7c 19 4e 4f 2d a4 7c 8f 27 21 2d a4 ...1372 more bytes
+
+sent: 31 ff 34 35 2e 31 36 34 2e 31 32 34 2e 31 30 38 3a 32 30 30 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a 2d a4 7c 6c 4e 7c 2d a4 7c 6c 4e 7e 2d a4 ...1372 more bytes
+
+sent: 31 ff 31 33 31 2e 31 39 36 2e 31 39 36 2e 32 30 32 3a 32 30 ...5 more bytes
+
+recieved: ff ff ff ff 66 0a 83 c4 c4 ca 4e 2a 83 c4 c6 5e 69 92 83 c4 ...1372 more bytes
+
+sent: 31 ff 31 37 37 2e 35 34 2e 31 34 34 2e 31 35 36 3a 32 37 32 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a b1 36 90 9c 6a 82 b1 36 98 31 69 87 5c 26 ...1372 more bytes
+
+sent: 31 ff 31 37 39 2e 31 30 30 2e 33 38 2e 38 36 3a 32 37 30 31 ...3 more bytes
+
+recieved: ff ff ff ff 66 0a b3 64 26 56 69 87 b1 8c 6a 57 69 87 b3 d0 ...1372 more bytes
+
+sent: 31 ff 32 31 36 2e 32 33 38 2e 31 30 35 2e 32 38 3a 32 37 35 ...4 more bytes
+
+recieved: ff ff ff ff 66 0a d8 ee 69 1c 6b 98 bd 01 aa 72 69 8d b1 36 ...1372 more bytes
+
+sent: 31 ff 31 37 37 2e 35 34 2e 31 34 34 2e 31 32 36 3a 32 37 32 ...4 more bytes
+
+sent: 31 ff 31 37 37 2e 35 34 2e 31 34 34 2e 31 32 36 3a 32 37 32 ...4 more bytes
+
