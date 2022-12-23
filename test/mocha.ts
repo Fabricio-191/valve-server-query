@@ -10,11 +10,11 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33023',
+	ip: '213.239.207.78:33030',
 	password: 'cosas',
 
 	enableWarns: false,
-	debug: true,
+	debug: false,
 };
 
 const result = {
@@ -92,7 +92,7 @@ describe('Server', () => {
 	});
 });
 
-describe('MasterServer', () => {
+describe.only('MasterServer', () => {
 	const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
 
 	function checkIP(ip: unknown): void {
@@ -114,7 +114,10 @@ describe('MasterServer', () => {
 		}
 	}
 
-	it('query', async () => {
+	it('query', async function(){
+		this.slow(14000);
+		this.timeout(15000);
+
 		const IPs = await MasterServer({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
@@ -122,6 +125,7 @@ describe('MasterServer', () => {
 			debug: options.debug,
 		});
 
+		console.log(IPs);
 		if(!Array.isArray(IPs)){
 			throw new MyError('ips is not an array');
 		}else if(Math.abs(IPs.length - 900) > 100){ // 900 ± 100

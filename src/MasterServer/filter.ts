@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/brace-style */
 const FLAGS = {
 	full: '\\nand\\1\\full\\1',
 	secure: '\\secure\\1',
@@ -36,8 +35,7 @@ const checkNum = (num: number): string => {
 };
 
 export default class Filter{
-	constructor(){ this.filters = []; }
-	private readonly filters: string[];
+	private readonly filters: string[] = [];
 
 	private _add(key: string, value: string): this {
 		checkStr(value);
@@ -53,7 +51,7 @@ export default class Filter{
 		return this;
 	}
 
-	/* eslint-disable no-multi-spaces, @typescript-eslint/space-before-function-paren, @typescript-eslint/func-call-spacing, space-in-parens */
+	/* eslint-disable */
 	public hasTags          (   tags: string[]): this { return this._addArr('\\gametype\\',                  tags); }
 	public hasTagsL4D2      (   tags: string[]): this { return this._addArr('\\gamedata\\',                  tags); }
 	public hasAnyTagsL4F2   (   tags: string[]): this { return this._addArr('\\gamedataor\\',                tags); }
@@ -72,7 +70,7 @@ export default class Filter{
 	public notVersion       (version: string  ): this { return this._add   ('\\nand\\1\\version_match\\', version); }
 	public appId            (  appId: number  ): this { return this._add   ('\\appid\\',          checkNum(appId)); }
 	public notAppId         (  appId: number  ): this { return this._add   ('\\nappid\\',         checkNum(appId)); }
-	/* eslint-enable no-multi-spaces, @typescript-eslint/space-before-function-paren, @typescript-eslint/func-call-spacing, space-in-parens */
+	/* eslint-enable */
 
 	public addresses(...addresses: string[]): this {
 		const f = new Filter();

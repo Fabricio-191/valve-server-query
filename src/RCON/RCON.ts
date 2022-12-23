@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { debug, BufferWriter } from '../Base/utils';
-import Connection, { PacketType, type RCONPacket } from './connection';
 import { parseRCONOptions, type RawRCONOptions } from '../Base/options';
+import Connection, { PacketType, type RCONPacket } from './connection';
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 	return new BufferWriter()
@@ -24,7 +24,7 @@ declare interface RCON {
 }
 
 class RCON extends EventEmitter{
-	constructor(){
+	constructor() {
 		super();
 		this.connection = new Connection();
 	}

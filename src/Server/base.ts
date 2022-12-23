@@ -1,17 +1,50 @@
 /* eslint-disable new-cap */
 import type Connection from './connection';
 import * as parsers from './parsers';
+import { delay } from '../Base/utils';
 
-export const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
+function makeCommand(code: number, body: Array<number> | Buffer = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
+	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
+}
+
 export const COMMANDS = {
-	INFO: (key = ''): string => `\xFF\xFF\xFF\xFF\x54Source Engine Query\0${key}`,
-	RULES: (key: string): string => `\xFF\xFF\xFF\xFF\x56${key}`,
-	PLAYERS: (key: string): string => `\xFF\xFF\xFF\xFF\x55${key}`,
-	CHALLENGE: (code = 0x57, key = '\xFF\xFF\xFF\xFF'): string => `\xFF\xFF\xFF\xFF${code}${key}`,
-	PING: '\xFF\xFF\xFF\xFF\x69',
+	INFO_WITH_KEY(key: Buffer): Buffer {
+		return Buffer.concat([COMMANDS.INFO, key]);
+	},
+	PLAYERS(key: Buffer): Buffer {
+		return makeCommand(0x55, key);
+	},
+	RULES(key: Buffer): Buffer {
+		return makeCommand(0x56, key);
+	},
+	INFO: makeCommand(0x54, Buffer.from('Source Engine Query\0')),
+	PLAYERS_CHALLENGE: makeCommand(0x55),
+	RULES_CHALLENGE: makeCommand(0x56),
+	CHALLENGE: makeCommand(0x57),
+	PING: makeCommand(0x69, []),
 };
 
+/*
+enum CommandHeaders {
+	INFO = 0x54,
+	PLAYERS = 0x55,
+	RULES = 0x56,
+	CHALLENGE = 0x57,
+	PING = 0x69,
+}
+
+enum ResponseHeaders {
+	INFO = 0x49,
+	GOLDSOURCE_INFO = 0x6D,
+	PLAYERS = 0x44,
+	RULES = 0x45,
+	CHALLENGE = 0x41,
+	PING = 0x6A,
+}
+*/
+
 type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
+
 async function getInfo(connection: Connection): Promise<AloneServerInfo> {
 	const responses: Buffer[] = [];
 
@@ -26,7 +59,7 @@ async function getInfo(connection: Connection): Promise<AloneServerInfo> {
 		needsChallenge = true;
 
 		info = await connection.query(
-			COMMANDS.INFO_WITH_KEY(info.slice(1).toString()),
+			COMMANDS.INFO_WITH_KEY(info.slice(1)),
 			0x49
 		); // info
 	}
@@ -40,16 +73,16 @@ async function getInfo(connection: Connection): Promise<AloneServerInfo> {
 async function getPlayers(connection: Connection): Promise<parsers.Players> {
 	await connection.mustBeConnected();
 
-	const key = await challenge(connection, 0x55);
+	const key = await connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x44);
 
-	if(key[0] === 0x44 && key.length > 5){
-		return parsers.players(Buffer.from(key), connection.data);
+	if(key[0] === 0x44 && key.length > 5){ // truncated, doesn't need challenge
+		return parsers.players(key, connection.data);
 	}
 
-	const command = COMMANDS.PLAYERS(key.slice(1).toString());
+	const command = COMMANDS.PLAYERS(key.slice(1));
 	const response = await connection.query(command, 0x44);
 
-	if(Buffer.compare(response, Buffer.from(key)) === 0){
+	if(response.equals(key)){
 		throw new Error('Wrong server response');
 	}
 
@@ -59,57 +92,20 @@ async function getPlayers(connection: Connection): Promise<parsers.Players> {
 async function getRules(connection: Connection): Promise<parsers.Rules> {
 	await connection.mustBeConnected();
 
-	const key = await challenge(connection, 0x56);
+	const key = await connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x45);
 
 	if(key[0] === 0x45 && key.length > 5){
-		return parsers.rules(Buffer.from(key));
+		return parsers.rules(key);
 	}
 
-	const command = COMMANDS.RULES(key.slice(1).toString());
+	const command = COMMANDS.RULES(key.slice(1));
 	const response = await connection.query(command, 0x45);
 
-	if(Buffer.compare(response, Buffer.from(key)) === 0){
+	if(response.equals(key)){
 		throw new Error('Wrong server response');
 	}
 
 	return parsers.rules(response);
 }
 
-async function getPing(connection: Connection): Promise<number> {
-	await connection.mustBeConnected();
-
-	if(connection.data.enableWarns){
-		// eslint-disable-next-line no-console
-		console.trace('A2A_PING request is a deprecated feature of source servers');
-	}
-
-	try{
-		const start = Date.now();
-		await connection.query(COMMANDS.PING, 0x6A);
-
-		return Date.now() - start;
-	}catch(e){
-		return -1;
-	}
-}
-
-async function challenge(connection: Connection, code: number): Promise<Buffer> {
-	await connection.mustBeConnected();
-
-	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-	const command = CHALLENGE_IDS.includes(connection.data.appID) ?
-		COMMANDS.CHALLENGE() :
-		COMMANDS.CHALLENGE(code);
-
-	// 0x41 normal challenge response
-	// 0x44 truncated rules response
-	// 0x45 truncated players response
-	return await connection.query(command, 0x41, code - 0b10001);
-}
-
-export {
-	getInfo,
-	getPlayers,
-	getRules,
-	getPing
-};
+export { getInfo, getPlayers, getRules };
