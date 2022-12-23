@@ -101,6 +101,10 @@ export class BufferReader{
 		return this.buffer.slice(this.offset++, this.offset).toString();
 	}
 
+	public address(endianess: 'BE' | 'LE'): string {
+		return `${this.byte()}.${this.byte()}.${this.byte()}.${this.byte()}:${this.short(true, endianess)}`;
+	}
+
 	public addOffset(offset: number): this {
 		this.offset += offset;
 		return this;
@@ -136,4 +140,30 @@ export function debug(
 		// eslint-disable-next-line no-console
 		console.log(`\x1B[33m${string}\x1B[0m`, '\n');
 	}
+}
+
+export class DeferredPromise<T> {
+	constructor(executor?: (resolve: (value: PromiseLike<T> | T) => void, reject: (reason?: unknown) => void) => void){
+		this.promise = new Promise<T>((resolve, reject) => {
+			this.resolve = resolve;
+			this.reject = reject;
+			if(executor) executor(resolve, reject);
+		});
+
+		this.then = this.promise.then.bind(this.promise);
+		this.catch = this.promise.catch.bind(this.promise);
+		this.finally = this.promise.finally.bind(this.promise);
+	}
+	public promise: Promise<T>;
+	public resolve!: (value: PromiseLike<T> | T) => void;
+	public reject!: (reason?: unknown) => void;
+	public then;
+	public catch;
+	public finally;
+}
+
+export function delay(ms: number): Promise<void> {
+	return new Promise(resolve => {
+		setTimeout(resolve, ms);
+	});
 }

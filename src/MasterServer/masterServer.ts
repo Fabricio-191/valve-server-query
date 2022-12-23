@@ -1,18 +1,28 @@
 /* eslint-disable new-cap */
-import { BufferWriter, BufferReader } from '../Base/utils';
+import { BufferWriter, BufferReader, delay } from '../Base/utils';
 import Filter from './filter';
 import * as Options from '../Base/options';
 import BaseConnection from '../Base/connection';
 
 class Connection extends BaseConnection {
 	public readonly data!: Options.MasterServerData;
+	private _counter = 0;
+
+	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
+		if(this._counter === 25) await delay(1000);
+
+		this._counter++;
+		setTimeout(() => this._counter--, 62000);
+
+		return await super.query(command, ...responseHeaders);
+	}
 
 	public onMessage(buffer: Buffer): void {
 		const header = buffer.readInt32LE();
 		if(header === -1){
 			this.socket.emit('packet', buffer.slice(4));
 		}else if(header === -2){
-			throw new Error('Multi-packet shouldn\'t happen in master servers');
+			throw new Error("Multi-packet shouldn't happen in master servers");
 		}else{
 			throw new Error('Invalid packet');
 		}
@@ -41,16 +51,27 @@ function parseServerList(buffer: Buffer): string[] {
 	const servers = Array<string>(amount);
 
 	for(let i = 0; i < amount; i++){
-		servers[i] = `${reader.byte()}.${reader.byte()}.${reader.byte()}.${reader.byte()}:${reader.short(true, 'BE')}`;
+		servers[i] = reader.address('BE');
 	}
 
 	return servers;
 }
 
+const connections: Record<string, Connection> = {};
+
+async function getConnection(data: Options.MasterServerData): Promise<Connection> {
+	if(!(data.address in connections)) {
+		const connection = new Connection(data);
+		await connection.connect();
+		connections[data.address] = connection;
+	}
+
+	return connections[data.address]!;
+}
+
 export default async function MasterServer(options: Options.RawMasterServerOptions = {}): Promise<string[]> {
 	const data = await Options.parseMasterServerOptions(options);
-	const connection = new Connection(data);
-	await connection.connect();
+	const connection = await getConnection(data);
 
 	const filter = data.filter.toString();
 	const servers: string[] = [];
@@ -59,23 +80,12 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 	do{
 		const command = makeCommand(last, data.region, filter);
 
-		// eslint-disable-next-line @typescript-eslint/init-declarations
-		let buffer: Buffer;
-		try{
-			buffer = await connection.query(command, 0x66);
-		}catch(e){
-			if(servers.length === 0) throw e;
-			// eslint-disable-next-line no-console
-			if(data.enableWarns) console.error(new Error('cannot get full list of servers'));
-			break;
-		}
-
+		const buffer = await connection.query(command, 0x66);
 		servers.push(...parseServerList(buffer));
 
 		last = servers[servers.length - 1] as string;
-	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
+	}while(data.quantity !== servers.length && last !== '0.0.0.0:0');
 
-	connection.destroy();
 	if(last === '0.0.0.0:0') servers.pop();
 	return servers;
 }

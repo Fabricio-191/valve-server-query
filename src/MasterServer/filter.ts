@@ -76,10 +76,7 @@ export default class Filter{
 
 	public addresses(...addresses: string[]): this {
 		const f = new Filter();
-
-		for(const address of addresses){
-			f.address(address);
-		}
+		for(const address of addresses) f.address(address);
 
 		return this.any(f);
 	}
@@ -118,6 +115,11 @@ export default class Filter{
 		}
 
 		return this.nand(new Filter().nor(filter));
+	}
+
+	public raw(filter: string): this {
+		this.filters.push(filter);
+		return this;
 	}
 
 	public toString(): string {

@@ -1,12 +1,17 @@
 /* eslint-disable new-cap */
 /* eslint-disable no-console */
 
-export const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
-export const COMMANDS = {
-	INFO: (key = ''): string => `\xFF\xFF\xFF\xFF\x54Source Engine Query\0${key}`,
-	CHALLENGE: (code = 0x57, key = '\xFF\xFF\xFF\xFF'): string => `\xFF\xFF\xFF\xFF${code}${key}`,
-	PING: '\xFF\xFF\xFF\xFF\x69',
-};
+import { MasterServer } from '../src';
+
+MasterServer({
+	ip: 'hl2master.steampowered.com:27011',
+	region: 'ANY',
+	quantity: Infinity,
+	debug: false,
+	timeout: 5000,
+})
+	.then(s => console.log(s.length / 231))
+	.catch(console.error);
 
 /*
 import { RCON } from '../src';

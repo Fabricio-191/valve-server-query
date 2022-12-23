@@ -37,7 +37,7 @@ class MyError extends Error {
 	}
 }
 
-describe.only('Server', () => {
+describe('Server', () => {
 	function checkInfo(info: object): void {
 		for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
 			if(!(key in info)){
@@ -75,9 +75,11 @@ describe.only('Server', () => {
 		result.server.getRules = await server.getRules();
 	});
 
+	/*
 	it('getPing()', async () => {
 		result.server.getPing = await server.getPing();
 	});
+	*/
 
 	it('lastPing', () => {
 		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
@@ -111,7 +113,6 @@ describe('MasterServer', () => {
 			throw new MyError('Port in IP is not valid');
 		}
 	}
-
 
 	it('query', async () => {
 		const IPs = await MasterServer({

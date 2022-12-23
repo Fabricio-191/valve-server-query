@@ -40,6 +40,7 @@ function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
 	return keys.filter(key => a[key] !== b[key] && typeof a[key] !== 'object');
 }
 
+
 interface Events {
 	infoUpdate: (oldInfo: ServerInfo, newInfo: ServerInfo, changed: InfoKeys) => void;
 	playersUpdate: (oldPlayers: Players, newPlayers: Players) => void;

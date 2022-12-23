@@ -3,24 +3,7 @@
 import { BufferReader, type ValueIn } from '../Base/utils';
 import type { ServerData } from '../Base/options';
 
-// #region constants
-const OPERATIVE_SYSTEMS = {
-		l: 'linux',
-		w: 'windows',
-		m: 'mac',
-		o: 'mac',
-		L: 'linux',
-		W: 'windows',
-	} as const,
-	SERVER_TYPES = {
-		d: 'dedicated',
-		l: 'non-dedicated',
-		p: 'source tv relay',
-		D: 'dedicated',
-		L: 'non-dedicated',
-		P: 'source tv relay',
-	} as const,
-	THE_SHIP_MODES = [
+const THE_SHIP_MODES = [
 		'hunt',
 		'elimination',
 		'duel',
@@ -33,12 +16,103 @@ const OPERATIVE_SYSTEMS = {
 		2405, 2406,
 		2412, 2430,
 	] as const;
+
+// #region types
+type ServerType = ValueIn<typeof SERVER_TYPES>;
+type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
+
+export interface GoldSourceServerInfo {
+	address: string;
+	name: string;
+	map: string;
+	folder: string;
+	game: string;
+	players: {
+		online: number;
+		max: number;
+		bots: number;
+	};
+	protocol: number;
+	goldSource: boolean;
+	type: ServerType;
+	OS: OS;
+	hasPassword: boolean;
+	mod: false | {
+		link: string;
+		downloadLink: string;
+		version: number;
+		size: number;
+		multiplayerOnly: boolean;
+		ownDLL: boolean;
+	};
+	VAC: boolean;
+}
+
+export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
+	appID: number;
+	version?: string;
+	gamePort?: number;
+	steamID?: bigint;
+	tv?: {
+		port: number;
+		name: string;
+	};
+	keywords?: string[];
+	gameID?: bigint;
+};
+
+export interface TheShipServerInfo extends ServerInfo {
+	mode: ValueIn<typeof THE_SHIP_MODES>;
+	witnesses: number;
+	duration: number;
+}
+
+export type FinalServerInfo = ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
+
+export interface Player {
+	/* Index of the player. */
+	index: number;
+	/** Name of the player. */
+	name: string;
+	/** Player's score (usually "frags" or "kills"). */
+	score: number;
+	/** Time in miliseconds that the player has been connected to the server. */
+	timeOnline: ReturnType<typeof parseTime>;
+}
+
+export interface TheShipPlayer extends Player{
+	/** Player's deaths (Only for "the ship" servers). */
+	deaths: number;
+	/** Player's money (Only for "the ship" servers). */
+	money: number;
+}
+
+export interface Players {
+	count: number;
+	list: Player[] | TheShipPlayer[];
+}
+
+export interface Rules {
+	[key: string]: boolean | number | string;
+}
 // #endregion
+
+const OPERATIVE_SYSTEMS = {
+		l: 'linux',
+		w: 'windows',
+		m: 'mac',
+		o: 'mac',
+	} as const,
+	SERVER_TYPES = {
+		d: 'dedicated',
+		l: 'non-dedicated',
+		p: 'source tv relay',
+	} as const;
 
 function serverType(type: string): ServerType {
 	if(type in SERVER_TYPES){
 		// @ts-expect-error - this is a valid server type
-		return SERVER_TYPES[ type ] as ServerType;
+		return SERVER_TYPES[ type.toLowerCase() ] as ServerType;
 	}
 
 	throw new Error(`Unknown server type: ${type}`);
@@ -47,7 +121,7 @@ function serverType(type: string): ServerType {
 function operativeSystem(OS: string): OS {
 	if(OS in OPERATIVE_SYSTEMS){
 		// @ts-expect-error - this is a valid OS
-		return OPERATIVE_SYSTEMS[ OS ] as OS;
+		return OPERATIVE_SYSTEMS[ OS.toLowerCase() ] as OS;
 	}
 
 	throw new Error(`Unknown operative system: ${OS}`);
@@ -189,6 +263,7 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 			}catch{
 				// eslint-disable-next-line no-console
 				if(enableWarns) console.warn('player info not terminated');
+				return { count, list };
 			}
 		}
 	}
@@ -218,83 +293,3 @@ export function rules(buffer: Buffer): Rules {
 
 	return obj;
 }
-
-// #region types
-type ServerType = ValueIn<typeof SERVER_TYPES>;
-type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
-
-export interface GoldSourceServerInfo {
-	address: string;
-	name: string;
-	map: string;
-	folder: string;
-	game: string;
-	players: {
-		online: number;
-		max: number;
-		bots: number;
-	};
-	protocol: number;
-	goldSource: boolean;
-	type: ServerType;
-	OS: OS;
-	hasPassword: boolean;
-	mod: false | {
-		link: string;
-		downloadLink: string;
-		version: number;
-		size: number;
-		multiplayerOnly: boolean;
-		ownDLL: boolean;
-	};
-	VAC: boolean;
-}
-
-export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
-	appID: number;
-	version?: string;
-	gamePort?: number;
-	steamID?: bigint;
-	tv?: {
-		port: number;
-		name: string;
-	};
-	keywords?: string[];
-	gameID?: bigint;
-};
-
-export interface TheShipServerInfo extends ServerInfo {
-	mode: ValueIn<typeof THE_SHIP_MODES>;
-	witnesses: number;
-	duration: number;
-}
-
-export type FinalServerInfo = ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
-
-export interface Player {
-	/* Index of the player. */
-	index: number;
-	/** Name of the player. */
-	name: string;
-	/** Player's score (usually "frags" or "kills"). */
-	score: number;
-	/** Time in miliseconds that the player has been connected to the server. */
-	timeOnline: ReturnType<typeof parseTime>;
-}
-
-export interface TheShipPlayer extends Player{
-	/** Player's deaths (Only for "the ship" servers). */
-	deaths: number;
-	/** Player's money (Only for "the ship" servers). */
-	money: number;
-}
-
-export interface Players {
-	count: number;
-	list: Player[] | TheShipPlayer[];
-}
-
-export interface Rules {
-	[key: string]: boolean | number | string;
-}
-// #endregion

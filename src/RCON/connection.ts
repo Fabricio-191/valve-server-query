@@ -1,10 +1,7 @@
 import { createConnection, type Socket } from 'net';
-import { BufferReader, debug } from '../Base/utils';
+import { BufferReader, debug, delay } from '../Base/utils';
 import type { RCONData } from '../Base/options';
 import type RCON from './RCON';
-
-// eslint-disable-next-line no-promise-executor-return
-const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export enum PacketType {
 	Auth = 3,

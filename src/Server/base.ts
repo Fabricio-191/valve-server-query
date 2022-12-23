@@ -11,27 +11,30 @@ export const COMMANDS = {
 	PING: '\xFF\xFF\xFF\xFF\x69',
 };
 
-async function getInfo(connection: Connection): Promise<parsers.FinalServerInfo> {
-	await connection.mustBeConnected();
+type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
+async function getInfo(connection: Connection): Promise<AloneServerInfo> {
+	const responses: Buffer[] = [];
 
-	let command = COMMANDS.INFO();
-	if(connection.data.info.challenge){
-		const response = await connection.query(command, 0x41);
-		const key = response.slice(-4).toString();
+	// attempt to catch gold source info
+	connection.awaitResponse([0x6D], connection.data.timeout * 1.5) // goldsource info
+		.then(data => responses.push(data))
+		.catch(() => { /* do nothing */ });
 
-		command = COMMANDS.INFO(key);
+	let needsChallenge = false;
+	let info = await connection.query(COMMANDS.INFO, 0x49, 0x41); // info or challenge
+	if(info[0] === 0x41){ // needs challenge
+		needsChallenge = true;
+
+		info = await connection.query(
+			COMMANDS.INFO_WITH_KEY(info.slice(1).toString()),
+			0x49
+		); // info
 	}
 
-	const requests = connection.data.info.goldSource ? [
-		connection.query(command, 0x49),
-		connection.awaitResponse([0x6D]),
-	] : [
-		connection.query(command, 0x49),
-	];
+	responses.push(info);
+	await delay(100);
 
-	const responses = await Promise.all(requests);
-
-	return Object.assign({}, ...responses.map(parsers.serverInfo)) as parsers.FinalServerInfo;
+	return Object.assign({ needsChallenge }, ...responses.map(parsers.serverInfo)) as AloneServerInfo;
 }
 
 async function getPlayers(connection: Connection): Promise<parsers.Players> {

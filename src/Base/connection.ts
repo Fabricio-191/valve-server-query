@@ -16,9 +16,10 @@ export default abstract class BaseConnection {
 	}
 	public readonly data: BaseData;
 	protected readonly socket: Socket;
+
 	private _isConnected: Promise<void> | false = false;
 	public async mustBeConnected(): Promise<void> {
-		if(!this._isConnected) throw new Error('Not connected');
+		if(!this._isConnected) throw new Error('Not connected/ing');
 		await this._isConnected;
 	}
 
@@ -54,7 +55,7 @@ export default abstract class BaseConnection {
 		});
 	}
 
-	public async awaitResponse(responseHeaders: number[]): Promise<Buffer> {
+	public async awaitResponse(responseHeaders: number[], timeoutTime = this.data.timeout): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
@@ -65,16 +66,14 @@ export default abstract class BaseConnection {
 				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
 
-			const onError = (err: unknown): void => {
-				clear(); rej(err);
-			};
+			const onError = (err: unknown): void => { clear(); rej(err); };
 			const onPacket = (buffer: Buffer): void => {
 				if(!responseHeaders.includes(buffer[0]!)) return;
 
 				clear(); res(buffer);
 			};
 
-			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
+			const timeout = setTimeout(onError, timeoutTime, new Error('Response timeout.'));
 
 			this.socket
 				.on('packet', onPacket)
