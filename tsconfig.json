@@ -35,8 +35,7 @@
 		"disableSizeLimit": true,
 		"checkJs": true,
 		"allowJs": true,
-		"forceConsistentCasingInFileNames": true,
-		"suppressImplicitAnyIndexErrors": true,
+		"forceConsistentCasingInFileNames": true
 	},
 	"include": ["src", "test", "src copy"],
 	"exclude": ["lib"]

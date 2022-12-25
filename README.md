@@ -17,9 +17,10 @@
 	<img src="https://github.com/Fabricio-191/simplest.db/actions/workflows/node.js.yml/badge.svg">
 </a>
 
-</br>  
+</br>
 
-This module allows you to: 
+This module allows you to:
+
 * Easily make queries to servers running valve games
 * Make queries to valve master servers
 * Use a remote console to control your server remotely
@@ -51,13 +52,13 @@ const { Server, RCON, MasterServer } = require('@fabricio-191/valve-server-query
 #### Server
 
 ```js
-const server = new Server({
+const server = new Server();
+
+await server.connect({
   ip: '0.0.0.0',
   port: 27015,
   timeout: 3000,
 });
-
-await server.connect();
 
 const info = await server.getInfo();
 console.log(info);

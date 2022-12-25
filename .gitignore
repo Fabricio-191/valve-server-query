@@ -1,9 +1,10 @@
-node_modules/
-package-lock.json
-
-lib/
-
 .npmignore
 .gitignore
 .eslintrc.js
 .eslintrc.json
+
+node_modules/
+package-lock.json
+
+lib/
+test/results.json

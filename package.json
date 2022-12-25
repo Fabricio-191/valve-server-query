@@ -1,12 +1,12 @@
 {
   "name": "@fabricio-191/valve-server-query",
-  "version": "4.1.3",
+  "version": "5.0.0",
   "typings": "./typings/index.d.ts",
   "scripts": {
     "lint": "npx eslint . --fix",
-    "test": "mocha -r ts-node/register test/mocha.ts --slow 5000 --timeout 6000",
-    "testLib": "mocha test/mocha.js --slow 5000 --timeout 6000 ",
-	"build": "npm run lint && npm t && tsc -p tsconfig.build.json && npm run testLib && npm publish && rmdir /s lib"
+    "mocha": "mocha -r ts-node/register test/mocha.ts --slow 5000 --timeout 6000",
+    "test": "nodemon test/test.ts",
+	"build": "npm run lint && npm t && tsc -p tsconfig.build.json && mocha test/mocha.js --slow 5000 --timeout 6000 && npm publish"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.17.0",
@@ -15,8 +15,7 @@
     "@typescript-eslint/parser": "^5.12.1",
     "mocha": "^9.2.1",
     "ts-node": "^10.5.0",
-    "typescript": "^4.7.0-beta",
-    "why-is-node-running": "^2.2.1"
+    "typescript": "^4.7.0-beta"
   },
   "type": "commonjs",
   "module": "./lib/index.js",
