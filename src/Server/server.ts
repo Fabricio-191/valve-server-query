@@ -145,4 +145,10 @@ export default class Server{
 		connection.destroy();
 		return info;
 	}
+
+	public static async init(options: RawServerOptions): Promise<Server> {
+		const server = new Server();
+		await server.connect(options);
+		return server;
+	}
 }

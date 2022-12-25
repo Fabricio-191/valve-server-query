@@ -1,5 +1,6 @@
 import { promises as dns } from 'dns';
 import { writeFileSync } from 'fs';
+import type { MasterServerData, RCONData, ServerData } from './options';
 
 export async function resolveHostname(string: string): Promise<{
 	ipFormat: 4 | 6;
@@ -122,19 +123,20 @@ export class BufferReader{
 
 let log: string | null = null;
 export function debug(
+	data: MasterServerData | RCONData | ServerData,
 	string: string,
 	buffer?: Buffer
 ): void {
 	if(log === null) return;
+	const type =
+		// eslint-disable-next-line no-nested-ternary
+		'password' in data ? 'RCON' :
+			'appId' in data ? 'Server' : 'MasterServer';
 
-	log += string;
+	log += `[${type}] ${data.address} - ${string}`;
 
 	if(buffer){
-		const parts = buffer.toString('hex').match(/../g)!;
-
-		log += ' ' + parts.slice(0, 20).join(' ') + (
-			parts.length > 20 ? ` ...${parts.length - 20} more bytes` : ''
-		);
+		log += buffer.toString('hex').match(/../g)!.join(' ');
 	}
 
 	log += '\n\n';

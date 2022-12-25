@@ -73,7 +73,7 @@ class RCON extends EventEmitter{
 		}catch(e: unknown){
 			this.connection._auth = false;
 			if(e instanceof Error && e.message === 'RCON: wrong password'){
-				debug('RCON password changed.');
+				debug(this.connection.data, 'RCON password changed.');
 				this.emit('passwordChange');
 			}else throw e;
 		}
@@ -107,7 +107,7 @@ class RCON extends EventEmitter{
 		await this.connection.mustBeAuth();
 		this.connection.data.password = password;
 
-		debug('RCON autenticated');
+		debug(this.connection.data, 'RCON autenticated');
 	}
 
 	public destroy(): void {

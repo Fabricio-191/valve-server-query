@@ -89,19 +89,20 @@ class ServerWatch extends EventEmitter {
 	public resume(): void {
 		if(this.interval) throw new Error('The watch is already running.');
 		if(this.options.interval === 0) return;
+
 		this.update();
 		this.interval = setInterval(() => this.update(), this.options.interval);
+
+		if(this._ref) this.interval.ref();
+		else this.interval.unref();
 	}
 
 	private update(): void {
 		Promise.all(
 			this.options.watch.map(x => this[`update_${x}`]())
 		)
-			.catch(err => {
-				this.emit('error', err);
-			});
-
-		this.emit('update');
+			.catch(err => this.emit('error', err))
+			.finally(() => this.emit('update'));
 	}
 
 	private async update_info(): Promise<void> {
@@ -148,11 +149,14 @@ class ServerWatch extends EventEmitter {
 		}
 	}
 
+	private _ref = true;
 	public unref(): void {
+		this._ref = false;
 		if(this.interval) this.interval.unref();
 	}
 
 	public ref(): void {
+		this._ref = true;
 		if(this.interval) this.interval.ref();
 	}
 }

@@ -1,20 +1,19 @@
 import { debug } from './utils';
 import { createSocket, type Socket } from 'dgram';
+import type { ServerData, MasterServerData } from './options';
 
-import type { BaseData } from './options';
-
-export default abstract class BaseConnection {
-	constructor(data: BaseData) {
+export default abstract class BaseConnection<T extends (MasterServerData | ServerData)> {
+	constructor(data: T) {
 		this.data = data;
 
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
 			.on('message', buffer => {
-				debug('recieved:', buffer);
+				debug(this.data, 'recieved:', buffer);
 				this.onMessage(buffer);
 			})
 			.unref();
 	}
-	public readonly data: BaseData;
+	public readonly data: T;
 	protected readonly socket: Socket;
 
 	private _isConnected: Promise<void> | false = false;
@@ -42,7 +41,7 @@ export default abstract class BaseConnection {
 	}
 
 	public async send(command: Buffer): Promise<void> {
-		debug('sent:', command);
+		debug(this.data, 'sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(

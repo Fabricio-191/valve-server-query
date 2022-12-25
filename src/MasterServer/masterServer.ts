@@ -4,8 +4,7 @@ import Filter from './filter';
 import * as Options from '../Base/options';
 import BaseConnection from '../Base/connection';
 
-class Connection extends BaseConnection {
-	public readonly data!: Options.MasterServerData;
+class Connection extends BaseConnection<Options.MasterServerData> {
 	private _counter = 0;
 
 	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
@@ -17,7 +16,7 @@ class Connection extends BaseConnection {
 		return await super.query(command, ...responseHeaders);
 	}
 
-	public onMessage(buffer: Buffer): void {
+	protected onMessage(buffer: Buffer): void {
 		const header = buffer.readInt32LE();
 		if(header === -1){
 			this.socket.emit('packet', buffer.slice(4));
@@ -29,20 +28,10 @@ class Connection extends BaseConnection {
 	}
 }
 
-const connections: Record<string, Connection> = {};
-async function getConnection(data: Options.MasterServerData): Promise<Connection> {
-	if(!(data.address in connections)) {
-		const connection = new Connection(data);
-		await connection.connect();
-		connections[data.address] = connection;
-	}
-
-	return connections[data.address]!;
-}
-
 export default async function MasterServer(options: Options.RawMasterServerOptions = {}): Promise<string[]> {
 	const data = await Options.parseMasterServerOptions(options);
-	const connection = await getConnection(data);
+	const connection = new Connection(data);
+	await connection.connect();
 
 	const filter = data.filter.toString();
 	const servers: string[] = [];
@@ -58,13 +47,13 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 	}while(data.quantity !== servers.length && last !== '0.0.0.0:0');
 
 	if(last === '0.0.0.0:0') servers.pop();
+
+	connection.destroy();
 	return servers;
 }
 
-const { REGIONS } = Options;
 MasterServer.Filter = Filter;
-MasterServer.REGIONS = REGIONS;
-export { Filter, REGIONS };
+MasterServer.REGIONS = Options.REGIONS;
 
 function makeCommand(last: string, region: number, filter: string): Buffer {
 	return new BufferWriter()

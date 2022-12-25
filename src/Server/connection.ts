@@ -17,7 +17,7 @@ interface MultiPacket {
 
 const MPS_IDS = [ 215, 240, 17550, 17700 ] as const;
 
-export default class Connection extends BaseConnection {
+export default class Connection extends BaseConnection<ServerData> {
 	public readonly data!: ServerData;
 	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();
 
@@ -29,7 +29,7 @@ export default class Connection extends BaseConnection {
 			const packet = this.handleMultiplePackets(buffer);
 			if(packet) this.onMessage(packet);
 		}else{
-			debug('SERVER cannot parse packet', buffer);
+			debug(this.data, 'SERVER cannot parse packet', buffer);
 			if(this.data.enableWarns){
 				// eslint-disable-next-line no-console
 				console.warn("Warning: a packet couln't be handled");
@@ -51,7 +51,7 @@ export default class Connection extends BaseConnection {
 		*/
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
 			this.data.multiPacketGoldSource = true;
-			debug('SERVER changed packet parsing');
+			debug(this.data, 'SERVER changed packet parsing');
 		}
 
 		const packet = this._parseMultiPacket(buffer);
