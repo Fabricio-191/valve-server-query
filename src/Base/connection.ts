@@ -1,9 +1,9 @@
 import { debug } from './utils';
 import { createSocket, type Socket } from 'dgram';
-import type { ServerData, MasterServerData } from './options';
+import type { BaseData } from './options';
 
-export default abstract class BaseConnection<T extends (MasterServerData | ServerData)> {
-	constructor(data: T) {
+export default abstract class BaseConnection {
+	constructor(data: BaseData) {
 		this.data = data;
 
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
@@ -13,7 +13,7 @@ export default abstract class BaseConnection<T extends (MasterServerData | Serve
 			})
 			.unref();
 	}
-	public readonly data: T;
+	public readonly data: BaseData;
 	protected readonly socket: Socket;
 
 	private _isConnected: Promise<void> | false = false;
@@ -44,17 +44,14 @@ export default abstract class BaseConnection<T extends (MasterServerData | Serve
 		debug(this.data, 'sent:', command);
 
 		return new Promise((res, rej) => {
-			this.socket.send(
-				Buffer.from(command),
-				err => {
-					if(err) return rej(err);
-					res();
-				}
-			);
+			this.socket.send(command, err => {
+				if(err) rej(err);
+				else res();
+			});
 		});
 	}
 
-	public async awaitResponse(responseHeaders: number[], timeoutTime = this.data.timeout): Promise<Buffer> {
+	public async awaitResponse(responseHeaders: readonly number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
@@ -74,7 +71,7 @@ export default abstract class BaseConnection<T extends (MasterServerData | Serve
 				clear(); res(buffer);
 			};
 
-			const timeout = setTimeout(onError, timeoutTime, new Error('Response timeout.'));
+			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
 
 			this.socket
 				.on('packet', onPacket)
@@ -82,7 +79,7 @@ export default abstract class BaseConnection<T extends (MasterServerData | Serve
 		});
 	}
 
-	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
+	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
 		await this.send(command);
 
 		const timeout = setTimeout(() => {

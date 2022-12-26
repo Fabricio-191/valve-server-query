@@ -1,7 +1,7 @@
 import { debug, BufferReader } from '../Base/utils';
 import type { ServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
-import type { NonEmptyArray } from '../Base/utils';
+import type { NonEmptyArray, ValueIn } from '../Base/utils';
 
 interface MultiPacket {
 	ID: number;
@@ -17,7 +17,20 @@ interface MultiPacket {
 
 const MPS_IDS = [ 215, 240, 17550, 17700 ] as const;
 
-export default class Connection extends BaseConnection<ServerData> {
+export const ResponsesHeaders = {
+	CHALLENGE: [0x41],
+	PLAYERS: [0x44],
+	RULES: [0x45],
+	INFO: [0x49],
+	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
+	RULES_OR_CHALLENGE: [0x45, 0x41],
+	INFO_OR_CHALLENGE: [0x49, 0x41],
+	PING: [0x6A],
+	GOLDSOURCE_INFO: [0x6D],
+} as const;
+type ResponseHeaders = ValueIn<typeof ResponsesHeaders>;
+
+export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
 	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();
 
@@ -128,25 +141,21 @@ export default class Connection extends BaseConnection<ServerData> {
 	}
 
 	public lastPing = -1;
-	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
+	public async query(command: Buffer, responseHeaders: ResponseHeaders): Promise<Buffer> {
 		await this.send(command);
 
-		const start = Date.now();
-		let i = 0;
+		let start = Date.now();
 		const timeout = setTimeout(() => {
-			i++;
 			this.send(command).catch(() => { /* do nothing */ });
+			start = Date.now();
 		}, this.data.timeout / 2)
 			.unref();
 
-		const buffer = await this.awaitResponse(responseHeaders)
-			.finally(() => clearTimeout(timeout));
-
-		if(i === 0){
-			this.lastPing = Date.now() - start;
-		}
-
-		return buffer;
+		return await this.awaitResponse(responseHeaders)
+			.finally(() => {
+				clearTimeout(timeout);
+				this.lastPing = Date.now() - start;
+			});
 	}
 }
 

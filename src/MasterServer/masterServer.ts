@@ -4,16 +4,16 @@ import Filter from './filter';
 import * as Options from '../Base/options';
 import BaseConnection from '../Base/connection';
 
-class Connection extends BaseConnection<Options.MasterServerData> {
+class Connection extends BaseConnection {
 	private _counter = 0;
 
-	public async query(command: Buffer, ...responseHeaders: number[]): Promise<Buffer> {
+	public async query(command: Buffer): Promise<Buffer> {
 		if(this._counter === 25) await delay(1000);
 
 		this._counter++;
 		setTimeout(() => this._counter--, 62000).unref();
 
-		return await super.query(command, ...responseHeaders);
+		return await super.query(command, [0x66]);
 	}
 
 	protected onMessage(buffer: Buffer): void {
@@ -40,7 +40,7 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 	do{
 		const command = makeCommand(last, data.region, filter);
 
-		const buffer = await connection.query(command, 0x66);
+		const buffer = await connection.query(command);
 		servers.push(...parseServerList(buffer));
 
 		last = servers[servers.length - 1] as string;

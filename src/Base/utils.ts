@@ -1,6 +1,6 @@
 import { promises as dns } from 'dns';
 import { writeFileSync } from 'fs';
-import type { MasterServerData, RCONData, ServerData } from './options';
+import type { BaseData } from './options';
 
 export async function resolveHostname(string: string): Promise<{
 	ipFormat: 4 | 6;
@@ -122,31 +122,36 @@ export class BufferReader{
 }
 
 let log: string | null = null;
-export function debug(
-	data: MasterServerData | RCONData | ServerData,
-	string: string,
-	buffer?: Buffer
-): void {
+export function debug(data: BaseData | number | object | string, string: string, buffer?: Buffer): void {
 	if(log === null) return;
-	const type =
-		// eslint-disable-next-line no-nested-ternary
-		'password' in data ? 'RCON' :
-			'appId' in data ? 'Server' : 'MasterServer';
 
-	log += `[${type}] ${data.address} - ${string}`;
+	if(typeof data === 'object' && 'address' in data){
+		const type =
+			// eslint-disable-next-line no-nested-ternary
+			'multiPacketGoldSource' in data ? 'Server' : 'region' in data ? 'MasterServer' : 'RCON';
 
-	if(buffer){
-		log += buffer.toString('hex').match(/../g)!.join(' ');
+		log += `[${type}] ${data.address} - ${string} `;
+
+		if(buffer){
+			log += buffer.toString('hex').match(/../g)!.join(' ');
+		}
+	}else{
+		data = JSON.stringify(data, (_, v: unknown) => {
+			if(typeof v === 'bigint') return v.toString() + 'n';
+			return v;
+		}, 2);
+
+		log += `[${string}] - ${data}`;
 	}
 
 	log += '\n\n';
 }
 
-debug.enable = function enableDebug(): void {
+debug.enable = function enableDebug(file = 'debug.log'): void {
 	log = '';
 
 	process.on('beforeExit', () => {
-		writeFileSync('debug.log', log as string);
+		writeFileSync(file, log as string);
 	});
 };
 

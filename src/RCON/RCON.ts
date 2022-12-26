@@ -19,16 +19,12 @@ interface Events {
 }
 
 declare interface RCON {
-	  on<T extends keyof Events>(event: T, listener: Events[T]): this;
+	on<T extends keyof Events>(event: T, listener: Events[T]): this;
 	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
 }
 
 class RCON extends EventEmitter{
-	constructor() {
-		super();
-		this.connection = new Connection();
-	}
-	private connection: Connection;
+	private connection = new Connection();
 
 	public async exec(command: string, multiPacket = false): Promise<string> {
 		await this.connection.mustBeAuth();

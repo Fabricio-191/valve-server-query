@@ -1,47 +1,24 @@
-/* eslint-disable new-cap */
-/* eslint-disable @typescript-eslint/no-shadow */
-/* eslint-disable @typescript-eslint/no-invalid-this */
+/* eslint-disable new-cap, @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
 import { Server, RCON, MasterServer, enableDebug, type FinalServerInfo } from '../src';
-import { writeFileSync } from 'fs';
+import { debug } from '../src/Base/utils';
+enableDebug();
 
 const doNothing = (): void => { /* do nothing */ };
 
-enableDebug();
-
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33020',
+	ip: '49.12.122.244:33006',
 	password: 'cosas',
 	enableWarns: false,
 };
-
-const result = {
-	MasterServer: [] as string[],
-	server: {
-		lastPing: 0,
-		getInfo: {},
-		getPlayers: {},
-		getRules: {},
-		getPing: {},
-	},
-	// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-	RCON: {} as Record<string, unknown>,
-};
-
-class MyError extends Error {
-	constructor(message: string, stack = '') {
-		super(message);
-		this.stack = stack;
-	}
-}
 
 describe('Server', () => {
 	function checkInfo(info: object): void {
 		for(const key of ['appID', 'OS', 'protocol', 'version', 'map']){
 			if(!(key in info)){
-				throw new MyError('Missing keys in data');
+				throw new Error('Missing keys in data');
 			}
 		}
 	}
@@ -64,31 +41,34 @@ describe('Server', () => {
 		const info = await server.getInfo();
 
 		checkInfo(info);
-		result.server.getInfo = info;
+		debug(info, 'Server info');
 	});
 
 	it('getPlayers()', async () => {
-		result.server.getPlayers = await server.getPlayers();
+		const players = await server.getPlayers();
+		debug(players, 'Server players');
 	});
 
 	it('getRules()', async () => {
-		result.server.getRules = await server.getRules();
+		const rules = await server.getRules();
+		debug(rules, 'Server rules');
 	});
 
 	/*
 	it('getPing()', async () => {
-		result.server.getPing = await server.getPing();
+		const ping = await server.getPing();
+		debug(ping, 'Server ping');
 	});
 	*/
 
 	it('lastPing', () => {
 		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
-			throw new MyError('Server.lastPing is not a number');
+			throw new Error('Server.lastPing is not a number');
 		}else if(server.lastPing <= -1){
-			throw new MyError(`Server.lastPing is too small (${server.lastPing})`);
+			throw new Error(`Server.lastPing is too small (${server.lastPing})`);
 		}
 
-		result.server.lastPing = server.lastPing;
+		debug(server.lastPing, 'Server ping');
 	});
 });
 
@@ -96,21 +76,21 @@ describe('MasterServer', () => {
 	const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
 
 	function checkIP(ip: unknown): void {
-		if(typeof ip !== 'string') throw new MyError('IP is not a string');
+		if(typeof ip !== 'string') throw new Error('IP is not a string');
 
 		const matches = ipv4RegexWithPort.exec(ip);
-		if(!matches) throw new MyError('IP is not valid');
+		if(!matches) throw new Error('IP is not valid');
 
 		for(let i = 1; i < 5; i++){
 			const num = Number(matches[i]);
 			if(num < 0 || num > 255){
-				throw new MyError('Field in IP is not valid');
+				throw new Error('Field in IP is not valid');
 			}
 		}
 
 		const port = Number(matches[5]);
 		if(port < 0 || port > 65535){
-			throw new MyError('Port in IP is not valid');
+			throw new Error('Port in IP is not valid');
 		}
 	}
 
@@ -125,14 +105,14 @@ describe('MasterServer', () => {
 		});
 
 		if(!Array.isArray(IPs)){
-			throw new MyError('ips is not an array');
+			throw new Error('ips is not an array');
 		}else if(Math.abs(IPs.length - 900) > 100){ // 900 ± 100
-			throw new MyError('ips does not have ~900 servers');
+			throw new Error('ips does not have ~900 servers');
 		}
 
 		IPs.forEach(checkIP);
 
-		result.MasterServer = IPs;
+		debug(IPs, 'MasterServer result');
 	});
 
 	it('filter', async function(){
@@ -169,7 +149,7 @@ describe('MasterServer', () => {
 			.length;
 
 		if(results.length - satisfiesFilter < results.length * 0.1){ // (10% error margin) master servers are not perfect
-			throw new MyError('Filter is not working well');
+			throw new Error('Filter is not working well');
 		}
 	});
 });
@@ -180,17 +160,21 @@ describe('RCON', () => {
 	it('connect and authenticate', () => rcon.connect(options));
 
 	it("exec('sv_gravity') (single packet response)", async () => {
-		result.RCON["exec('sv_gravity')"] = await rcon.exec('sv_gravity');
+		const result = await rcon.exec('sv_gravity');
+		debug(result, "exec('sv_gravity')");
 	});
 
 	it("exec('cvarlist') (multiple packet response)", async function(){
 		this.slow(9000);
 		this.timeout(10000);
-		result.RCON["exec('cvarlist')"] = await rcon.exec('cvarlist');
+
+		const result = await rcon.exec('cvarlist');
+		debug(result, "exec('cvarlist')");
 	});
 
 	it("exec('status')", async () => {
-		result.RCON["exec('status')"] = await rcon.exec('status');
+		const result = await rcon.exec('status');
+		debug(result, "exec('status')");
 	});
 
 	it('multiple requests', async function(){
@@ -245,20 +229,9 @@ describe('RCON', () => {
 	});
 });
 
-after(() => {
-	writeFileSync('./test/result.json', JSON.stringify(
-		result,
-		(_, v: unknown) => {
-			if(typeof v === 'bigint') return v.toString() + 'n';
-			return v;
-		},
-		'\t'
-	));
-});
-
 let id = 1;
 function shouldFireEvent(obj: EventEmitter, event: string, time: number): Promise<void> {
-	const err = new MyError(`Event ${event} (${id++}) not fired`);
+	const err = new Error(`Event ${event} (${id++}) not fired`);
 
 	return new Promise((res, rej) => {
 		const end = (error?: unknown): void => {

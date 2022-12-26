@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import Connection from './connection';
+import Connection, { ResponsesHeaders } from './connection';
 import * as parsers from './parsers';
 import { parseServerOptions, type RawServerOptions, type ServerData } from '../Base/options';
 import queries, { COMMANDS } from './base';
@@ -55,15 +55,15 @@ export default class Server{
 
 		let command = COMMANDS.INFO;
 		if(this.data.info.challenge){
-			const response = await this.connection.query(command, 0x41);
-			command = COMMANDS.INFO_WITH_KEY(response.slice(1));
+			const response = await this.connection.query(command, ResponsesHeaders.CHALLENGE);
+			command = COMMANDS.WITH_KEY.INFO(response.slice(1));
 		}
 
 		const requests = this.data.info.goldSource ? [
-			this.connection.query(command, 0x49),
-			this.connection.awaitResponse([0x6D]),
+			this.connection.query(command, ResponsesHeaders.INFO),
+			this.connection.awaitResponse(ResponsesHeaders.GOLDSOURCE_INFO),
 		] : [
-			this.connection.query(command, 0x49),
+			this.connection.query(command, ResponsesHeaders.INFO),
 		];
 
 		const responses = await Promise.all(requests);
@@ -77,14 +77,14 @@ export default class Server{
 		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
 			await this.challenge() :
-			await this.connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x44);
+			await this.connection.query(COMMANDS.PLAYERS, ResponsesHeaders.PLAYERS_OR_CHALLENGE);
 
 		if(key[0] === 0x44 && key.length > 5){
 			return parsers.players(key, this.data);
 		}
 
-		const command = COMMANDS.PLAYERS(key.slice(1));
-		const response = await this.connection.query(command, 0x44);
+		const command = COMMANDS.WITH_KEY.PLAYERS(key.slice(1));
+		const response = await this.connection.query(command, ResponsesHeaders.PLAYERS);
 
 		if(response.equals(key)) throw new Error('Wrong server response');
 
@@ -97,14 +97,14 @@ export default class Server{
 		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
 			await this.challenge() :
-			await this.connection.query(COMMANDS.PLAYERS_CHALLENGE, 0x41, 0x45);
+			await this.connection.query(COMMANDS.PLAYERS, ResponsesHeaders.RULES_OR_CHALLENGE);
 
 		if(key[0] === 0x45 && key.length > 5){
 			return parsers.rules(key);
 		}
 
-		const command = COMMANDS.RULES(key.slice(1));
-		const response = await this.connection.query(command, 0x45);
+		const command = COMMANDS.WITH_KEY.RULES(key.slice(1));
+		const response = await this.connection.query(command, ResponsesHeaders.RULES);
 
 		if(response.equals(key)) throw new Error('Wrong server response');
 
@@ -113,7 +113,7 @@ export default class Server{
 
 	private async challenge(): Promise<Buffer> {
 		if(!this.isConnected()) throw new Error('Not connected');
-		return await this.connection.query(COMMANDS.CHALLENGE, 0x41);
+		return await this.connection.query(COMMANDS.CHALLENGE, ResponsesHeaders.CHALLENGE);
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<parsers.FinalServerInfo> {
