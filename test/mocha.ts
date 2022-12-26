@@ -1,9 +1,8 @@
 /* eslint-disable new-cap, @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
-import { Server, RCON, MasterServer, enableDebug, type FinalServerInfo } from '../src';
-import { debug } from '../src/Base/utils';
-enableDebug();
+import { Server, RCON, MasterServer, debug, type FinalServerInfo } from '../src';
+debug.enable('./test/debug.log');
 
 const doNothing = (): void => { /* do nothing */ };
 

@@ -5,13 +5,17 @@ import * as Options from '../Base/options';
 import BaseConnection from '../Base/connection';
 
 class Connection extends BaseConnection {
-	private _counter = 0;
+	private _a = false;
 
 	public async query(command: Buffer): Promise<Buffer> {
-		if(this._counter === 25) await delay(1000);
+		while(this._a) await delay(200);
+		// 30 per minute
+		// 60 per 5 minutes
 
-		this._counter++;
-		setTimeout(() => this._counter--, 62000).unref();
+		this._a = true;
+		setTimeout(() => {
+			this._a = false;
+		}, 1000).unref();
 
 		return await super.query(command, [0x66]);
 	}
@@ -44,7 +48,7 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 		servers.push(...parseServerList(buffer));
 
 		last = servers[servers.length - 1] as string;
-	}while(data.quantity !== servers.length && last !== '0.0.0.0:0');
+	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
 
 	if(last === '0.0.0.0:0') servers.pop();
 

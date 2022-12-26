@@ -1,18 +1,11 @@
 /* eslint-disable new-cap */
 /* eslint-disable no-console */
 
-import { MasterServer, enableDebug } from '../src';
+import { debug } from '../src';
 
-enableDebug();
+debug.enable('./test/debug.log');
 
-MasterServer({
-	ip: 'hl2master.steampowered.com:27011',
-	region: 'ANY',
-	quantity: 20000,
-	timeout: 5000,
-})
-	.then(s => console.log(s.length))
-	.catch(console.error);
+debug({}, 'Hello world!');
 
 /*
 import { RCON } from '../src';

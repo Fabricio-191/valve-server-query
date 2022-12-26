@@ -12,5 +12,5 @@ export type {
 	Player, TheShipPlayer
 } from './Server/parsers';
 
-export { Server, MasterServer, RCON, enableDebug };
-export default { Server, MasterServer, RCON, enableDebug };
+export { Server, MasterServer, RCON, enableDebug, debug };
+export default { Server, MasterServer, RCON, enableDebug, debug };
