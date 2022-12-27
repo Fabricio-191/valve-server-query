@@ -126,8 +126,8 @@ async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promi
 }
 
 export function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
-	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { ip: options };
+	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 
 	return parseBaseOptions({
 		...DEFAULT_SERVER_OPTIONS,

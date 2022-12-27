@@ -158,7 +158,8 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			VAC: reader.byte() === 1,
 		};
 
-		info.players.bots = reader.byte();
+		info.players.bots = reader.hasRemaining ? reader.byte() : 0;
+		if(reader.hasRemaining) info.players.bots = reader.byte();
 
 		return info;
 	}
@@ -197,18 +198,19 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	if(!reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
-	// 1111 0001
-	if(EDF & 0x80) info.gamePort = reader.short(true);
-	if(EDF & 0x10) info.steamID = reader.bigUInt();
-	if(EDF & 0x40) info.tv = {
-		port: reader.short(),
-		name: reader.string(),
-	};
-	if(EDF & 0x20) info.keywords = reader.string().trim().split(',');
-	if(EDF & 0x01){
-		info.gameID = reader.bigUInt();
-		info.appID = Number(info.gameID & 0xFFFFFFn);
-	}
+	try{ // some old servers have a bad implementation of EDF
+		if(EDF & 0b10000000) info.gamePort = reader.short(true);
+		if(EDF & 0b00010000) info.steamID = reader.bigUInt();
+		if(EDF & 0b01000000) info.tv = {
+			port: reader.short(),
+			name: reader.string(),
+		};
+		if(EDF & 0b00100000) info.keywords = reader.string().trim().split(',');
+		if(EDF & 0b00000001){
+			info.gameID = reader.bigUInt();
+			info.appID = Number(info.gameID & 0xFFFFFFn);
+		}
+	}catch{}
 
 	return info;
 }

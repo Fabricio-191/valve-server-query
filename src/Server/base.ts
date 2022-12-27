@@ -78,10 +78,7 @@ const queries = {
 		await connection.mustBeConnected();
 
 		const key = await connection.query(COMMANDS.PLAYERS, ResponsesHeaders.RULES_OR_CHALLENGE);
-
-		if(key[0] === 0x45 && key.length > 5){
-			return parsers.rules(key);
-		}
+		if(key[0] === 0x45) return parsers.rules(key);
 
 		const command = COMMANDS.WITH_KEY.RULES(key.slice(1));
 		const response = await connection.query(command, ResponsesHeaders.PLAYERS);

@@ -15,6 +15,10 @@ export default class Server{
 		return this.connection !== null;
 	}
 
+	private _shouldBeConnected(): asserts this is ConnectedServer {
+		if(!this.isConnected()) throw new Error('Not connected');
+	}
+
 	public async connect(options: RawServerOptions = {}): Promise<this> {
 		if(this.isConnected()){
 			throw new Error('Server: already connected.');
@@ -46,12 +50,12 @@ export default class Server{
 	}
 
 	public get lastPing(): number {
-		if(!this.isConnected()) throw new Error('Not connected');
+		this._shouldBeConnected();
 		return this.connection.lastPing;
 	}
 
 	public async getInfo(): Promise<parsers.FinalServerInfo> {
-		if(!this.isConnected()) throw new Error('Not connected');
+		this._shouldBeConnected();
 
 		let command = COMMANDS.INFO;
 		if(this.data.info.challenge){
@@ -59,12 +63,11 @@ export default class Server{
 			command = COMMANDS.WITH_KEY.INFO(response.slice(1));
 		}
 
-		const requests = this.data.info.goldSource ? [
-			this.connection.query(command, ResponsesHeaders.INFO),
-			this.connection.awaitResponse(ResponsesHeaders.GOLDSOURCE_INFO),
-		] : [
+		const requests = [
 			this.connection.query(command, ResponsesHeaders.INFO),
 		];
+
+		if(this.data.info.goldSource) requests.push(this.connection.awaitResponse(ResponsesHeaders.GOLDSOURCE_INFO));
 
 		const responses = await Promise.all(requests);
 
@@ -72,7 +75,7 @@ export default class Server{
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		if(!this.isConnected()) throw new Error('Not connected');
+		this._shouldBeConnected();
 
 		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
@@ -92,7 +95,7 @@ export default class Server{
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
-		if(!this.isConnected()) throw new Error('Not connected');
+		this._shouldBeConnected();
 
 		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
@@ -112,7 +115,7 @@ export default class Server{
 	}
 
 	private async challenge(): Promise<Buffer> {
-		if(!this.isConnected()) throw new Error('Not connected');
+		this._shouldBeConnected();
 		return await this.connection.query(COMMANDS.CHALLENGE, ResponsesHeaders.CHALLENGE);
 	}
 

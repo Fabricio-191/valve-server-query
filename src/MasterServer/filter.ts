@@ -18,16 +18,6 @@ const FLAGS = {
 	not_password_protected: '\\password\\0',
 } as const;
 
-const checkStr = (str: string): void => {
-	if(typeof str !== 'string') throw new Error('value must be a string');
-};
-
-const checkStrArr = (arr: string[]): void => {
-	if(!Array.isArray(arr) || arr.some(item => typeof item !== 'string')){
-		throw new Error('value must be an array of strings');
-	}
-};
-
 const checkNum = (num: number): string => {
 	if(typeof num !== 'number') throw new Error('value must be an integer');
 	if(num < 0) throw new Error('value must be a positive integer');
@@ -38,15 +28,17 @@ export default class Filter{
 	private readonly filters: string[] = [];
 
 	private _add(key: string, value: string): this {
-		checkStr(value);
+		if(typeof value !== 'string') throw new Error('value must be a string');
 		this.filters.push(`${key}${value}`);
 
 		return this;
 	}
 
-	private _addArr(key: string, value: string[]): this {
-		checkStrArr(value);
-		this.filters.push(`${key}${value.join(',')}`);
+	private _addArr(key: string, arr: string[]): this {
+		if(!Array.isArray(arr) || arr.some(item => typeof item !== 'string')){
+			throw new Error('value must be an array of strings');
+		}
+		this.filters.push(`${key}${arr.join(',')}`);
 
 		return this;
 	}

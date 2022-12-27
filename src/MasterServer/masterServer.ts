@@ -1,22 +1,13 @@
 /* eslint-disable new-cap */
-import { BufferWriter, BufferReader, delay } from '../Base/utils';
+import { BufferWriter, BufferReader } from '../Base/utils';
 import Filter from './filter';
-import * as Options from '../Base/options';
+import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
+// 30 per minute
+// 60 per 5 minutes
 
 class Connection extends BaseConnection {
-	private _a = false;
-
 	public async query(command: Buffer): Promise<Buffer> {
-		while(this._a) await delay(200);
-		// 30 per minute
-		// 60 per 5 minutes
-
-		this._a = true;
-		setTimeout(() => {
-			this._a = false;
-		}, 1000).unref();
-
 		return await super.query(command, [0x66]);
 	}
 
@@ -31,7 +22,7 @@ class Connection extends BaseConnection {
 		}
 	}
 
-	public static async init(data: Options.MasterServerData): Promise<Connection> {
+	public static async init(data: MasterServerData): Promise<Connection> {
 		const connection = new Connection(data);
 		await connection.connect();
 
@@ -48,10 +39,10 @@ function makeCommand(region: number, filter: string, last: string): Buffer {
 }
 
 export default async function MasterServer(
-	options: Options.RawMasterServerOptions = {},
+	options: RawMasterServerOptions = {},
 	onChunk: ((servers: string[]) => void) | null = null
 ): Promise<string[]> {
-	const data = await Options.parseMasterServerOptions(options);
+	const data = await parseMasterServerOptions(options);
 	const connection = await Connection.init(data);
 
 	let last = '0.0.0.0:0';

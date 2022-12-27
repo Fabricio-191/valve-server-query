@@ -133,7 +133,11 @@ export function debug(data: BaseData | number | object | string, string: string,
 		log += `[${type}] ${data.address} - ${string} `;
 
 		if(buffer){
-			log += buffer.toString('hex').match(/../g)!.join(' ');
+			try{
+				log += buffer.toString('hex').match(/../g)!.join(' ');
+			}catch{
+				console.log(data, buffer);
+			}
 		}
 	}else{
 		data = JSON.stringify(data, (_, v: unknown) => {

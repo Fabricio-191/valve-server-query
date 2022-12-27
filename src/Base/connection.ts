@@ -8,6 +8,9 @@ export default abstract class BaseConnection {
 
 		this.socket = createSocket(`udp${this.data.ipFormat}`)
 			.on('message', buffer => {
+				// some old servers just thought it would be a good idea to send empty useless packets in very rare occasions
+				if(buffer.length === 0) return;
+
 				debug(this.data, 'recieved:', buffer);
 				this.onMessage(buffer);
 			})
