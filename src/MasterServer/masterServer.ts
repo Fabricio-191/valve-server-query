@@ -30,22 +30,43 @@ class Connection extends BaseConnection {
 			throw new Error('Invalid packet');
 		}
 	}
+
+	public static async init(data: Options.MasterServerData): Promise<Connection> {
+		const connection = new Connection(data);
+		await connection.connect();
+
+		return connection;
+	}
 }
 
-export default async function MasterServer(options: Options.RawMasterServerOptions = {}): Promise<string[]> {
-	const data = await Options.parseMasterServerOptions(options);
-	const connection = new Connection(data);
-	await connection.connect();
+function makeCommand(region: number, filter: string, last: string): Buffer {
+	return new BufferWriter()
+		.byte(0x31, region)
+		.string(last)
+		.string(filter)
+		.end();
+}
 
-	const filter = data.filter.toString();
-	const servers: string[] = [];
+export default async function MasterServer(
+	options: Options.RawMasterServerOptions = {},
+	onChunk: ((servers: string[]) => void) | null = null
+): Promise<string[]> {
+	const data = await Options.parseMasterServerOptions(options);
+	const connection = await Connection.init(data);
+
 	let last = '0.0.0.0:0';
 
+	const servers: string[] = [];
+
 	do{
-		const command = makeCommand(last, data.region, filter);
+		const command = makeCommand(data.region, data.filter, last);
 
 		const buffer = await connection.query(command);
-		servers.push(...parseServerList(buffer));
+		const chunk = parseServerList(buffer);
+
+		if(onChunk) onChunk(chunk);
+		servers.push(...chunk);
+
 
 		last = servers[servers.length - 1] as string;
 	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
@@ -57,15 +78,6 @@ export default async function MasterServer(options: Options.RawMasterServerOptio
 }
 
 MasterServer.Filter = Filter;
-MasterServer.REGIONS = Options.REGIONS;
-
-function makeCommand(last: string, region: number, filter: string): Buffer {
-	return new BufferWriter()
-		.byte(0x31, region)
-		.string(last)
-		.string(filter)
-		.end();
-}
 
 function parseServerList(buffer: Buffer): string[] {
 	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port

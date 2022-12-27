@@ -107,7 +107,6 @@ class RCON extends EventEmitter{
 	}
 
 	public destroy(): void {
-		this.removeAllListeners();
 		this.connection.socket.removeAllListeners();
 		this.connection.socket.destroy();
 		this.connection = new Connection();
