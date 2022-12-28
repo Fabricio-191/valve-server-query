@@ -22,11 +22,13 @@ export const ResponsesHeaders = {
 	PLAYERS: [0x44],
 	RULES: [0x45],
 	INFO: [0x49],
+	PING: [0x6A],
+	GOLDSOURCE_INFO: [0x6D],
 	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
 	RULES_OR_CHALLENGE: [0x45, 0x41],
 	INFO_OR_CHALLENGE: [0x49, 0x41],
-	PING: [0x6A],
-	GOLDSOURCE_INFO: [0x6D],
+	ANY_INFO_OR_CHALLENGE: [0x6D, 0x49, 0x41],
+	ANY_INFO: [0x6D, 0x49],
 } as const;
 type ResponseHeaders = ValueIn<typeof ResponsesHeaders>;
 

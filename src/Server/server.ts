@@ -57,21 +57,7 @@ export default class Server{
 	public async getInfo(): Promise<parsers.FinalServerInfo> {
 		this._shouldBeConnected();
 
-		let command = COMMANDS.INFO;
-		if(this.data.info.challenge){
-			const response = await this.connection.query(command, ResponsesHeaders.CHALLENGE);
-			command = COMMANDS.WITH_KEY.INFO(response.slice(1));
-		}
-
-		const requests = [
-			this.connection.query(command, ResponsesHeaders.INFO),
-		];
-
-		if(this.data.info.goldSource) requests.push(this.connection.awaitResponse(ResponsesHeaders.GOLDSOURCE_INFO));
-
-		const responses = await Promise.all(requests);
-
-		return Object.assign({}, ...responses.map(parsers.serverInfo)) as parsers.FinalServerInfo;
+		return await queries.getInfo(this.connection);
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {

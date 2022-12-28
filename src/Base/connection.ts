@@ -54,7 +54,7 @@ export default abstract class BaseConnection {
 		});
 	}
 
-	public async awaitResponse(responseHeaders: readonly number[]): Promise<Buffer> {
+	public async awaitResponse(responseHeaders: readonly number[], timeoutTime = this.data.timeout): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
@@ -74,7 +74,7 @@ export default abstract class BaseConnection {
 				clear(); res(buffer);
 			};
 
-			const timeout = setTimeout(onError, this.data.timeout, new Error('Response timeout.'));
+			const timeout = setTimeout(onError, timeoutTime, new Error('Response timeout.'));
 
 			this.socket
 				.on('packet', onPacket)

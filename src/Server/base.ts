@@ -25,34 +25,28 @@ type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
 
 const queries = {
 	async getInfo(connection: Connection): Promise<AloneServerInfo> {
-		let gldsrcInfo: Buffer | null = null;
-
-		// attempt to catch gold source info
-		connection.awaitResponse(ResponsesHeaders.GOLDSOURCE_INFO)
-			.then(data => {
-				gldsrcInfo = data;
-			})
-			.catch(() => { /* do nothing */ });
-
-		let needsChallenge = false;
-		let info = await connection.query(COMMANDS.INFO, ResponsesHeaders.INFO_OR_CHALLENGE);
+		let info = await connection.query(COMMANDS.INFO, ResponsesHeaders.ANY_INFO_OR_CHALLENGE);
 		if(info[0] === 0x41){ // needs challenge
-			needsChallenge = true;
-
 			info = await connection.query(
 				COMMANDS.WITH_KEY.INFO(info.slice(1)),
-				ResponsesHeaders.INFO
+				ResponsesHeaders.ANY_INFO
 			); // info
 		}
 
-		await delay(100);
-
 		const data = {
-			needsChallenge,
 			...parsers.serverInfo(info),
 		};
 
-		if(gldsrcInfo) Object.assign(data, parsers.serverInfo(gldsrcInfo));
+		try{ // attempt to catch other info
+			const otherInfo = await connection.awaitResponse(
+				ResponsesHeaders.ANY_INFO,
+				500
+			);
+
+			Object.assign(data, parsers.serverInfo(otherInfo));
+		}catch{ /* do nothing */ }
+
+		await delay(100);
 
 		return data as AloneServerInfo;
 	},
