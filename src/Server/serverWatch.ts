@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
 import type Server from './server';
-import type { FinalServerInfo as ServerInfo, Players, Rules } from './parsers';
+import type { AnyServerInfo, Players, Rules } from './parsers';
 import type { NonEmptyArray } from '../Base/utils';
 
-type InfoKeys = NonEmptyArray<keyof ServerInfo>;
+type InfoKeys = NonEmptyArray<keyof AnyServerInfo>;
 type Player = Players['list'][number];
 
 const queries = ['info', 'players', 'rules'] as const;
@@ -42,7 +42,7 @@ function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
 
 
 interface Events {
-	infoUpdate: (oldInfo: ServerInfo, newInfo: ServerInfo, changed: InfoKeys) => void;
+	infoUpdate: (oldInfo: AnyServerInfo, newInfo: AnyServerInfo, changed: InfoKeys) => void;
 	playersUpdate: (oldPlayers: Players, newPlayers: Players) => void;
 	rulesUpdate: (oldRules: Rules, newRules: Rules, changed: Array<number | string>) => void;
 
@@ -70,7 +70,7 @@ class ServerWatch extends EventEmitter {
 	private options: Options;
 	private interval: NodeJS.Timeout | null = null;
 
-	public info!: ServerInfo;
+	public info!: AnyServerInfo;
 	public players!: Players;
 	public rules!: Rules;
 

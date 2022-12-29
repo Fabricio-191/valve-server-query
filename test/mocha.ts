@@ -1,7 +1,7 @@
 /* eslint-disable new-cap, @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
-import { Server, RCON, MasterServer, debug, type FinalServerInfo } from '../src';
+import { Server, RCON, MasterServer, debug, type AnyServerInfo } from '../src';
 debug.enable('./test/debug.log');
 
 const doNothing = (): void => { /* do nothing */ };
@@ -137,9 +137,9 @@ describe('MasterServer', () => {
 		const satisfiesFilter = results
 			.filter(x => x.status === 'fulfilled')
 			// @ts-expect-error promise are fullfiled
-			.map(x => x.value as FinalServerInfo)
-			.filter((x: FinalServerInfo) =>
-				x.appID === 730 &&
+			.map(x => x.value as AnyServerInfo)
+			.filter((x: AnyServerInfo) =>
+				('appID' in x ? x.appID : -1) === 730 &&
 				x.OS === 'linux' &&
 				x.type === 'dedicated' &&
 				x.hasPassword &&

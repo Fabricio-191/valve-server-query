@@ -75,10 +75,6 @@ const DEFAULT_SERVER_OPTIONS = {
 	appID: -1,
 	multiPacketGoldSource: false,
 	protocol: -1,
-	info: {
-		challenge: false,
-		goldSource: false,
-	},
 } as const;
 
 const DEFAULT_MASTER_SERVER_OPTIONS = {

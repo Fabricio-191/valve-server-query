@@ -4,7 +4,7 @@ import * as parsers from './parsers';
 import { parseServerOptions, type RawServerOptions, type ServerData } from '../Base/options';
 import queries, { COMMANDS } from './base';
 
-const CHALLENGE_IDS = [ 17510, 17520, 17740, 17550, 17700 ] as const;
+const CHALLENGE_IDS = Object.freeze([ 17510, 17520, 17740, 17550, 17700 ]);
 
 type ConnectedServer = Server & { connection: Connection };
 export default class Server{
@@ -31,11 +31,7 @@ export default class Server{
 		const info = await queries.getInfo(connection);
 
 		Object.assign(this.data, {
-			info: {
-				challenge: info.needsChallenge,
-				goldSource: info.goldSource,
-			},
-			appID: info.appID,
+			appID: 'appID' in info ? info.appID : -1,
 			protocol: info.protocol,
 		});
 
@@ -54,16 +50,14 @@ export default class Server{
 		return this.connection.lastPing;
 	}
 
-	public async getInfo(): Promise<parsers.FinalServerInfo> {
+	public async getInfo(): Promise<parsers.AnyServerInfo> {
 		this._shouldBeConnected();
-
 		return await queries.getInfo(this.connection);
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
 		this._shouldBeConnected();
 
-		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
 			await this.challenge() :
 			await this.connection.query(COMMANDS.PLAYERS, ResponsesHeaders.PLAYERS_OR_CHALLENGE);
@@ -83,7 +77,6 @@ export default class Server{
 	public async getRules(): Promise<parsers.Rules> {
 		this._shouldBeConnected();
 
-		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
 			await this.challenge() :
 			await this.connection.query(COMMANDS.PLAYERS, ResponsesHeaders.RULES_OR_CHALLENGE);
@@ -105,7 +98,7 @@ export default class Server{
 		return await this.connection.query(COMMANDS.CHALLENGE, ResponsesHeaders.CHALLENGE);
 	}
 
-	public static async getInfo(options: RawServerOptions): Promise<parsers.FinalServerInfo> {
+	public static async getInfo(options: RawServerOptions): Promise<parsers.AnyServerInfo> {
 		const data = await parseServerOptions(options);
 		const connection = new Connection(data);
 		await connection.connect();

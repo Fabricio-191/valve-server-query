@@ -8,7 +8,7 @@ const enableDebug = debug.enable;
 export type {
 	ServerInfo, GoldSourceServerInfo,
 	TheShipServerInfo,
-	FinalServerInfo,
+	AnyServerInfo,
 	Player, TheShipPlayer
 } from './Server/parsers';
 

@@ -1,18 +1,16 @@
-/* eslint-disable new-cap */
-/* eslint-disable no-console */
+/* eslint-disable */
 
-// eslint-disable-next-line
 // @ts-ignore
-// eslint-disable-next-line
 import { Server, MasterServer, debug } from '../src';
 
 debug.enable('./test/debug.log');
 
 (async () => {
 	const filter = new MasterServer.Filter()
-		.is('proxy')
+		// .is('proxy')
 		.any(
 			new MasterServer.Filter()
+				/*
 				.appId(10) // Counter-Strike*
 				.appId(20) // Team Fortress Classic*
 				.appId(30) // Day of Defeat*
@@ -23,6 +21,12 @@ debug.enable('./test/debug.log');
 				.appId(80) // Counter-Strike: Condition Zero*
 				.appId(130) // Half-Life: Blue Shift
 				.appId(225840) // Sven Co-op
+				*/
+				.appId(17510)
+				.appId(17520)
+				.appId(17740)
+				.appId(17550)
+				.appId(17700)
 		);
 
 	const servers = await MasterServer({
@@ -31,10 +35,9 @@ debug.enable('./test/debug.log');
 		filter,
 	});
 
-
 	console.log(servers.length);
-	const infos = await Promise.allSettled(servers.map(add => Server.getInfo({
-		ip: add,
+	const infos = await Promise.allSettled(servers.map(ip => Server.getInfo({
+		ip,
 		timeout: 30000,
 	})));
 
@@ -55,9 +58,7 @@ debug.enable('./test/debug.log');
 		}
 	}
 
-	for(const err in errors){
-		debug(errors[err]!, err);
-	}
+	for(const err in errors) debug(errors[err]!, err);
 })().catch(console.error);
 
 /*
