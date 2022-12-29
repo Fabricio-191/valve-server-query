@@ -59,7 +59,19 @@ debug.enable('./test/debug.log');
 	}
 
 	for(const err in errors) debug(errors[err]!, err);
+}); //().catch(console.error);
+
+(async () => {
+	const server = new Server();
+
+	await server.connect('208.103.169.12:27015');
+
+	const players = await server.getPlayers();
+	debug(players, 'players');
+	debug(players.list.length, 'players.length');
 })().catch(console.error);
+
+setTimeout(() => {}, 30000)
 
 /*
 import { RCON } from '../src';

@@ -236,6 +236,8 @@ function parseTime(raw: number){
 	};
 }
 
+// 30 00 73 76 5f 72 6f 6c 6c 73 70 65
+
 export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const list: Player[] = [];
@@ -278,23 +280,32 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 	return { count, list };
 }
 
-export function rules(buffer: Buffer): Rules {
+// 00 00 00 a5 0d 46 00 c4 9c c4 9c 20
+// <Buffer 00 30 00 73 76 5f 72 6f 6c 6c 61 6e 67 6c 65 00 30 00 73 76 5f 72 6f 6c 6c 73 70 65 00 00 80 35 12 46 00 c4 9c c4 9c 20>
+// <Buffer 00 30 00 73 76 5f 72 6f 6c 6c 61 6e 67 6c 65 00 30 00 73 76 5f 72 6f 6c 6c 73 70 65 00 09 54 18 46 00 6a 61 6b 6f 62 70>
+export function rules(buffer: Buffer, { enableWarns }: ServerData): Rules {
 	const reader = new BufferReader(buffer, 1);
 	const rulesQty = reader.short(), obj: Rules = {};
 
 	for(let i = 0; i < rulesQty; i++){
-		const key = reader.string(), value = reader.string();
+		try{
+			const key = reader.string(), value = reader.string();
 
-		if(value === 'True'){
-			obj[key] = true;
-		}else if(value === 'False'){
-			obj[key] = false;
-		}else{
-			try{
-				obj[key] = Number(value);
-			}catch{
-				obj[key] = value;
+			if(value === 'True'){
+				obj[key] = true;
+			}else if(value === 'False'){
+				obj[key] = false;
+			}else{
+				try{
+					obj[key] = Number(value);
+				}catch{
+					obj[key] = value;
+				}
 			}
+		}catch{
+			// eslint-disable-next-line no-console
+			if(enableWarns) console.warn('rules not terminated');
+			return obj;
 		}
 	}
 

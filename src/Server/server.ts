@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import Connection, { ResponsesHeaders } from './connection';
+import Connection, { responsesHeaders } from './connection';
 import * as parsers from './parsers';
 import { parseServerOptions, type RawServerOptions, type ServerData } from '../Base/options';
 import queries, { COMMANDS } from './base';
@@ -60,14 +60,14 @@ export default class Server{
 
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
 			await this.challenge() :
-			await this.connection.query(COMMANDS.PLAYERS, ResponsesHeaders.PLAYERS_OR_CHALLENGE);
+			await this.connection.query(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 
 		if(key[0] === 0x44 && key.length > 5){
 			return parsers.players(key, this.data);
 		}
 
 		const command = COMMANDS.WITH_KEY.PLAYERS(key.slice(1));
-		const response = await this.connection.query(command, ResponsesHeaders.PLAYERS);
+		const response = await this.connection.query(command, responsesHeaders.PLAYERS);
 
 		if(response.equals(key)) throw new Error('Wrong server response');
 
@@ -79,23 +79,23 @@ export default class Server{
 
 		const key = CHALLENGE_IDS.includes(this.data.appID) ?
 			await this.challenge() :
-			await this.connection.query(COMMANDS.PLAYERS, ResponsesHeaders.RULES_OR_CHALLENGE);
+			await this.connection.query(COMMANDS.PLAYERS, responsesHeaders.RULES_OR_CHALLENGE);
 
 		if(key[0] === 0x45 && key.length > 5){
-			return parsers.rules(key);
+			return parsers.rules(key, this.data);
 		}
 
 		const command = COMMANDS.WITH_KEY.RULES(key.slice(1));
-		const response = await this.connection.query(command, ResponsesHeaders.RULES);
+		const response = await this.connection.query(command, responsesHeaders.RULES);
 
 		if(response.equals(key)) throw new Error('Wrong server response');
 
-		return parsers.rules(response);
+		return parsers.rules(response, this.data);
 	}
 
 	private async challenge(): Promise<Buffer> {
 		this._shouldBeConnected();
-		return await this.connection.query(COMMANDS.CHALLENGE, ResponsesHeaders.CHALLENGE);
+		return await this.connection.query(COMMANDS.CHALLENGE, responsesHeaders.CHALLENGE);
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<parsers.AnyServerInfo> {

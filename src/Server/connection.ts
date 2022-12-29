@@ -17,20 +17,20 @@ interface MultiPacket {
 
 const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 
-export const ResponsesHeaders = {
+export const responsesHeaders = {
 	CHALLENGE: [0x41],
 	PLAYERS: [0x44],
 	RULES: [0x45],
 	INFO: [0x49],
 	PING: [0x6A],
-	GOLDSOURCE_INFO: [0x6D],
+	GLDSRC_INFO: [0x6D],
 	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
 	RULES_OR_CHALLENGE: [0x45, 0x41],
 	INFO_OR_CHALLENGE: [0x49, 0x41],
 	ANY_INFO_OR_CHALLENGE: [0x6D, 0x49, 0x41],
 	ANY_INFO: [0x6D, 0x49],
 } as const;
-type ResponseHeaders = ValueIn<typeof ResponsesHeaders>;
+export type ResponseHeaders = ValueIn<typeof responsesHeaders>;
 
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;

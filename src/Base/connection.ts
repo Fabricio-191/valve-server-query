@@ -12,6 +12,7 @@ export default abstract class BaseConnection {
 				if(buffer.length === 0) return;
 
 				debug(this.data, 'recieved:', buffer);
+				debug(this.data, 'recieved (1248):', buffer.slice(1248));
 				this.onMessage(buffer);
 			})
 			.unref();
