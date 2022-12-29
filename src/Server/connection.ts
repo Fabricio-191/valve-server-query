@@ -124,7 +124,6 @@ export default class Connection extends BaseConnection {
 			raw: buffer,
 		};
 
-		// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 		if(!(this.data.protocol === 7 && MPS_IDS.includes(this.data.appID))){
 			// info.maxPacketSize = reader.short();
 			reader.addOffset(2);

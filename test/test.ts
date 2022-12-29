@@ -9,9 +9,8 @@ import { Server, MasterServer, debug } from '../src';
 debug.enable('./test/debug.log');
 
 (async () => {
-	/*
-		const filter = new MasterServer.Filter()
-		.is('proxy');
+	const filter = new MasterServer.Filter()
+		.is('proxy')
 		.any(
 			new MasterServer.Filter()
 				.appId(10) // Counter-Strike*
@@ -26,18 +25,12 @@ debug.enable('./test/debug.log');
 				.appId(225840) // Sven Co-op
 		);
 
-		const servers = await MasterServer({
-			timeout: 5000,
-			quantity: 3000,
-			filter,
-		});
+	const servers = await MasterServer({
+		timeout: 5000,
+		quantity: 3000,
+		filter,
+	});
 
-	*/
-	const servers = [
-		'51.161.198.60:28922',
-		'51.161.198.59:28409',
-		'51.161.198.59:28415',
-	  ];
 
 	console.log(servers.length);
 	const infos = await Promise.allSettled(servers.map(add => Server.getInfo({

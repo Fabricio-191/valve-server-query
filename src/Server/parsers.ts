@@ -67,7 +67,7 @@ export interface TheShipServerInfo extends ServerInfo {
 	duration: number;
 }
 
-export type FinalServerInfo = ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
+export type AnyServerInfo = GoldSourceServerInfo | ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
 
 export interface Player {
 	/* Index of the player. */

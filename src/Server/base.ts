@@ -2,7 +2,6 @@
 import { ResponsesHeaders } from './connection';
 import type Connection from './connection';
 import * as parsers from './parsers';
-import { delay } from '../Base/utils';
 
 function makeCommand(code: number, body: Array<number> | Buffer = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
 	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
@@ -21,10 +20,10 @@ export const COMMANDS = {
 	PING:      makeCommand(0x69, []),
 };
 
-type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
-
 const queries = {
-	async getInfo(connection: Connection): Promise<AloneServerInfo> {
+	async getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
+		await connection.mustBeConnected();
+
 		let info = await connection.query(COMMANDS.INFO, ResponsesHeaders.ANY_INFO_OR_CHALLENGE);
 
 		let attempt = 0;
@@ -41,22 +40,15 @@ const queries = {
 			throw new Error('Wrong server response');
 		}
 
-		const data = {
-			...parsers.serverInfo(info),
-		};
+		const data: parsers.AnyServerInfo = parsers.serverInfo(info);
 
 		try{ // attempt to catch other info
-			const otherInfo = await connection.awaitResponse(
-				ResponsesHeaders.ANY_INFO,
-				500
-			);
+			const otherInfo = await connection.awaitResponse(ResponsesHeaders.ANY_INFO, 500);
 
 			Object.assign(data, parsers.serverInfo(otherInfo));
 		}catch{ /* do nothing */ }
 
-		await delay(100);
-
-		return data as AloneServerInfo;
+		return data;
 	},
 	async getPlayers(connection: Connection): Promise<parsers.Players> {
 		await connection.mustBeConnected();
@@ -67,8 +59,8 @@ const queries = {
 			return parsers.players(key, connection.data);
 		}
 
-		const command = COMMANDS.WITH_KEY.PLAYERS(key.slice(1));
-		const response = await connection.query(command, [ 0x44 ]);
+		const command = COMMANDS.WITH_KEY.PLAYERS(key.subarray(1));
+		const response = await connection.query(command, ResponsesHeaders.PLAYERS);
 
 		if(response.equals(key)){
 			throw new Error('Wrong server response');
@@ -82,7 +74,7 @@ const queries = {
 		const key = await connection.query(COMMANDS.PLAYERS, ResponsesHeaders.RULES_OR_CHALLENGE);
 		if(key[0] === 0x45) return parsers.rules(key);
 
-		const command = COMMANDS.WITH_KEY.RULES(key.slice(1));
+		const command = COMMANDS.WITH_KEY.RULES(key.subarray(1));
 		const response = await connection.query(command, ResponsesHeaders.PLAYERS);
 
 		if(response.equals(key)){
