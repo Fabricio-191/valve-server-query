@@ -3,13 +3,15 @@
 
 // eslint-disable-next-line
 // @ts-ignore
+// eslint-disable-next-line
 import { Server, MasterServer, debug } from '../src';
 
 debug.enable('./test/debug.log');
 
 (async () => {
-	const filter = new MasterServer.Filter()
-		// .is('proxy')
+	/*
+		const filter = new MasterServer.Filter()
+		.is('proxy');
 		.any(
 			new MasterServer.Filter()
 				.appId(10) // Counter-Strike*
@@ -24,41 +26,48 @@ debug.enable('./test/debug.log');
 				.appId(225840) // Sven Co-op
 		);
 
-	const servers = await MasterServer({
-		timeout: 5000,
-		quantity: 3000,
-		filter,
-	});
+		const servers = await MasterServer({
+			timeout: 5000,
+			quantity: 3000,
+			filter,
+		});
+
+	*/
+	const servers = [
+		'51.161.198.60:28922',
+		'51.161.198.59:28409',
+		'51.161.198.59:28415',
+	  ];
 
 	console.log(servers.length);
 	const infos = await Promise.allSettled(servers.map(add => Server.getInfo({
 		ip: add,
-		timeout: 15000,
+		timeout: 30000,
 	})));
 
 	console.log(infos.filter(i => i.status === 'fulfilled').length);
 	console.log(infos.filter(i => i.status === 'rejected').length);
 
-	const rejected = [];
+	const errors: Record<string, string[]> = {};
 	for(let i = 0; i < infos.length; i++){
 		const info = infos[i]!;
-		const server = servers[i];
+		const server = servers[i]!;
 
-		if(info.status === 'rejected' && info.reason.message !== 'Response timeout.') console.log(server, info.reason);
-		if(info.status === 'rejected' && info.reason.message === 'Response timeout.') rejected.push(server);
+		if(info.status === 'rejected'){
+			if(!(info.reason.message in errors)){
+				errors[info.reason.message] = [];
+			}
+
+			errors[info.reason.message]!.push(server);
+		}
 	}
-	debug(rejected, 'Timeouts');
-	// @ts-expect-error asdasd
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
-	debug(infos.filter(i => i.status === 'fulfilled').map(x => x.value), 'Infos');
+
+	for(const err in errors){
+		debug(errors[err]!, err);
+	}
 })().catch(console.error);
 
 /*
-
-Server.getInfo('20.205.10.52:27020')
-	.then(console.log)
-	.catch(console.error);
-
 import { RCON } from '../src';
 
 const options = {

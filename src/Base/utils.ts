@@ -133,11 +133,9 @@ export function debug(data: BaseData | number | object | string, string: string,
 		log += `[${type}] ${data.address} - ${string} `;
 
 		if(buffer){
-			try{
-				log += buffer.toString('hex').match(/../g)!.join(' ');
-			}catch{
-				console.log(data, buffer);
-			}
+			const parts = buffer.toString('hex').match(/../g) ?? [ '<empty>' ];
+
+			log += parts.join(' ');
 		}
 	}else{
 		data = JSON.stringify(data, (_, v: unknown) => {

@@ -1,10 +1,14 @@
 /* eslint-disable new-cap */
 import { BufferWriter, BufferReader } from '../Base/utils';
-import Filter from './filter';
 import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
+import Filter from './filter';
+
 // 30 per minute
 // 60 per 5 minutes
+
+// master server returns a max of 231 servers per request
+// const CHUNK_SIZE = 231;
 
 class Connection extends BaseConnection {
 	public async query(command: Buffer): Promise<Buffer> {
@@ -58,7 +62,6 @@ export default async function MasterServer(
 		if(onChunk) onChunk(chunk);
 		servers.push(...chunk);
 
-
 		last = servers[servers.length - 1] as string;
 	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
 
@@ -71,7 +74,7 @@ export default async function MasterServer(
 MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {
-	const amount = (buffer.length - 2) / 6; // 6 = 4 bytes for IP + 2 bytes for port
+	const amount = (buffer.length - 2) / 6;
 	if(!Number.isInteger(amount)) throw new Error('invalid server list');
 
 	const reader = new BufferReader(buffer, 2); // skip header

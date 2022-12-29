@@ -26,11 +26,19 @@ type AloneServerInfo = parsers.FinalServerInfo & { needsChallenge: boolean };
 const queries = {
 	async getInfo(connection: Connection): Promise<AloneServerInfo> {
 		let info = await connection.query(COMMANDS.INFO, ResponsesHeaders.ANY_INFO_OR_CHALLENGE);
-		if(info[0] === 0x41){ // needs challenge
+
+		let attempt = 0;
+		while(info[0] === 0x41 && attempt !== 5){ // needs challenge
 			info = await connection.query(
 				COMMANDS.WITH_KEY.INFO(info.slice(1)),
-				ResponsesHeaders.ANY_INFO
+				ResponsesHeaders.ANY_INFO_OR_CHALLENGE
 			); // info
+
+			attempt++;
+		}
+
+		if(info[0] === 0x41){
+			throw new Error('Wrong server response');
 		}
 
 		const data = {

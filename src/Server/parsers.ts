@@ -112,7 +112,7 @@ const OPERATIVE_SYSTEMS = {
 function serverType(type: string): ServerType {
 	if(type in SERVER_TYPES){
 		// @ts-expect-error - this is a valid server type
-		return SERVER_TYPES[ type.toLowerCase() ] as ServerType;
+		return SERVER_TYPES[ type ] as ServerType;
 	}
 
 	throw new Error(`Unknown server type: ${type}`);
@@ -144,21 +144,26 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			},
 			protocol: reader.byte(),
 			goldSource: true,
-			type: serverType(reader.char()),
-			OS: operativeSystem(reader.char()),
+			type: serverType(reader.char().toLowerCase()),
+			OS: operativeSystem(reader.char().toLowerCase()),
 			hasPassword: reader.byte() === 1,
-			mod: reader.byte() ? {
+			mod: false,
+			VAC: false,
+		};
+
+		// some servers dont have the 'mod' byte
+		if(reader.remaining().length > 2 && reader.byte()){
+			info.mod = {
 				link: reader.string(),
 				downloadLink: reader.string(),
 				version: reader.addOffset(1).long(), // null byte
 				size: reader.long(),
 				multiplayerOnly: reader.byte() === 1,
 				ownDLL: reader.byte() === 1,
-			} : false,
-			VAC: reader.byte() === 1,
-		};
+			};
+		}
 
-		info.players.bots = reader.hasRemaining ? reader.byte() : 0;
+		info.VAC = reader.byte() === 1;
 		if(reader.hasRemaining) info.players.bots = reader.byte();
 
 		return info;

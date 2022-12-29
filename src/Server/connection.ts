@@ -15,7 +15,7 @@ interface MultiPacket {
 	// bzip?: true;
 }
 
-const MPS_IDS = [ 215, 240, 17550, 17700 ] as const;
+const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 
 export const ResponsesHeaders = {
 	CHALLENGE: [0x41],
