@@ -1,5 +1,5 @@
 import { debug, BufferReader } from '../Base/utils';
-import type { ServerData } from '../Base/options';
+import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
 import type { NonEmptyArray, ValueIn } from '../Base/utils';
 
@@ -31,6 +31,8 @@ export const responsesHeaders = {
 	ANY_INFO: [0x6D, 0x49],
 } as const;
 export type ResponseHeaders = ValueIn<typeof responsesHeaders>;
+
+type Command = (key?: Buffer) => Buffer;
 
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
@@ -158,16 +160,39 @@ export default class Connection extends BaseConnection {
 				this.lastPing = Date.now() - start;
 			});
 	}
-}
 
-/*
-// eslint-disable-next-line no-promise-executor-return
-const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+	public async makeQuery(command: Command, responseHeaders: ResponseHeaders): Promise<Buffer> {
+		await this.mustBeConnected();
 
-function retries(fn: () => Promise<void>, retries: number, delayTime: number): Promise<void> {
-	return fn().catch(err => {
-		if(retries === 0) throw err;
-		return delay(delayTime).then(() => retries(fn, retries - 1, delayTime));
-	});
+		let buffer = await this.query(command(), responseHeaders);
+		let attempt = 0;
+
+		while(buffer[0] === 0x41 && attempt < 5){
+			buffer = await this.query(
+				command(buffer.subarray(1)),
+				responseHeaders
+			);
+			attempt++;
+		}
+
+		if(buffer[0] === 0x41) throw new Error('Wrong server response');
+
+		return buffer;
+	}
+
+	public static async staticQuery<T>(
+		options: RawServerOptions,
+		command: Command,
+		responseHeaders: ResponseHeaders,
+		parser: (buffer: Buffer, data: ServerData) => T
+	): Promise<T> {
+		const data = await parseServerOptions(options);
+		const connection = new Connection(data);
+		await connection.connect();
+
+		const buffer = await connection.makeQuery(command, responseHeaders);
+
+		connection.destroy();
+		return parser(buffer, connection.data);
+	}
 }
-*/

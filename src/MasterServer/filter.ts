@@ -107,11 +107,6 @@ export default class Filter{
 		return this.nand(new Filter().nor(filter));
 	}
 
-	public raw(filter: string): this {
-		this.filters.push(filter);
-		return this;
-	}
-
 	public toString(): string {
 		return this.filters.join('');
 	}

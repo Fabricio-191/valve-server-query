@@ -2,6 +2,8 @@
 
 // @ts-ignore
 import { Server, MasterServer, debug } from '../src';
+// @ts-expect-error why-is-node-running has no typings
+import * as log from 'why-is-node-running';
 
 debug.enable('./test/debug.log');
 
@@ -61,17 +63,98 @@ debug.enable('./test/debug.log');
 	for(const err in errors) debug(errors[err]!, err);
 }); //().catch(console.error);
 
+
+/*
+
+*/
+
 (async () => {
-	const server = new Server();
+	/*
+	const filter = new MasterServer.Filter()
+		.appId(4000)
+		.is('not_proxy')
+		.version('2022.06.08')
 
-	await server.connect('208.103.169.12:27015');
+	const servers = await MasterServer({
+		timeout: 5000,
+		quantity: 3000,
+		filter,
+	});
+	*/
 
-	const players = await server.getPlayers();
-	debug(players, 'players');
-	debug(players.list.length, 'players.length');
-})().catch(console.error);
+	const servers = [
+		'208.103.169.104:27015',
+		'208.103.169.104:27016',
+		'208.103.169.14:27015',
+		'208.103.169.33:27023',
+		'208.103.169.33:27021',
+		'208.103.169.33:27017',
+		'208.103.169.33:27015',
+		'208.103.169.53:27015',
+		'208.103.169.53:27016',
+		'208.103.169.16:27015',
+		'208.103.169.12:27015',
+		'208.103.169.17:27015',
+		'208.103.169.33:27024',
+		'208.103.169.18:27015',
+		'208.103.169.27:27017',
+	]
 
-setTimeout(() => {}, 30000)
+	console.log(servers.length);
+	const infos = await Promise.allSettled(servers.map(ip => Server.getPlayers({
+		ip,
+		timeout: 30000,
+	})));
+
+	console.log(infos.filter(i => i.status === 'fulfilled').length);
+	console.log(infos.filter(i => i.status === 'rejected').length);
+
+	const errors: Record<string, string[]> = {};
+	for(let i = 0; i < infos.length; i++){
+		const info = infos[i]!;
+		const server = servers[i]!;
+
+		if(info.status === 'rejected'){
+			if(!(info.reason.message in errors)){
+				errors[info.reason.message] = [];
+			}
+
+			errors[info.reason.message]!.push(server);
+		}
+	}
+
+	for(const err in errors) debug(errors[err]!, err);
+
+	debug.save('./test/debug.log');
+	setTimeout(() => {
+		log();
+	}, 5000);
+}); // ().catch(console.error);
+
+Server.getInfo('38.7.218.40:26032')
+	.then(console.log)
+	.catch(console.error);
+/*
+{
+	protocol: 17,
+	goldSource: false,
+	name: 'b\x18\x05b\x166SuperiorServers.co - Danktown',
+	map: 'rp_danktown_rc5a',
+	folder: 'garrysmod',
+	game: 'DarkRP',
+	appID: 4000,
+	players: { online: 96, max: 128, bots: 1 },
+	type: 'dedicated',
+	OS: 'linux',
+	hasPassword: false,
+	VAC: false,
+	version: '2022.06.08',
+	gamePort: 27015,
+	steamID: 85568392921322188n,
+	keywords: [ 'gm:darkrp gmc:rp loc:us ver:220610' ],
+	gameID: 4000n
+}
+*/
 
 /*
 import { RCON } from '../src';

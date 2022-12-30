@@ -1,5 +1,5 @@
 import { promises as dns } from 'dns';
-import { writeFile, writeFileSync } from 'fs';
+import { writeFileSync } from 'fs';
 import type { BaseData } from './options';
 
 export async function resolveHostname(string: string): Promise<{
@@ -147,8 +147,6 @@ export function debug(data: BaseData | number | object | string, string: string,
 	}
 
 	log += '\n\n';
-
-	writeFile('./test/debug.log', log, () => { /* do nothing */ });
 }
 
 debug.enable = function enableDebug(file = 'debug.log'): void {
@@ -158,6 +156,12 @@ debug.enable = function enableDebug(file = 'debug.log'): void {
 	process.on('beforeExit', () => {
 		if(log !== '') writeFileSync(file, log as string);
 	});
+};
+
+debug.save = function saveDebug(file = 'debug.log'): void {
+	if(log === null) throw new Error('Debug already disabled');
+
+	writeFileSync(file, log);
 };
 
 export class DeferredPromise<T> {

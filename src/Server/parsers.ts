@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { BufferReader, type ValueIn } from '../Base/utils';
+import { BufferReader, type ValueIn, debug } from '../Base/utils';
 import type { ServerData } from '../Base/options';
 
 const THE_SHIP_MODES = [
@@ -236,15 +236,13 @@ function parseTime(raw: number){
 	};
 }
 
-// 30 00 73 76 5f 72 6f 6c 6c 73 70 65
-
-export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Players {
+export function players(buffer: Buffer, data: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const list: Player[] = [];
 	const count = reader.byte();
 
 	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-	if(THE_SHIP_IDS.includes(appID)){
+	if(THE_SHIP_IDS.includes(data.appID)){
 		while(reader.remaining().length !== list.length * 8){
 			list.push({
 				index: reader.byte(),
@@ -271,7 +269,8 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 				});
 			}catch{
 				// eslint-disable-next-line no-console
-				if(enableWarns) console.warn('player info not terminated');
+				if(data.enableWarns) console.warn('player info not terminated');
+				debug(data, 'player info not terminated');
 				return { count, list };
 			}
 		}
@@ -280,10 +279,7 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 	return { count, list };
 }
 
-// 00 00 00 a5 0d 46 00 c4 9c c4 9c 20
-// <Buffer 00 30 00 73 76 5f 72 6f 6c 6c 61 6e 67 6c 65 00 30 00 73 76 5f 72 6f 6c 6c 73 70 65 00 00 80 35 12 46 00 c4 9c c4 9c 20>
-// <Buffer 00 30 00 73 76 5f 72 6f 6c 6c 61 6e 67 6c 65 00 30 00 73 76 5f 72 6f 6c 6c 73 70 65 00 09 54 18 46 00 6a 61 6b 6f 62 70>
-export function rules(buffer: Buffer, { enableWarns }: ServerData): Rules {
+export function rules(buffer: Buffer, data: ServerData): Rules {
 	const reader = new BufferReader(buffer, 1);
 	const rulesQty = reader.short(), obj: Rules = {};
 
@@ -304,7 +300,8 @@ export function rules(buffer: Buffer, { enableWarns }: ServerData): Rules {
 			}
 		}catch{
 			// eslint-disable-next-line no-console
-			if(enableWarns) console.warn('rules not terminated');
+			if(data.enableWarns) console.warn('rules not terminated');
+			debug(data, 'rules not terminated');
 			return obj;
 		}
 	}
