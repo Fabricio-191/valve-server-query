@@ -127,7 +127,7 @@ function operativeSystem(OS: string): OS {
 	throw new Error(`Unknown operative system: ${OS}`);
 }
 
-export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
+export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
 	if(reader.byte() === 0x6D){
@@ -215,7 +215,11 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			info.gameID = reader.bigUInt();
 			info.appID = Number(info.gameID & 0xFFFFFFn);
 		}
-	}catch{}
+	}catch{
+		// eslint-disable-next-line no-console
+		if(data.enableWarns) console.warn('Wrong EDF');
+		debug(data, 'Wrong EDF');
+	}
 
 	return info;
 }

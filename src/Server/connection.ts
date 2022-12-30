@@ -41,10 +41,9 @@ export default class Connection extends BaseConnection {
 	protected onMessage(buffer: Buffer): void {
 		const header = buffer.readInt32LE();
 		if(header === -1){
-			this.socket.emit('packet', buffer.slice(4));
+			this.socket.emit('packet', buffer.subarray(4));
 		}else if(header === -2){
-			const packet = this.handleMultiplePackets(buffer);
-			if(packet) this.onMessage(packet);
+			this.handleMultiplePackets(buffer);
 		}else{
 			debug(this.data, 'SERVER cannot parse packet', buffer);
 			if(this.data.enableWarns){
@@ -54,7 +53,7 @@ export default class Connection extends BaseConnection {
 		}
 	}
 
-	private handleMultiplePackets(buffer: Buffer): Buffer | null {
+	private handleMultiplePackets(buffer: Buffer): void {
 		/*
 		First packets in each multi-packet:
 		GoldSource: 4 bytes header + 4 bytes id + 1 byte packets nums + PAYLOADSTARTSHERE
@@ -72,14 +71,13 @@ export default class Connection extends BaseConnection {
 		}
 
 		const packet = this._parseMultiPacket(buffer);
-
 		if(!this.packetsQueues.has(packet.ID)){
 			this.packetsQueues.set(packet.ID, [packet]);
-			return null;
+			return;
 		}
 
 		const queue = this.packetsQueues.get(packet.ID)!;
-		if(queue.push(packet) !== packet.packets.total) return null;
+		if(queue.push(packet) !== packet.packets.total) return;
 
 		this.packetsQueues.delete(packet.ID);
 
@@ -97,7 +95,7 @@ export default class Connection extends BaseConnection {
 			.sort((p1, p2) => p1.packets.current - p2.packets.current)
 			.map(p => p.payload);
 
-		return Buffer.concat(payloads);
+		this.socket.emit('message', Buffer.concat(payloads));
 	}
 
 	private _parseMultiPacket(buffer: Buffer): MultiPacket {
@@ -167,6 +165,8 @@ export default class Connection extends BaseConnection {
 		let buffer = await this.query(command(), responseHeaders);
 		let attempt = 0;
 
+		// if the response has a 0x41 header it means it needs challenge
+		// some servers need multiple challenges to accept the query
 		while(buffer[0] === 0x41 && attempt < 5){
 			buffer = await this.query(
 				command(buffer.subarray(1)),
@@ -180,19 +180,10 @@ export default class Connection extends BaseConnection {
 		return buffer;
 	}
 
-	public static async staticQuery<T>(
-		options: RawServerOptions,
-		command: Command,
-		responseHeaders: ResponseHeaders,
-		parser: (buffer: Buffer, data: ServerData) => T
-	): Promise<T> {
+	public static async init(options: RawServerOptions): Promise<Connection> {
 		const data = await parseServerOptions(options);
 		const connection = new Connection(data);
 		await connection.connect();
-
-		const buffer = await connection.makeQuery(command, responseHeaders);
-
-		connection.destroy();
-		return parser(buffer, connection.data);
+		return connection;
 	}
 }
