@@ -71,6 +71,13 @@ export default class Filter{
 		return this.any(f);
 	}
 
+	public appIds(...appIds: number[]): this {
+		const f = new Filter();
+		for(const appId of appIds) f.appId(appId);
+
+		return this.any(f);
+	}
+
 	public is(...flags: Array<keyof typeof FLAGS>): this {
 		for(const flag of flags){
 			if(!(flag in FLAGS)) throw new Error(`invalid flag: ${flag}`);

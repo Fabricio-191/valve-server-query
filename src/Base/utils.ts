@@ -171,7 +171,7 @@ debug.enable = function enableDebug(file = 'debug.log'): void {
 };
 
 debug.save = function saveDebug(file = 'debug.log'): void {
-	if(log === null) throw new Error('Debug already disabled');
+	if(log === null) throw new Error('Debug disabled');
 
 	writeFileSync(file, log);
 };

@@ -1,7 +1,7 @@
 /* eslint-disable new-cap */
 import Connection, { responsesHeaders } from './connection';
 import * as parsers from './parsers';
-import { type RawServerOptions } from '../Base/options';
+import type { ServerData, RawServerOptions } from '../Base/options';
 import { exec } from 'child_process';
 
 function makeCommand(code: number, body: Buffer | number[] = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
@@ -72,7 +72,7 @@ export default class Server{
 		return this.connection.lastPing;
 	}
 
-	public get data(): Connection['data'] {
+	public get data(): ServerData {
 		this._shouldBeConnected();
 		return this.connection.data;
 	}

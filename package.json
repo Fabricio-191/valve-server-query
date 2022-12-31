@@ -55,5 +55,8 @@
   "funding": {
     "type": "patreon",
     "url": "https://www.patreon.com/fabricio_191"
+  },
+  "dependencies": {
+    "seek-bzip": "^2.0.0"
   }
 }

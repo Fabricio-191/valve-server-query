@@ -2,6 +2,8 @@ import { debug, BufferReader } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
 import type { NonEmptyArray, ValueIn } from '../Base/utils';
+// @ts-expect-error asd
+import * as Bzip from 'seek-bzip';
 
 interface MultiPacket {
 	ID: number;
@@ -12,7 +14,10 @@ interface MultiPacket {
 	goldSource: boolean;
 	payload: Buffer;
 	raw: Buffer;
-	// bzip?: true;
+	bzip?: {
+		uncompressedSize: number;
+		CRC32_sum: number;
+	};
 }
 
 const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
@@ -25,6 +30,13 @@ export const responsesHeaders = {
 	RULES_OR_CHALLENGE: [0x45, 0x41],
 } as const;
 export type ResponseHeaders = ValueIn<typeof responsesHeaders>;
+
+/*
+const isBzip2 = (buffer: Buffer): boolean => {
+	if(buffer.length < 4) return false;
+	return buffer[0] === 0x42 && buffer[1] === 0x5A && buffer[2] === 0x68;
+};
+*/
 
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
@@ -46,17 +58,6 @@ export default class Connection extends BaseConnection {
 	}
 
 	private handleMultiplePackets(buffer: Buffer): void {
-		/*
-		First packets in each multi-packet:
-		GoldSource: 4 bytes header + 4 bytes id + 1 byte packets nums + PAYLOADSTARTSHERE
-		Source:     4 bytes header + 4 bytes id + 1 byte total packets + 1 byte current packet + 2 bytes size (optional) + PAYLOADSTARTSHERE
-
-		Payloads always start with a ff ff ff ff header
-		the gouldsource payload starts at byte 9
-		The source payload starts at byte 10 or 12
-
-		If it's the first multi packet, and it's goldsource, at byte 9 it's going to be the -1 header
-		*/
 		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
 			this.data.multiPacketGoldSource = true;
 			debug(this.data, 'SERVER changed packet parsing');
@@ -80,11 +81,26 @@ export default class Connection extends BaseConnection {
 			}) as NonEmptyArray<MultiPacket>;
 		}
 
-		const payloads = queue
-			.sort((p1, p2) => p1.packets.current - p2.packets.current)
-			.map(p => p.payload);
+		let payload = Buffer.concat(
+			queue
+				.sort((p1, p2) => p1.packets.current - p2.packets.current)
+				.map(p => p.payload)
+		);
 
-		this.socket.emit('message', Buffer.concat(payloads));
+		if(queue[0].bzip){
+			try{
+				payload = Buffer.from(Bzip.decode(payload));
+			}catch(e){
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+				debug(this.data, `SERVER bzip error: ${e instanceof Error ? e.message : e}`);
+				if(this.data.enableWarns){
+					// eslint-disable-next-line no-console
+					console.warn('Warning: bzip error', e);
+				}
+			}
+		}
+
+		this.socket.emit('message', payload);
 	}
 
 	private _parseMultiPacket(buffer: Buffer): MultiPacket {
@@ -119,10 +135,11 @@ export default class Connection extends BaseConnection {
 		}
 
 		if(info.packets.current === 0 && info.ID & 0x80000000){
-			throw new Error('BZip is not supported (make an issue in github if you want it)');
-			/*
-			I have queried almost every server possible and I have never seen a server that uses bzip.
-			*/
+			debug(this.data, 'SERVER bzip');
+			info.bzip = {
+				uncompressedSize: reader.long(),
+				CRC32_sum: reader.long(),
+			};
 		}
 
 		info.payload = reader.remaining();
@@ -133,8 +150,8 @@ export default class Connection extends BaseConnection {
 	public lastPing = -1;
 	public async query(command: Buffer, responseHeaders: ResponseHeaders): Promise<Buffer> {
 		await this.send(command);
-
 		let start = Date.now();
+
 		const timeout = setTimeout(() => {
 			this.send(command).catch(() => { /* do nothing */ });
 			start = Date.now();
@@ -156,7 +173,7 @@ export default class Connection extends BaseConnection {
 
 		// if the response has a 0x41 header it means it needs challenge
 		// some servers need multiple challenges to accept the query
-		while(buffer[0] === 0x41 && attempt < 5){
+		while(buffer[0] === 0x41 && attempt < 10){
 			buffer = await this.query(command(buffer.subarray(1)), responseHeaders);
 			attempt++;
 		}

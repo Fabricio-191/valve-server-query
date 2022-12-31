@@ -103,11 +103,13 @@ const OPERATIVE_SYSTEMS = {
 		w: 'windows',
 		m: 'mac',
 		o: 'mac',
+		'\x00': null,
 	} as const,
 	SERVER_TYPES = {
 		d: 'dedicated',
 		l: 'non-dedicated',
 		p: 'source tv relay',
+		'\x00': null,
 	} as const;
 
 function serverType(type: string): ServerType {
@@ -167,27 +169,28 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 		info.VAC = reader.byte() === 1;
 		if(reader.hasRemaining) info.players.bots = reader.byte();
 
+		reader.checkRemaining();
 		return info;
 	}
 
 	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {
-		protocol: reader.byte(),
+		protocol: reader.byte(), // 00
 		goldSource: false,
-		name: reader.string().trim(),
-		map: reader.string(),
-		folder: reader.string(),
-		game: reader.string(),
-		appID: reader.short(),
+		name: reader.string().trim(), // 51 32 20 20 20 20 20 20 20 20 20 20 e2 96 88 e2 96 88 20 44 45 41 54 48 4d 41 54 43 48 20 e2 96 88 e2 96 88 20 20 55 4e 49 51 55 45 20 41 4e 54 49 43 48 45 41 54 00
+		map: reader.string(), // 24 32 30 30 30 24 00
+		folder: reader.string(), // 63 73 74 72 69 6b 65 00
+		game: reader.string(), //  e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 00
+		appID: reader.short(), // f0 00
 		players: {
-			online: reader.byte(),
-			max: reader.byte(),
-			bots: reader.byte(),
+			online: reader.byte(), // 4a
+			max: reader.byte(), // 80
+			bots: reader.byte(), // 00
 		},
-		type: serverType(reader.char()),
-		OS: operativeSystem(reader.char()),
-		hasPassword: reader.byte() === 1,
-		VAC: reader.byte() === 1,
+		type: serverType(reader.char()), // 00
+		OS: operativeSystem(reader.char()), // 00
+		hasPassword: reader.byte() === 1, // 00
+		VAC: reader.byte() === 1, // 00
 	};
 
 	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
@@ -199,10 +202,14 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 		});
 	}
 
-	info.version = reader.string();
+	info.version = reader.string(); // 00
+
+	/*
+	    a0 f7 bf 00 00 6e 6f 2d 73 74 65 61 6d 2c 6e 6f 73 74 65 61 6d 2c 6e 6f 6e 73 74 65 61 6d 2c 71 32 2c 71 75 61 6b 65 2c 73 76 5f 72 65 67 69 6f 6e 2c 33 2c 73 76 5f 72 65 67 69 6f 6e 20 33 2c 31 30 30 00
+	*/
 
 	if(!reader.hasRemaining) return info;
-	const EDF = reader.byte();
+	const EDF = reader.byte(); // 1010 0000
 
 	try{ // some servers have a bad implementation of EDF
 		if(EDF & 0b10000000) info.gamePort = reader.short(true);
@@ -216,6 +223,8 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 			info.gameID = reader.bigUInt();
 			info.appID = Number(info.gameID & 0xFFFFFFn);
 		}
+
+		reader.checkRemaining();
 	}catch{
 		// eslint-disable-next-line no-console
 		if(data.enableWarns) console.warn('Wrong EDF');
