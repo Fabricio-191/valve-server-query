@@ -204,7 +204,7 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 	if(!reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
-	try{ // some old servers have a bad implementation of EDF
+	try{ // some servers have a bad implementation of EDF
 		if(EDF & 0b10000000) info.gamePort = reader.short(true);
 		if(EDF & 0b00010000) info.steamID = reader.bigUInt();
 		if(EDF & 0b01000000) info.tv = {

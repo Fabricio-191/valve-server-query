@@ -121,10 +121,7 @@ describe('MasterServer', () => {
 		const filter = new MasterServer.Filter()
 			.appId(730)
 			.is('linux', 'dedicated', 'password_protected')
-			.nor(
-				new MasterServer.Filter()
-					.is('secure')
-			);
+			.is('not_secure');
 
 		const IPs = await MasterServer({
 			filter,

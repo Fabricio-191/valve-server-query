@@ -103,8 +103,8 @@ export class BufferReader{
 		return this.buffer.slice(this.offset++, this.offset).toString();
 	}
 
-	public address(endianess: 'BE' | 'LE'): string {
-		return `${this.byte()}.${this.byte()}.${this.byte()}.${this.byte()}:${this.short(true, endianess)}`;
+	public address(): string {
+		return `${this.byte()}.${this.byte()}.${this.byte()}.${this.byte()}:${this.short(true, 'BE')}`;
 	}
 
 	public addOffset(offset: number): this {

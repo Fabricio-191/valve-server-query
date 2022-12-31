@@ -4,21 +4,18 @@ import * as parsers from './parsers';
 import { type RawServerOptions } from '../Base/options';
 import { exec } from 'child_process';
 
-// const CHALLENGE_IDS = Object.freeze([ 17510, 17520, 17740, 17550, 17700 ]);
-
 function makeCommand(code: number, body: Buffer | number[] = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
 	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
 }
-const INFO_COMMAND = makeCommand(0x54, Buffer.from('Source Engine Query\0'));
 
 const COMMANDS = {
+	_INFO: makeCommand(0x54, Buffer.from('Source Engine Query\0')),
 	INFO: (key?: Buffer): Buffer => {
-		if(key) return Buffer.concat([INFO_COMMAND, key]);
-		return INFO_COMMAND;
+		if(key) return Buffer.concat([COMMANDS._INFO, key]);
+		return COMMANDS._INFO;
 	},
 	PLAYERS: 	makeCommand.bind(null, 0x55),
 	RULES:   	makeCommand.bind(null, 0x56),
-	// CHALLENGE: 	makeCommand.bind(null, 0x57),
 };
 
 async function getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
@@ -98,13 +95,6 @@ export default class Server{
 		const buffer = await this.connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 		return parsers.rules(buffer, this.data);
 	}
-
-	/*
-	private async challenge(key?: Buffer): Promise<Buffer> {
-		this._shouldBeConnected();
-		return await this.connection.query(COMMANDS.CHALLENGE(key), responsesHeaders.CHALLENGE);
-	}
-	*/
 
 	public static async getInfo(options: RawServerOptions): Promise<parsers.AnyServerInfo> {
 		const connection = await Connection.init(options);

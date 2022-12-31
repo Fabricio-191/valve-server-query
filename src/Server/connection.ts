@@ -18,21 +18,13 @@ interface MultiPacket {
 const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 
 export const responsesHeaders = {
-	CHALLENGE: [0x41],
-	PLAYERS: [0x44],
-	RULES: [0x45],
+	ANY_INFO_OR_CHALLENGE: [0x6D, 0x49, 0x41],
 	INFO: [0x49],
-	PING: [0x6A],
 	GLDSRC_INFO: [0x6D],
 	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
 	RULES_OR_CHALLENGE: [0x45, 0x41],
-	INFO_OR_CHALLENGE: [0x49, 0x41],
-	ANY_INFO_OR_CHALLENGE: [0x6D, 0x49, 0x41],
-	ANY_INFO: [0x6D, 0x49],
 } as const;
 export type ResponseHeaders = ValueIn<typeof responsesHeaders>;
-
-type Command = (key?: Buffer) => Buffer;
 
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
@@ -76,19 +68,16 @@ export default class Connection extends BaseConnection {
 			return;
 		}
 
-		const queue = this.packetsQueues.get(packet.ID)!;
+		let queue = this.packetsQueues.get(packet.ID)!;
 		if(queue.push(packet) !== packet.packets.total) return;
 
 		this.packetsQueues.delete(packet.ID);
 
 		if(this.data.multiPacketGoldSource){
-			// Checks that all the packets were parsed as goldsource
-			for(let i = 0; i < queue.length; i++){
-				const p = queue[i] as MultiPacket;
-
-				if(p.goldSource) continue;
-				queue[i] = this._parseMultiPacket(p.raw);
-			}
+			queue = queue.map(p => {
+				if(p.goldSource) return p;
+				return this._parseMultiPacket(p.raw);
+			}) as NonEmptyArray<MultiPacket>;
 		}
 
 		const payloads = queue
@@ -130,7 +119,7 @@ export default class Connection extends BaseConnection {
 		}
 
 		if(info.packets.current === 0 && info.ID & 0x80000000){
-			throw new Error('BZip is not supported');
+			throw new Error('BZip is not supported (make an issue in github if you want it)');
 			/*
 			I have queried almost every server possible and I have never seen a server that uses bzip.
 			*/
@@ -159,7 +148,7 @@ export default class Connection extends BaseConnection {
 			});
 	}
 
-	public async makeQuery(command: Command, responseHeaders: ResponseHeaders): Promise<Buffer> {
+	public async makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: ResponseHeaders): Promise<Buffer> {
 		await this.mustBeConnected();
 
 		let buffer = await this.query(command(), responseHeaders);
@@ -168,10 +157,7 @@ export default class Connection extends BaseConnection {
 		// if the response has a 0x41 header it means it needs challenge
 		// some servers need multiple challenges to accept the query
 		while(buffer[0] === 0x41 && attempt < 5){
-			buffer = await this.query(
-				command(buffer.subarray(1)),
-				responseHeaders
-			);
+			buffer = await this.query(command(buffer.subarray(1)), responseHeaders);
 			attempt++;
 		}
 

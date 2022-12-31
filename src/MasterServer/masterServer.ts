@@ -74,14 +74,14 @@ export default async function MasterServer(
 MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {
-	const amount = (buffer.length - 2) / 6;
+	const reader = new BufferReader(buffer, 2);
+	const amount = reader.remainingLength / 6;
 	if(!Number.isInteger(amount)) throw new Error('invalid server list');
 
-	const reader = new BufferReader(buffer, 2); // skip header
 	const servers = Array<string>(amount);
 
 	for(let i = 0; i < amount; i++){
-		servers[i] = reader.address('BE');
+		servers[i] = reader.address();
 	}
 
 	return servers;

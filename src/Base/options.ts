@@ -68,7 +68,7 @@ const DEFAULT_OPTIONS = {
 	port: 27015,
 	timeout: 5000,
 	enableWarns: true,
-} as const;
+};
 
 const DEFAULT_SERVER_OPTIONS = {
 	...DEFAULT_OPTIONS,
@@ -87,6 +87,10 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	region: 'ANY',
 	filter: new Filter(),
 } as const;
+
+export function setDefaultOptions(options: BaseRawOptions): void {
+	Object.assign(DEFAULT_OPTIONS, options);
+}
 // #endregion
 
 async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
