@@ -116,8 +116,20 @@ export class BufferReader{
 		return this.offset < this.length;
 	}
 
+	public get remainingLength(): number {
+		return this.length - this.offset;
+	}
+
 	public remaining(): Buffer {
-		return this.buffer.slice(this.offset);
+		return this.buffer.subarray(this.offset);
+	}
+
+	public remainingIncludes(byte: number): boolean {
+		return this.buffer.includes(byte, this.offset);
+	}
+
+	public checkRemaining(): void {
+		if(this.hasRemaining) throw new Error('Buffer has remaining bytes');
 	}
 }
 

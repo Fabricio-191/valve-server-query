@@ -77,7 +77,7 @@ export interface Player {
 	/** Player's score (usually "frags" or "kills"). */
 	score: number;
 	/** Time in miliseconds that the player has been connected to the server. */
-	timeOnline: ReturnType<typeof parseTime>;
+	timeOnline: Time;
 }
 
 export interface TheShipPlayer extends Player{
@@ -90,6 +90,7 @@ export interface TheShipPlayer extends Player{
 export interface Players {
 	count: number;
 	list: Player[] | TheShipPlayer[];
+	partial: boolean;
 }
 
 export interface Rules {
@@ -224,39 +225,53 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 	return info;
 }
 
-function parseTime(raw: number){
-	if(raw === -1) return null;
+class Time {
+	constructor(raw: number){
+		this.raw = raw;
+		this.start = new Date(Date.now() - raw);
+		this.hours = Math.floor(this.raw / 3600)		|| 0;
+		this.minutes = Math.floor(this.raw / 60) % 60 	|| 0;
+		this.seconds = this.raw % 60 					|| 0;
+	}
+	public raw: number;
+	public start: Date;
+	public hours: number;
+	public minutes: number;
+	public seconds: number;
 
-	const hours = Math.floor(raw / 3600)								|| 0;
-	const minutes = Math.floor(raw / 60) - hours * 60					|| 0;
-	const seconds = Math.floor(raw)		 - hours * 3600 - minutes * 60	|| 0;
-
-	return {
-		hours,
-		minutes,
-		seconds,
-		raw,
-		start: new Date(Date.now() - raw),
-	};
+	public toString(){
+		if(this.hours) return `${this.hours}h ${this.minutes}m ${this.seconds}s`;
+		if(this.minutes) return `${this.minutes}m ${this.seconds}s`;
+		return `${this.seconds}s`;
+	}
 }
 
-export function players(buffer: Buffer, data: ServerData): Players {
+export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
-	const list: Player[] = [];
 	const count = reader.byte();
+	const data: {
+		count: number;
+		list: Player[];
+		partial: boolean;
+	} = {
+		count,
+		list: [],
+		partial: false,
+	};
 
 	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
-	if(THE_SHIP_IDS.includes(data.appID)){
-		while(reader.remaining().length !== list.length * 8){
-			list.push({
+	if(THE_SHIP_IDS.includes(appID)){
+		// player count also counts players that are connecting, so it's not accurate
+		while(reader.remainingLength !== data.list.length * 8){
+			data.list.push({
 				index: reader.byte(),
 				name: reader.string(),
 				score: reader.long(),
-				timeOnline: parseTime(reader.float()),
+				timeOnline: new Time(reader.float()),
 			});
 		}
 
-		for(const player of list){
+		for(const player of data.list){
 			Object.assign(player, {
 				deaths: reader.long(),
 				money: reader.long(),
@@ -265,22 +280,22 @@ export function players(buffer: Buffer, data: ServerData): Players {
 	}else{
 		while(reader.hasRemaining){
 			try{
-				list.push({
+				data.list.push({
 					index: reader.byte(),
 					name: reader.string(),
 					score: reader.long(),
-					timeOnline: parseTime(reader.float()),
+					timeOnline: new Time(reader.float()),
 				});
 			}catch{
 				// eslint-disable-next-line no-console
-				if(data.enableWarns) console.warn('player info not terminated');
+				if(enableWarns) console.warn('player info not terminated');
 				debug(data, 'player info not terminated');
-				return { count, list };
+				data.partial = true;
 			}
 		}
 	}
 
-	return { count, list };
+	return data;
 }
 
 export function rules(buffer: Buffer, data: ServerData): Rules {

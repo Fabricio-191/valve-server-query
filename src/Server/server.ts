@@ -1,7 +1,8 @@
 /* eslint-disable new-cap */
 import Connection, { responsesHeaders } from './connection';
 import * as parsers from './parsers';
-import { parseServerOptions, type RawServerOptions, type ServerData } from '../Base/options';
+import { type RawServerOptions } from '../Base/options';
+import { exec } from 'child_process';
 
 // const CHALLENGE_IDS = Object.freeze([ 17510, 17520, 17740, 17550, 17700 ]);
 
@@ -36,7 +37,6 @@ async function getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
 
 type ConnectedServer = Server & { connection: Connection };
 export default class Server{
-	public data!: ServerData;
 	public connection: Connection | null = null;
 
 	public isConnected(): this is ConnectedServer {
@@ -53,11 +53,10 @@ export default class Server{
 		}
 
 		this.connection = await Connection.init(options);
-		this.data = this.connection.data;
 
 		const info = await getInfo(this.connection);
 
-		Object.assign(this.data, {
+		Object.assign(this.connection.data, {
 			appID: 'appID' in info ? info.appID : -1,
 			protocol: info.protocol,
 		});
@@ -74,6 +73,11 @@ export default class Server{
 	public get lastPing(): number {
 		this._shouldBeConnected();
 		return this.connection.lastPing;
+	}
+
+	public get data(): Connection['data'] {
+		this._shouldBeConnected();
+		return this.connection.data;
 	}
 
 	public async getInfo(): Promise<parsers.AnyServerInfo> {
@@ -132,5 +136,17 @@ export default class Server{
 		const server = new Server();
 		await server.connect(options);
 		return server;
+	}
+
+	public static getPing(address: string): Promise<number> {
+		return new Promise((resolve, reject) => {
+			const start = Date.now();
+			exec(`ping ${address}`, {
+				windowsHide: true,
+			}, err => {
+				if(err) return reject(err);
+				resolve(Date.now() - start);
+			});
+		});
 	}
 }
