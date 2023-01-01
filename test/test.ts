@@ -27,8 +27,34 @@ function classifyErrors(results: PromiseSettledResult<unknown>[], servers: strin
 	for(const err in errors) debug(errors[err]!, err);
 }
 
+/*
+To-do:
+* Master Server rate limit
+* RCON better connected and authenticated promises
+* Server BZIP
+* Server better connected promises
+* Server ping command
+* Server watch statusUpdate event
+
+*/
+
 (async () => {
-	const servers = await MasterServer({
+	const servers = [
+		'149.28.44.79:27017',
+		'162.248.93.98:27015',
+		'74.91.124.33:27015',
+		'208.77.22.138:9000',
+		'208.77.22.138:9002',
+		'206.217.202.50:27015',
+		'74.91.113.158:27015',
+		'149.28.44.79:27017',
+		'208.77.22.138:9002',
+		'51.79.39.133:40002',
+		'51.79.39.133:40003',
+		'65.108.205.169:27015',
+		'85.215.228.127:27010',
+		'65.108.205.169:27015',
+	] || await MasterServer({
 		timeout: 5000,
 		quantity: 3000,
 		filter: new MasterServer.Filter()
@@ -73,4 +99,6 @@ rcon.connect(options)
 rcon.exec('status')
 	.then(console.log)
 	.catch(console.error);
+
+
 */

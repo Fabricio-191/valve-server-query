@@ -1,4 +1,4 @@
-import Server from './Server/server';
+import Server from './Server/server copy';
 import MasterServer from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
 import { debug } from './Base/utils';

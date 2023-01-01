@@ -1,9 +1,10 @@
 import { debug, BufferReader } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
-import type { NonEmptyArray, ValueIn } from '../Base/utils';
-// @ts-expect-error asdasd
+import type { NonEmptyArray } from '../Base/utils';
+// @ts-expect-error no typings
 import { decode } from 'seek-bzip';
+import { AnyServerInfo } from './parsers';
 
 interface MultiPacket {
 	ID: number;
@@ -22,22 +23,13 @@ interface MultiPacket {
 
 const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 
-export const responsesHeaders = {
-	ANY_INFO_OR_CHALLENGE: [0x6D, 0x49, 0x41],
-	INFO: [0x49],
-	GLDSRC_INFO: [0x6D],
-	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
-	RULES_OR_CHALLENGE: [0x45, 0x41],
-} as const;
-export type ResponseHeaders = ValueIn<typeof responsesHeaders>;
-
 /*
 https://github.com/cscott/seek-bzip
 https://github.com/antimatter15/bzip2.js
 
 const isBzip2 = (buffer: Buffer): boolean => {
-	return buf.subarray(0, 3).toString() === 'BZh';
-	return buf.subarray(0, 3).equals(Buffer.from('BZh'));
+	// return buffer.subarray(0, 3).toString() === 'BZh';
+	// return buffer.subarray(0, 3).equals(Buffer.from('BZh'));
 
 	if(buffer.length < 4) return false;
 	return buffer[0] === 0x42 && buffer[1] === 0x5A && buffer[2] === 0x68;
@@ -46,6 +38,7 @@ const isBzip2 = (buffer: Buffer): boolean => {
 
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
+	public info!: AnyServerInfo;
 	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();
 
 	protected onMessage(buffer: Buffer): void {
@@ -155,7 +148,7 @@ export default class Connection extends BaseConnection {
 	}
 
 	public lastPing = -1;
-	public async query(command: Buffer, responseHeaders: ResponseHeaders): Promise<Buffer> {
+	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
 		await this.send(command);
 		let start = Date.now();
 
@@ -172,7 +165,7 @@ export default class Connection extends BaseConnection {
 			});
 	}
 
-	public async makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: ResponseHeaders): Promise<Buffer> {
+	public async makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
 		await this.mustBeConnected();
 
 		let buffer = await this.query(command(), responseHeaders);

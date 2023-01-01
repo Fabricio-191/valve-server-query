@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type Server from './server';
+import type Server from './server copy';
 import type { AnyServerInfo, Players, Rules } from './parsers';
 import type { NonEmptyArray } from '../Base/utils';
 
@@ -42,6 +42,8 @@ function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
 
 
 interface Events {
+	statusUpdate: (status: 'offline' | 'online') => void;
+
 	infoUpdate: (oldInfo: AnyServerInfo, newInfo: AnyServerInfo, changed: InfoKeys) => void;
 	playersUpdate: (oldPlayers: Players, newPlayers: Players) => void;
 	rulesUpdate: (oldRules: Rules, newRules: Rules, changed: Array<number | string>) => void;
@@ -120,19 +122,19 @@ class ServerWatch extends EventEmitter {
 		this.players = await this.server.getPlayers();
 		let playersChanged = false;
 
-		oldPlayers.list.forEach(p => {
+		for(const p of oldPlayers.list){
 			if(!this.players.list.some(p2 => p2.name === p.name)){
 				playersChanged = true;
 				this.emit('playerLeave', p);
 			}
-		});
+		}
 
-		this.players.list.forEach(p => {
+		for(const p of this.players.list){
 			if(!oldPlayers.list.some(p2 => p2.name === p.name)){
 				playersChanged = true;
 				this.emit('playerJoin', p);
 			}
-		});
+		}
 
 		if(playersChanged){
 			this.emit('playersUpdate', oldPlayers, this.players);

@@ -1,12 +1,19 @@
 /* eslint-disable new-cap */
-import Connection, { responsesHeaders } from './connection';
+import Connection from './connection';
 import * as parsers from './parsers';
 import type { ServerData, RawServerOptions } from '../Base/options';
-import { exec } from 'child_process';
 
 function makeCommand(code: number, body: Buffer | number[] = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
 	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
 }
+
+const responsesHeaders = {
+	ANY_INFO_OR_CHALLENGE: [0x6D, 0x49, 0x41],
+	INFO: [0x49],
+	GLDSRC_INFO: [0x6D],
+	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
+	RULES_OR_CHALLENGE: [0x45, 0x41],
+};
 
 const COMMANDS = {
 	_INFO: makeCommand(0x54, Buffer.from('Source Engine Query\0')),
@@ -126,17 +133,5 @@ export default class Server{
 		const server = new Server();
 		await server.connect(options);
 		return server;
-	}
-
-	public static getPing(address: string): Promise<number> {
-		return new Promise((resolve, reject) => {
-			const start = Date.now();
-			exec(`ping ${address}`, {
-				windowsHide: true,
-			}, err => {
-				if(err) return reject(err);
-				resolve(Date.now() - start);
-			});
-		});
 	}
 }

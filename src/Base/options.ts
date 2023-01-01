@@ -38,10 +38,6 @@ export interface ServerData extends BaseData {
 	appID: number;
 	multiPacketGoldSource: boolean;
 	protocol: number;
-	info: {
-		challenge: boolean;
-		goldSource: boolean;
-	};
 }
 // #endregion
 

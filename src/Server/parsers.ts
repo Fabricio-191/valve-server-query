@@ -3,24 +3,21 @@
 import { BufferReader, type ValueIn, debug } from '../Base/utils';
 import type { ServerData } from '../Base/options';
 
-const THE_SHIP_MODES = [
+const THE_SHIP_MODES = Object.freeze([
 		'hunt',
 		'elimination',
 		'duel',
 		'deathmatch',
 		'vip team',
 		'team elimination',
-	] as const,
-	THE_SHIP_IDS = [
+	]),
+	THE_SHIP_IDS = Object.freeze([
 		2400, 2401, 2402, 2403,
 		2405, 2406,
 		2412, 2430,
-	] as const;
+	]);
 
 // #region types
-type ServerType = ValueIn<typeof SERVER_TYPES>;
-type OS = ValueIn<typeof OPERATIVE_SYSTEMS>;
-
 export interface GoldSourceServerInfo {
 	address: string;
 	name: string;
@@ -98,36 +95,27 @@ export interface Rules {
 }
 // #endregion
 
-const OPERATIVE_SYSTEMS = {
-		l: 'linux',
-		w: 'windows',
-		m: 'mac',
-		o: 'mac',
-		'\x00': null,
-	} as const,
-	SERVER_TYPES = {
-		d: 'dedicated',
-		l: 'non-dedicated',
-		p: 'source tv relay',
-		'\x00': null,
-	} as const;
-
+type ServerType = 'dedicated' | 'non-dedicated' | 'source tv relay' | 'unknown';
 function serverType(type: string): ServerType {
-	if(type in SERVER_TYPES){
-		// @ts-expect-error - this is a valid server type
-		return SERVER_TYPES[ type ] as ServerType;
+	switch(type.toLowerCase()){
+		case 'd': return 'dedicated';
+		case 'l': return 'non-dedicated';
+		case 'p': return 'source tv relay';
+		case '\x00': return 'unknown';
+		default: throw new Error(`Unknown server type: ${type}`);
 	}
-
-	throw new Error(`Unknown server type: ${type}`);
 }
 
+type OS = 'linux' | 'mac' | 'unknown' | 'windows';
 function operativeSystem(OS: string): OS {
-	if(OS in OPERATIVE_SYSTEMS){
-		// @ts-expect-error - this is a valid OS
-		return OPERATIVE_SYSTEMS[ OS.toLowerCase() ] as OS;
+	switch(OS.toLowerCase()){
+		case 'l': return 'linux';
+		case 'w': return 'windows';
+		case 'm':
+		case 'o': return 'mac';
+		case '\x00': return 'unknown';
+		default: throw new Error(`Unknown operative system: ${OS}`);
 	}
-
-	throw new Error(`Unknown operative system: ${OS}`);
 }
 
 export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
@@ -147,8 +135,8 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 			},
 			protocol: reader.byte(),
 			goldSource: true,
-			type: serverType(reader.char().toLowerCase()),
-			OS: operativeSystem(reader.char().toLowerCase()),
+			type: serverType(reader.char()),
+			OS: operativeSystem(reader.char()),
 			hasPassword: reader.byte() === 1,
 			mod: false,
 			VAC: false,
@@ -175,25 +163,24 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 
 	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {
-		protocol: reader.byte(), // 00
+		protocol: reader.byte(),
 		goldSource: false,
-		name: reader.string().trim(), // 51 32 20 20 20 20 20 20 20 20 20 20 e2 96 88 e2 96 88 20 44 45 41 54 48 4d 41 54 43 48 20 e2 96 88 e2 96 88 20 20 55 4e 49 51 55 45 20 41 4e 54 49 43 48 45 41 54 00
-		map: reader.string(), // 24 32 30 30 30 24 00
-		folder: reader.string(), // 63 73 74 72 69 6b 65 00
-		game: reader.string(), //  e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 e2 96 88 00
-		appID: reader.short(), // f0 00
+		name: reader.string().trim(),
+		map: reader.string(),
+		folder: reader.string(),
+		game: reader.string(),
+		appID: reader.short(),
 		players: {
-			online: reader.byte(), // 4a
-			max: reader.byte(), // 80
-			bots: reader.byte(), // 00
+			online: reader.byte(),
+			max: reader.byte(),
+			bots: reader.byte(),
 		},
-		type: serverType(reader.char()), // 00
-		OS: operativeSystem(reader.char()), // 00
-		hasPassword: reader.byte() === 1, // 00
-		VAC: reader.byte() === 1, // 00
+		type: serverType(reader.char()),
+		OS: operativeSystem(reader.char()),
+		hasPassword: reader.byte() === 1,
+		VAC: reader.byte() === 1,
 	};
 
-	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(THE_SHIP_IDS.includes(info.appID)){
 		Object.assign(info, {
 			mode: THE_SHIP_MODES[reader.byte()],
@@ -202,14 +189,10 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 		});
 	}
 
-	info.version = reader.string(); // 00
-
-	/*
-	    a0 f7 bf 00 00 6e 6f 2d 73 74 65 61 6d 2c 6e 6f 73 74 65 61 6d 2c 6e 6f 6e 73 74 65 61 6d 2c 71 32 2c 71 75 61 6b 65 2c 73 76 5f 72 65 67 69 6f 6e 2c 33 2c 73 76 5f 72 65 67 69 6f 6e 20 33 2c 31 30 30 00
-	*/
+	info.version = reader.string();
 
 	if(!reader.hasRemaining) return info;
-	const EDF = reader.byte(); // 1010 0000
+	const EDF = reader.byte();
 
 	try{ // some servers have a bad implementation of EDF
 		if(EDF & 0b10000000) info.gamePort = reader.short(true);
@@ -268,7 +251,6 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 		partial: false,
 	};
 
-	// @ts-expect-error https://github.com/microsoft/TypeScript/issues/26255
 	if(THE_SHIP_IDS.includes(appID)){
 		// player count also counts players that are connecting, so it's not accurate
 		while(reader.remainingLength !== data.list.length * 8){
