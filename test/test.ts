@@ -28,12 +28,7 @@ function classifyErrors(results: PromiseSettledResult<unknown>[], servers: strin
 }
 
 (async () => {
-	const servers = [
-		"92.222.248.153:27015",
-		"5.196.135.40:27015",
-		"213.32.111.10:27015",
-		"5.135.37.227:27015"
-	] || await MasterServer({
+	const servers = await MasterServer({
 		timeout: 5000,
 		quantity: 3000,
 		filter: new MasterServer.Filter()

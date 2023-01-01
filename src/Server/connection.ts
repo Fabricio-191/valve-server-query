@@ -2,8 +2,8 @@ import { debug, BufferReader } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
 import type { NonEmptyArray, ValueIn } from '../Base/utils';
-// @ts-expect-error asd
-import decompress from './bzip2';
+// @ts-expect-error asdasd
+import { decode } from 'seek-bzip';
 
 interface MultiPacket {
 	ID: number;
@@ -34,9 +34,11 @@ export type ResponseHeaders = ValueIn<typeof responsesHeaders>;
 /*
 https://github.com/cscott/seek-bzip
 https://github.com/antimatter15/bzip2.js
-https://github.com/kevva/is-bzip2
 
 const isBzip2 = (buffer: Buffer): boolean => {
+	return buf.subarray(0, 3).toString() === 'BZh';
+	return buf.subarray(0, 3).equals(Buffer.from('BZh'));
+
 	if(buffer.length < 4) return false;
 	return buffer[0] === 0x42 && buffer[1] === 0x5A && buffer[2] === 0x68;
 };
@@ -93,7 +95,8 @@ export default class Connection extends BaseConnection {
 
 		if(queue[0].bzip){
 			try{
-				payload = decompress(payload);
+				// eslint-disable-next-line
+				payload = decode(payload, queue[0].bzip.uncompressedSize);
 			}catch(e){
 				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				debug(this.data, `SERVER bzip error: ${e instanceof Error ? e.message : e}`);

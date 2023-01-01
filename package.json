@@ -8,6 +8,9 @@
     "test": "nodemon test/test.ts",
     "build": "npm run lint && npm t && tsc -p tsconfig.build.json && mocha test/mocha.js --slow 5000 --timeout 6000 && npm publish"
   },
+  "dependencies": {
+    "seek-bzip": "^2.0.0"
+  },
   "devDependencies": {
     "@babel/eslint-parser": "^7.17.0",
     "@types/mocha": "^9.1.0",
@@ -55,8 +58,5 @@
   "funding": {
     "type": "patreon",
     "url": "https://www.patreon.com/fabricio_191"
-  },
-  "dependencies": {
-    "seek-bzip": "^2.0.0"
   }
 }
