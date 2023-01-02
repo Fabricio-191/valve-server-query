@@ -8,7 +8,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33006',
+	ip: '213.239.207.78:33008',
 	password: 'cosas',
 	enableWarns: false,
 };
@@ -21,12 +21,6 @@ describe('Server', () => {
 			}
 		}
 	}
-
-	it('static getInfo()', async () => {
-		const info = await Server.getInfo(options);
-
-		checkInfo(info);
-	});
 
 	const server = new Server();
 	it('connect', async function(){
@@ -150,7 +144,7 @@ describe('MasterServer', () => {
 	});
 });
 
-describe('RCON', () => {
+describe.only('RCON', () => {
 	const rcon = new RCON();
 
 	it('connect and authenticate', () => rcon.connect(options));

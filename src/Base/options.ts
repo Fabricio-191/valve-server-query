@@ -1,4 +1,4 @@
-import { type ValueIn, resolveHostname } from './utils';
+import { type ValueIn } from './utils';
 import Filter from '../MasterServer/filter';
 
 export const REGIONS = {
@@ -89,7 +89,7 @@ export function setDefaultOptions(options: BaseRawOptions): void {
 }
 // #endregion
 
-async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
+function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): BaseData & T {
 	if(options.ip.includes(':')){
 		[options.ip, options.port] = options.ip.split(':') as [string, string];
 	}
@@ -110,32 +110,28 @@ async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promi
 		throw Error("'ip' should be a string");
 	}
 
-	const { ip, ipFormat } = await resolveHostname(options.ip);
-
 	// @ts-expect-error port can't be a string
 	return {
 		...options,
-		ip,
-		ipFormat,
-		address: `${ip}:${options.port}`,
+		address: `${options.ip}:${options.port}`,
 	};
 }
 
-export function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
+export function parseServerOptions(options: RawServerOptions): ServerData {
 	if(typeof options === 'string') options = { ip: options };
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 
 	return parseBaseOptions({
 		...DEFAULT_SERVER_OPTIONS,
 		...options,
-	}) as Promise<ServerData>;
+	});
 }
 
-export async function parseMasterServerOptions(options: RawMasterServerOptions): Promise<MasterServerData> {
+export function parseMasterServerOptions(options: RawMasterServerOptions): MasterServerData {
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { ip: options };
 
-	const parsedOptions = await parseBaseOptions({
+	const parsedOptions = parseBaseOptions({
 		...DEFAULT_MASTER_SERVER_OPTIONS,
 		...options,
 	});
@@ -162,11 +158,11 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 	};
 }
 
-export async function parseRCONOptions(options: RawRCONOptions | null = null): Promise<RCONData> {
+export function parseRCONOptions(options: RawRCONOptions | null = null): RCONData {
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { password: options };
 
-	const parsedOptions = await parseBaseOptions({
+	const parsedOptions = parseBaseOptions({
 		...DEFAULT_OPTIONS,
 		...options,
 	});

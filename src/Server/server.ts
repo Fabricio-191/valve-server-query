@@ -1,7 +1,7 @@
 /* eslint-disable new-cap */
 import Connection from './connection';
 import * as parsers from './parsers';
-import type { ServerData, RawServerOptions } from '../Base/options';
+import type { RawServerOptions } from '../Base/options';
 
 function makeCommand(code: number, body: Buffer | number[] = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
 	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
@@ -79,11 +79,6 @@ export default class Server{
 		return this.connection.lastPing;
 	}
 
-	public get data(): ServerData {
-		this._shouldBeConnected();
-		return this.connection.data;
-	}
-
 	public async getInfo(): Promise<parsers.AnyServerInfo> {
 		this._shouldBeConnected();
 		return await getInfo(this.connection);
@@ -93,14 +88,14 @@ export default class Server{
 		this._shouldBeConnected();
 
 		const buffer = await this.connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-		return parsers.players(buffer, this.data);
+		return parsers.players(buffer, this.connection.data);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
 		this._shouldBeConnected();
 
 		const buffer = await this.connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
-		return parsers.rules(buffer, this.data);
+		return parsers.rules(buffer, this.connection.data);
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<parsers.AnyServerInfo> {
@@ -110,7 +105,9 @@ export default class Server{
 		connection.destroy();
 		return info;
 	}
+}
 
+/*
 	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
 		const connection = await Connection.init(options);
 
@@ -134,4 +131,4 @@ export default class Server{
 		await server.connect(options);
 		return server;
 	}
-}
+*/

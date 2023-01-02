@@ -10,6 +10,54 @@ setDefaultOptions({
 	timeout: 60000,
 });
 
+
+/*
+To-do:
+* Master Server rate limit
+* Master Server web api
+* RCON better connected and authenticated promises
+* Server BZIP
+* Server better connected promises
+* Server ping command
+* Server watch statusUpdate event
+* Make server only static methods ?
+
+*/
+
+const onChunk = (servers: string[]): void => {
+	console.log(servers.length)
+}
+
+MasterServer({
+	ip: '208.64.200.65',
+	port: 27011,
+	timeout: 5000,
+	quantity: 60000,
+}, onChunk)
+	.catch(console.error)
+
+/*
+import { RCON } from '../src';
+
+const options = {
+	ip: '49.12.122.244:33008',
+	password: 'cosas',
+
+	enableWarns: false,
+	debug: true,
+};
+
+const rcon = new RCON();
+
+rcon.connect(options)
+	.catch(console.error);
+
+rcon.exec('status')
+	.then(console.log)
+	.catch(console.error);
+*/
+
+/*
 function classifyErrors(results: PromiseSettledResult<unknown>[], servers: string[]): void {
 	const errors: Record<string, string[]> = {};
 	for(let i = 0; i < results.length; i++){
@@ -26,17 +74,6 @@ function classifyErrors(results: PromiseSettledResult<unknown>[], servers: strin
 
 	for(const err in errors) debug(errors[err]!, err);
 }
-
-/*
-To-do:
-* Master Server rate limit
-* RCON better connected and authenticated promises
-* Server BZIP
-* Server better connected promises
-* Server ping command
-* Server watch statusUpdate event
-
-*/
 
 (async () => {
 	const servers = [
@@ -78,27 +115,6 @@ To-do:
 
 	debug(d, 'infos');
 	debug(d.filter(x => x.protocol === 7), 'infos-7');
-})().catch(console.error);
-
-/*
-import { RCON } from '../src';
-
-const options = {
-	ip: '49.12.122.244:33008',
-	password: 'cosas',
-
-	enableWarns: false,
-	debug: true,
-};
-
-const rcon = new RCON();
-
-rcon.connect(options)
-	.catch(console.error);
-
-rcon.exec('status')
-	.then(console.log)
-	.catch(console.error);
-
+}); // ().catch(console.error);
 
 */

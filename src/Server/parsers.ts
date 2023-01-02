@@ -18,7 +18,8 @@ const THE_SHIP_MODES = Object.freeze([
 	]);
 
 // #region types
-export interface GoldSourceServerInfo {
+interface BaseInfo {
+	goldSource: boolean;
 	address: string;
 	name: string;
 	map: string;
@@ -30,10 +31,14 @@ export interface GoldSourceServerInfo {
 		bots: number;
 	};
 	protocol: number;
-	goldSource: boolean;
 	type: ServerType;
 	OS: OS;
 	hasPassword: boolean;
+	VAC: boolean;
+}
+
+export interface GoldSourceServerInfo extends BaseInfo {
+	goldSource: true;
 	mod: false | {
 		link: string;
 		downloadLink: string;
@@ -42,10 +47,10 @@ export interface GoldSourceServerInfo {
 		multiplayerOnly: boolean;
 		ownDLL: boolean;
 	};
-	VAC: boolean;
 }
 
-export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
+export interface ServerInfo extends BaseInfo {
+	goldSource: false;
 	appID: number;
 	version?: string;
 	gamePort?: number;
@@ -56,7 +61,7 @@ export type ServerInfo = Omit<GoldSourceServerInfo, 'mod'> & {
 	};
 	keywords?: string[];
 	gameID?: bigint;
-};
+}
 
 export interface TheShipServerInfo extends ServerInfo {
 	mode: ValueIn<typeof THE_SHIP_MODES>;
@@ -64,16 +69,12 @@ export interface TheShipServerInfo extends ServerInfo {
 	duration: number;
 }
 
-export type AnyServerInfo = GoldSourceServerInfo | ServerInfo | TheShipServerInfo | GoldSourceServerInfo & (ServerInfo | TheShipServerInfo);
+export type AnyServerInfo = GoldSourceServerInfo | ServerInfo | TheShipServerInfo | GoldSourceServerInfo & ServerInfo | GoldSourceServerInfo & TheShipServerInfo;
 
 export interface Player {
-	/* Index of the player. */
 	index: number;
-	/** Name of the player. */
 	name: string;
-	/** Player's score (usually "frags" or "kills"). */
 	score: number;
-	/** Time in miliseconds that the player has been connected to the server. */
 	timeOnline: Time;
 }
 
@@ -86,14 +87,15 @@ export interface TheShipPlayer extends Player{
 
 export interface Players {
 	count: number;
-	list: Player[] | TheShipPlayer[];
 	partial: boolean;
+	list: Player[] | TheShipPlayer[];
 }
 
 export interface Rules {
 	[key: string]: boolean | number | string;
 }
 // #endregion
+
 
 type ServerType = 'dedicated' | 'non-dedicated' | 'source tv relay' | 'unknown';
 function serverType(type: string): ServerType {
@@ -118,11 +120,33 @@ function operativeSystem(OS: string): OS {
 	}
 }
 
+class Time {
+	constructor(raw: number){
+		this.raw = raw;
+		this.start = new Date(Date.now() - raw);
+		this.hours = Math.floor(this.raw / 3600)		|| 0;
+		this.minutes = Math.floor(this.raw / 60) % 60 	|| 0;
+		this.seconds = this.raw % 60 					|| 0;
+	}
+	public raw: number;
+	public start: Date;
+	public hours: number;
+	public minutes: number;
+	public seconds: number;
+
+	public toString(){
+		if(this.hours) return `${this.hours}h ${this.minutes}m ${this.seconds}s`;
+		if(this.minutes) return `${this.minutes}m ${this.seconds}s`;
+		return `${this.seconds}s`;
+	}
+}
+
 export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
 	if(reader.byte() === 0x6D){
 		const info: GoldSourceServerInfo = {
+			goldSource: true,
 			address: reader.string(),
 			name: reader.string().trim(),
 			map: reader.string(),
@@ -134,7 +158,6 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 				max: reader.byte(),
 			},
 			protocol: reader.byte(),
-			goldSource: true,
 			type: serverType(reader.char()),
 			OS: operativeSystem(reader.char()),
 			hasPassword: reader.byte() === 1,
@@ -143,7 +166,7 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 		};
 
 		// some servers dont have the 'mod' byte
-		if(reader.remaining().length > 2 && reader.byte()){
+		if(reader.remainingLength > 2 && reader.byte()){
 			info.mod = {
 				link: reader.string(),
 				downloadLink: reader.string(),
@@ -163,8 +186,8 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 
 	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {
-		protocol: reader.byte(),
 		goldSource: false,
+		protocol: reader.byte(),
 		name: reader.string().trim(),
 		map: reader.string(),
 		folder: reader.string(),
@@ -215,27 +238,6 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 	}
 
 	return info;
-}
-
-class Time {
-	constructor(raw: number){
-		this.raw = raw;
-		this.start = new Date(Date.now() - raw);
-		this.hours = Math.floor(this.raw / 3600)		|| 0;
-		this.minutes = Math.floor(this.raw / 60) % 60 	|| 0;
-		this.seconds = this.raw % 60 					|| 0;
-	}
-	public raw: number;
-	public start: Date;
-	public hours: number;
-	public minutes: number;
-	public seconds: number;
-
-	public toString(){
-		if(this.hours) return `${this.hours}h ${this.minutes}m ${this.seconds}s`;
-		if(this.minutes) return `${this.minutes}m ${this.seconds}s`;
-		return `${this.seconds}s`;
-	}
 }
 
 export function players(buffer: Buffer, svdata: ServerData): Players {

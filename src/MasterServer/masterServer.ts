@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import { BufferWriter, BufferReader } from '../Base/utils';
+import { BufferWriter, BufferReader, delay } from '../Base/utils';
 import { parseMasterServerOptions, type RawMasterServerOptions, type MasterServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
 import Filter from './filter';
@@ -11,7 +11,16 @@ import Filter from './filter';
 // const CHUNK_SIZE = 231;
 
 class Connection extends BaseConnection {
+	private _lastRequest = 0;
 	public async query(command: Buffer): Promise<Buffer> {
+		const now = Date.now();
+		const diff = now - this._lastRequest;
+		if(diff < 5000){
+			await delay(5000 - diff);
+		}
+
+		this._lastRequest = Date.now();
+
 		return await super.query(command, [0x66]);
 	}
 
@@ -62,7 +71,7 @@ export default async function MasterServer(
 		if(onChunk) onChunk(chunk);
 		servers.push(...chunk);
 
-		last = servers[servers.length - 1] as string;
+		last = servers.pop() as string;
 	}while(data.quantity > servers.length && last !== '0.0.0.0:0');
 
 	if(last === '0.0.0.0:0') servers.pop();

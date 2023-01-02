@@ -88,6 +88,7 @@ const queries = {
 		const connection = await connectionManager.get(data);
 
 		// To-Do
+		const ping = -1;
 
 		connection.destroy();
 		return ping;

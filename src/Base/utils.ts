@@ -1,28 +1,5 @@
-import { promises as dns } from 'dns';
 import { writeFileSync } from 'fs';
 import type { BaseData } from './options';
-
-export async function resolveHostname(string: string): Promise<{
-	ipFormat: 4 | 6;
-	ip: string;
-}> {
-	// eslint-disable-next-line @typescript-eslint/init-declarations
-	let r;
-	try{
-		r = await dns.lookup(string, { verbatim: false });
-	}catch(e){
-		throw Error("'ip' is not a valid IP address or hostname");
-	}
-
-	if(r.family !== 4 && r.family !== 6){
-		throw Error('');
-	}
-
-	return {
-		ipFormat: r.family,
-		ip: r.address,
-	};
-}
 
 export type NonEmptyArray<T> = [T, ...T[]];
 export type ValueIn<T> = T[keyof T];
@@ -91,7 +68,7 @@ export class BufferReader{
 		if(stringEndIndex === -1) throw new Error('string not terminated');
 
 		const string = this.buffer
-			.slice(this.offset, stringEndIndex)
+			.subarray(this.offset, stringEndIndex)
 			.toString(encoding);
 
 		this.offset = stringEndIndex + 1;
@@ -100,7 +77,7 @@ export class BufferReader{
 	}
 
 	public char(): string {
-		return this.buffer.slice(this.offset++, this.offset).toString();
+		return this.buffer.subarray(this.offset++, this.offset).toString();
 	}
 
 	public address(): string {

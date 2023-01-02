@@ -3,8 +3,6 @@ import { type RawServerOptions, type ServerData, parseServerOptions } from '../B
 import BaseConnection from '../Base/connection';
 // @ts-expect-error no typings
 import { decode } from 'seek-bzip';
-import type { AnyServerInfo } from './parsers';
-import { _getInfo } from './server';
 
 interface MultiPacket {
 	ID: number;
@@ -38,7 +36,6 @@ const isBzip2 = (buffer: Buffer): boolean => {
 
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
-	public info!: AnyServerInfo;
 	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();
 
 	protected onMessage(buffer: Buffer): void {
@@ -184,7 +181,7 @@ export default class Connection extends BaseConnection {
 	}
 
 	public static async init(options: RawServerOptions): Promise<Connection> {
-		const data = await parseServerOptions(options);
+		const data = parseServerOptions(options);
 		const connection = new Connection(data);
 		await connection.connect();
 		return connection;
