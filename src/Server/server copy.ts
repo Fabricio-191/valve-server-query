@@ -25,27 +25,28 @@ const COMMANDS = {
 	RULES:   	makeCommand.bind(null, 0x56),
 };
 
-const connections = new Map<string, Connection>();
-async function getConnection(options: ServerData): Promise<Connection> {
-	if(connections.has(options.address)) return connections.get(options.address)!;
+const connections = new Map<string, Connection | Promise<Connection>>();
+const connectionManager = {
+	async get(options: ServerData): Promise<Connection> {
+		if(connections.has(options.address)) return connections.get(options.address)!;
 
-	const connection = await Connection.init(options);
-	connections.set(options.address, connection);
-	connection.info = await _getInfo(connection);
+		const connection = await Connection.init(options);
+		connections.set(options.address, connection);
 
-	return connection;
-}
+		return connection;
+	},
+};
 
 async function getOptions(options: RawServerOptions[]): Promise<ServerData> {
 	const data = await parseServerOptions(Object.assign({}, ...options));
 	return data;
 }
 
-async function _getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
+export async function _getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
 	const buffer = await connection.makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
 	const info: parsers.AnyServerInfo = parsers.serverInfo(buffer, connection.data);
 
-	try{
+	try{ // attemps to catch other info packet
 		const otherHeader = buffer[0] === 0x49 ? responsesHeaders.GLDSRC_INFO : responsesHeaders.INFO;
 		const otherBuffer = await connection.awaitResponse(otherHeader, 500);
 
@@ -58,7 +59,7 @@ async function _getInfo(connection: Connection): Promise<parsers.AnyServerInfo> 
 const queries = {
 	async getInfo(...options: RawServerOptions[]): Promise<parsers.AnyServerInfo> {
 		const data = await getOptions(options);
-		const connection = await getConnection(data);
+		const connection = await connectionManager.get(data);
 
 		const info = await _getInfo(connection);
 
@@ -66,7 +67,7 @@ const queries = {
 	},
 	async getPlayers(...options: RawServerOptions[]): Promise<parsers.Players> {
 		const data = await getOptions(options);
-		const connection = await getConnection(data);
+		const connection = await connectionManager.get(data);
 
 		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 
@@ -75,7 +76,7 @@ const queries = {
 	},
 	async getRules(...options: RawServerOptions[]): Promise<parsers.Rules> {
 		const data = await getOptions(options);
-		const connection = await getConnection(data);
+		const connection = await connectionManager.get(data);
 
 		const buffer = await connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 
@@ -84,16 +85,13 @@ const queries = {
 	},
 	async getPing(...options: RawServerOptions[]): Promise<number> {
 		const data = await getOptions(options);
-		const connection = await getConnection(data);
+		const connection = await connectionManager.get(data);
 
-		const start = Date.now();
-		await connection.ping();
-		const ping = Date.now() - start;
+		// To-Do
 
 		connection.destroy();
 		return ping;
 	},
-
 };
 
 export default queries;

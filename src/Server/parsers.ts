@@ -238,7 +238,7 @@ class Time {
 	}
 }
 
-export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Players {
+export function players(buffer: Buffer, svdata: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const count = reader.byte();
 	const data: {
@@ -251,8 +251,7 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 		partial: false,
 	};
 
-	if(THE_SHIP_IDS.includes(appID)){
-		// player count also counts players that are connecting, so it's not accurate
+	if(THE_SHIP_IDS.includes(svdata.appID)){
 		while(reader.remainingLength !== data.list.length * 8){
 			data.list.push({
 				index: reader.byte(),
@@ -278,9 +277,7 @@ export function players(buffer: Buffer, { appID, enableWarns }: ServerData): Pla
 					timeOnline: new Time(reader.float()),
 				});
 			}catch{
-				// eslint-disable-next-line no-console
-				if(enableWarns) console.warn('player info not terminated');
-				debug(data, 'player info not terminated');
+				debug(svdata, 'player info not terminated');
 				data.partial = true;
 			}
 		}

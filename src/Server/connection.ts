@@ -1,10 +1,10 @@
-import { debug, BufferReader } from '../Base/utils';
+import { debug, BufferReader, type NonEmptyArray } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
-import type { NonEmptyArray } from '../Base/utils';
 // @ts-expect-error no typings
 import { decode } from 'seek-bzip';
-import { AnyServerInfo } from './parsers';
+import type { AnyServerInfo } from './parsers';
+import { _getInfo } from './server';
 
 interface MultiPacket {
 	ID: number;
