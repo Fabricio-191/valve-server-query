@@ -26,7 +26,7 @@ https://github.com/cscott/seek-bzip
 https://github.com/antimatter15/bzip2.js
 
 const isBzip2 = (buffer: Buffer): boolean => {
-	// return buffer.subarray(0, 3).toString() === 'BZh';
+	// return buffer.subarray(0, 3).toString() === ;
 	// return buffer.subarray(0, 3).equals(Buffer.from('BZh'));
 
 	if(buffer.length < 4) return false;
@@ -35,11 +35,10 @@ const isBzip2 = (buffer: Buffer): boolean => {
 */
 
 /*
-const bzipStart = Buffer.from([ 0x42, 0x5A, 0x68 ]);
+const bzipStart = Buffer.from('BZh');
 const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 function getPacketType(buffer: Buffer): string {
-	const reader = new BufferReader(buffer);
-	const header = reader.long();
+	const header = buffer.readInt32LE();
 
 	if(header === -1){
 		return 'simple';
