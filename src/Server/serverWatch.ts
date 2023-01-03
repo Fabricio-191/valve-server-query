@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type Server from './server copy';
+import type Server from './server';
 import type { AnyServerInfo, Players, Rules } from './parsers';
 import type { NonEmptyArray } from '../Base/utils';
 

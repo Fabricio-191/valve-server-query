@@ -19,7 +19,6 @@ export interface BaseData {
 	address: string;
 
 	ip: string;
-	ipFormat: 4 | 6;
 	port: number;
 	timeout: number;
 	enableWarns: boolean;

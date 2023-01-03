@@ -19,7 +19,7 @@ const FLAGS = {
 } as const;
 
 const checkNum = (num: number): string => {
-	if(typeof num !== 'number') throw new Error('value must be an integer');
+	if(!Number.isInteger(num)) throw new Error('value must be an integer');
 	if(num < 0) throw new Error('value must be a positive integer');
 	return num.toString();
 };

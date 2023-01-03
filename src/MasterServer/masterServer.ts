@@ -55,7 +55,7 @@ export default async function MasterServer(
 	options: RawMasterServerOptions = {},
 	onChunk: ((servers: string[]) => void) | null = null
 ): Promise<string[]> {
-	const data = await parseMasterServerOptions(options);
+	const data = parseMasterServerOptions(options);
 	const connection = await Connection.init(data);
 
 	let last = '0.0.0.0:0';

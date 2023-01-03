@@ -47,7 +47,7 @@ export default class Server{
 		return this.connection !== null;
 	}
 
-	private _shouldBeConnected(): asserts this is ConnectedServer {
+	private _mustBeConnected(): asserts this is ConnectedServer {
 		if(!this.isConnected()) throw new Error('Not connected');
 	}
 
@@ -57,7 +57,6 @@ export default class Server{
 		}
 
 		this.connection = await Connection.init(options);
-
 		const info = await getInfo(this.connection);
 
 		Object.assign(this.connection.data, {
@@ -75,24 +74,24 @@ export default class Server{
 	}
 
 	public get lastPing(): number {
-		this._shouldBeConnected();
+		this._mustBeConnected();
 		return this.connection.lastPing;
 	}
 
 	public async getInfo(): Promise<parsers.AnyServerInfo> {
-		this._shouldBeConnected();
+		this._mustBeConnected();
 		return await getInfo(this.connection);
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		this._shouldBeConnected();
+		this._mustBeConnected();
 
 		const buffer = await this.connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 		return parsers.players(buffer, this.connection.data);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
-		this._shouldBeConnected();
+		this._mustBeConnected();
 
 		const buffer = await this.connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 		return parsers.rules(buffer);
@@ -104,24 +103,6 @@ export default class Server{
 
 		connection.destroy();
 		return info;
-	}
-
-	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
-		const connection = await Connection.init(options);
-
-		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-
-		connection.destroy();
-		return parsers.players(buffer, connection.data);
-	}
-
-	public static async getRules(options: RawServerOptions): Promise<parsers.Rules> {
-		const connection = await Connection.init(options);
-
-		const buffer = await connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
-
-		connection.destroy();
-		return parsers.rules(buffer);
 	}
 
 	public static async init(options: RawServerOptions): Promise<Server> {

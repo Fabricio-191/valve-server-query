@@ -20,7 +20,6 @@ To-do:
 * Server better connected promises
 * Server ping command
 * Server watch statusUpdate event
-* Make server only static methods ?
 
 */
 
