@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { BufferReader, type ValueIn, debug } from '../Base/utils';
+import { BufferReader, type ValueIn } from '../Base/utils';
 import type { ServerData } from '../Base/options';
 
 const THE_SHIP_MODES = Object.freeze([
@@ -61,6 +61,7 @@ export interface ServerInfo extends BaseInfo {
 	};
 	keywords?: string[];
 	gameID?: bigint;
+	wrongEDF?: boolean;
 }
 
 export interface TheShipServerInfo extends ServerInfo {
@@ -92,7 +93,11 @@ export interface Players {
 }
 
 export interface Rules {
-	[key: string]: boolean | number | string;
+	count: number;
+	partial: boolean;
+	rules: {
+		[key: string]: boolean | number | string;
+	};
 }
 // #endregion
 
@@ -141,7 +146,7 @@ class Time {
 	}
 }
 
-export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
+export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
 	if(reader.byte() === 0x6D){
@@ -232,9 +237,7 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 
 		reader.checkRemaining();
 	}catch{
-		// eslint-disable-next-line no-console
-		if(data.enableWarns) console.warn('Wrong EDF');
-		debug(data, 'Wrong EDF');
+		info.wrongEDF = true;
 	}
 
 	return info;
@@ -243,13 +246,9 @@ export function serverInfo(buffer: Buffer, data: ServerData): GoldSourceServerIn
 export function players(buffer: Buffer, svdata: ServerData): Players {
 	const reader = new BufferReader(buffer, 1);
 	const count = reader.byte();
-	const data: {
-		count: number;
-		list: Player[];
-		partial: boolean;
-	} = {
+	const data = {
 		count,
-		list: [],
+		list: [] as Player[],
 		partial: false,
 	};
 
@@ -269,6 +268,8 @@ export function players(buffer: Buffer, svdata: ServerData): Players {
 				money: reader.long(),
 			});
 		}
+
+		reader.checkRemaining();
 	}else{
 		while(reader.hasRemaining){
 			try{
@@ -279,8 +280,8 @@ export function players(buffer: Buffer, svdata: ServerData): Players {
 					timeOnline: new Time(reader.float()),
 				});
 			}catch{
-				debug(svdata, 'player info not terminated');
 				data.partial = true;
+				break;
 			}
 		}
 	}
@@ -288,32 +289,34 @@ export function players(buffer: Buffer, svdata: ServerData): Players {
 	return data;
 }
 
-export function rules(buffer: Buffer, data: ServerData): Rules {
+export function rules(buffer: Buffer): Rules {
 	const reader = new BufferReader(buffer, 1);
-	const rulesQty = reader.short(), obj: Rules = {};
+	const data: Rules = {
+		count: reader.short(),
+		partial: false,
+		rules: {},
+	};
 
-	for(let i = 0; i < rulesQty; i++){
+	for(let i = 0; i < data.count; i++){
 		try{
 			const key = reader.string(), value = reader.string();
 
 			if(value === 'True'){
-				obj[key] = true;
+				data.rules[key] = true;
 			}else if(value === 'False'){
-				obj[key] = false;
+				data.rules[key] = false;
 			}else{
 				try{
-					obj[key] = Number(value);
+					data.rules[key] = Number(value);
 				}catch{
-					obj[key] = value;
+					data.rules[key] = value;
 				}
 			}
 		}catch{
-			// eslint-disable-next-line no-console
-			if(data.enableWarns) console.warn('rules not terminated');
-			debug(data, 'rules not terminated');
-			return obj;
+			data.partial = true;
+			break;
 		}
 	}
 
-	return obj;
+	return data;
 }

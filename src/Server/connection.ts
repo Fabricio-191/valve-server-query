@@ -34,6 +34,39 @@ const isBzip2 = (buffer: Buffer): boolean => {
 };
 */
 
+/*
+const bzipStart = Buffer.from([ 0x42, 0x5A, 0x68 ]);
+const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+function getPacketType(buffer: Buffer): string {
+	const reader = new BufferReader(buffer);
+	const header = reader.long();
+
+	if(header === -1){
+		return 'simple';
+	}else if(header === -2){
+		const index = buffer.indexOf(h);
+		if(index === 9){
+			return 'gld-src-multi';
+		}else if(index === 10){
+			return 'multi-without-maxPacketSize';
+		}else if(index === 12){
+			return 'multi';
+		}
+
+		const i = buffer.indexOf(bzipStart);
+		if(i === 10){
+			return 'bzip-without-maxPacketSize';
+		}else if(i === 12){
+			return 'bzip';
+		}
+
+		throw new Error('Invalid multi-packet');
+	}else{
+		return 'unknown';
+	}
+}
+*/
+
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
 	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();

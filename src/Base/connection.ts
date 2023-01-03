@@ -6,7 +6,7 @@ export default abstract class BaseConnection {
 	constructor(data: BaseData) {
 		this.data = data;
 
-		this.socket = createSocket(`udp${this.data.ipFormat}`)
+		this.socket = createSocket('udp4')
 			.on('message', buffer => {
 				debug(this.data, 'recieved:', buffer);
 

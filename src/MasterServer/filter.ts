@@ -9,10 +9,10 @@ const FLAGS = {
 	password_protected: '\\nand\\1\\password\\0',
 
 	not_full: '\\full\\1',
+	not_secure: '\\nand\\1\\secure\\1',
 	not_linux: '\\nand\\1\\linux\\1',
 	not_empty: '\\empty\\1',
 	not_proxy: '\\nand\\1\\proxy\\1',
-	not_secure: '\\nand\\1\\secure\\1',
 	not_dedicated: '\\nand\\1\\dedicated\\1',
 	not_whitelisted: '\\white\\1',
 	not_password_protected: '\\password\\0',
@@ -52,9 +52,6 @@ export default class Filter{
 	public address          (address: string  ): this { return this._add   ('\\gameaddr\\',               address); }
 	public name             (   name: string  ): this { return this._add   ('\\name_match\\',                name); }
 	public version          (version: string  ): this { return this._add   ('\\version_match\\',          version); }
-	public hasNotTags       (   tags: string[]): this { return this._addArr('\\nand\\1\\gametype\\',         tags); }
-	public hasNotTagsL4D2   (   tags: string[]): this { return this._addArr('\\nand\\1\\gamedata\\',         tags); }
-	public hasNotAnyTagsL4F2(   tags: string[]): this { return this._addArr('\\nand\\1\\gamedataor\\',       tags); }
 	public notMap           (    map: string  ): this { return this._add   ('\\nand\\1\\map\\',               map); }
 	public notMod           (    mod: string  ): this { return this._add   ('\\nand\\1\\gamedir\\',           mod); }
 	public notAddress       (address: string  ): this { return this._add   ('\\nand\\1\\gameaddr\\',      address); }

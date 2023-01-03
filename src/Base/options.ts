@@ -1,3 +1,4 @@
+import { isIPv4 } from 'net';
 import { type ValueIn } from './utils';
 import Filter from '../MasterServer/filter';
 
@@ -64,7 +65,7 @@ const DEFAULT_OPTIONS = {
 	port: 27015,
 	timeout: 5000,
 	enableWarns: true,
-};
+} as const;
 
 const DEFAULT_SERVER_OPTIONS = {
 	...DEFAULT_OPTIONS,
@@ -74,7 +75,7 @@ const DEFAULT_SERVER_OPTIONS = {
 } as const;
 
 const DEFAULT_MASTER_SERVER_OPTIONS = {
-	ip: 'hl2master.steampowered.com',
+	ip: '208.64.201.194',
 	port: 27011,
 	timeout: 5000,
 	enableWarns: true,
@@ -97,10 +98,9 @@ function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): BaseData & 
 		options.port = parseInt(options.port);
 	}
 
-	if(
-		typeof options.port !== 'number' || isNaN(options.port) ||
-		options.port < 0 || options.port > 65535
-	){
+	if(!isIPv4(options.ip)){
+		throw Error('Only IPv4 addresses are supported');
+	}else if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
 		throw Error('The port to connect should be a number between 0 and 65535');
 	}else if(typeof options.enableWarns !== 'boolean'){
 		throw Error("'enableWarns' should be a boolean");
