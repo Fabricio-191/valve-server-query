@@ -49,9 +49,14 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 	// there is an extra null byte that doesn't matter
 }
 
+const PROMISES = {
+	NOT_CONNECTED: Promise.reject(new Error('Not connected to server.')),
+	NOT_AUTH: Promise.reject(new Error('Not authenticated.')),
+};
+
 class RCON extends EventEmitter{
-	private _connected: Promise<void> | boolean = false;
-	private _auth: Promise<void> | boolean = false;
+	private _connected: Promise<void> = Promise.reject(new Error('Not connected to server. call RCON.connect() first.'));
+	private _auth: Promise<void> = Promise.reject(new Error('Not authenticated. call RCON.connect() first.'));
 
 	public data!: RCONData;
 	private socket!: Socket;
@@ -59,10 +64,11 @@ class RCON extends EventEmitter{
 	private remaining = 0;
 	private buffers: Buffer[] = [];
 
-	private _send(command: Buffer): Promise<void> {
+	private async _send(command: Buffer): Promise<void> {
+		await this._connected;
 		debug(this.data, 'RCON sending:', command);
 
-		return new Promise((res, rej) => {
+		await new Promise<void>((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
 				if(err) rej(err);
 				else res();
@@ -110,54 +116,66 @@ class RCON extends EventEmitter{
 		});
 	}
 
+	private _reset(): void {
+		this._connected = PROMISES.NOT_CONNECTED;
+		this._auth = PROMISES.NOT_CONNECTED;
+
+		this.buffers = [];
+		this.remaining = 0;
+	}
+
+	private onData(buffer: Buffer): void {
+		debug(this.data, 'RCON received:', buffer);
+
+		if(this.remaining === 0){
+			this.remaining = buffer.readUInt32LE() + 4; // size field
+		}
+		this.remaining -= buffer.length;
+
+		if(this.remaining === 0){ // got the whole packet
+			this.buffers.push(buffer);
+			this.socket.emit('packet', parseRCONPacket(
+				Buffer.concat(this.buffers)
+			));
+
+			this.buffers = [];
+		}else if(this.remaining > 0){ // needs more packets
+			this.buffers.push(buffer);
+		}else{ // got more than one packet
+			this.buffers.push(buffer.slice(0, this.remaining));
+			this.socket.emit('packet', parseRCONPacket(
+				Buffer.concat(this.buffers)
+			));
+
+			const excess = this.remaining;
+			this.buffers = [];
+			this.remaining = 0;
+			this.socket.emit('data', buffer.slice(excess));
+		}
+	}
+
 	public async connect(options: RawRCONOptions): Promise<void> {
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
 			debug(this.data, `RCON disconnected: ${reason}`);
 
-			this.buffers = [];
-			this.remaining = 0;
+			this._reset();
 			this.emit('disconnect', reason);
 		};
-		const data = parseRCONOptions(options);
+		const data = await parseRCONOptions(options);
 
 		this.data = data;
 		this.socket = createSocket(data.port, data.ip)
 			.unref()
 			.on('end', onError)
 			.on('error', onError)
-			.on('data', buffer => {
-				if(this.remaining === 0){
-					this.remaining = buffer.readUInt32LE() + 4; // size field
-				}
-				this.remaining -= buffer.length;
+			.on('data', this.onData.bind(this));
 
-				if(this.remaining === 0){ // got the whole packet
-					this.buffers.push(buffer);
-					this.socket.emit('packet', parseRCONPacket(
-						Buffer.concat(this.buffers)
-					));
-
-					this.buffers = [];
-				}else if(this.remaining > 0){ // needs more packets
-					this.buffers.push(buffer);
-				}else{ // got more than one packet
-					this.buffers.push(buffer.slice(0, this.remaining));
-					this.socket.emit('packet', parseRCONPacket(
-						Buffer.concat(this.buffers)
-					));
-
-					const excess = this.remaining;
-					this.buffers = [];
-					this.remaining = 0;
-					this.socket.emit('data', buffer.slice(excess));
-				}
-			});
-
+		debug(this.data, 'RCON connecting');
 		this._connected = (async () => {
-			debug(this.data, 'RCON connecting...');
 			await this._awaitEvent('connect', 'Connection timeout.');
 			debug(this.data, 'RCON connected');
+
 			await this.authenticate(data.password);
 			this._auth = Promise.resolve();
 		})();
@@ -180,7 +198,7 @@ class RCON extends EventEmitter{
 			try{
 				await this.authenticate(this.data.password);
 			}catch(e: unknown){
-				this._auth = false;
+				this._auth = PROMISES.NOT_AUTH;
 				if(e instanceof Error && e.message === 'RCON: wrong password'){
 					this.emit('passwordChange');
 				}else throw e;
@@ -194,6 +212,8 @@ class RCON extends EventEmitter{
 	}
 
 	public async exec(command: string): Promise<string> {
+		await this._auth;
+
 		const ID = this._getID(), ID2 = this._getID();
 
 		await this._send(makeCommand(ID, PacketType.Command, command));
@@ -214,6 +234,7 @@ class RCON extends EventEmitter{
 		return packets.map(p => p.body).join('');
 	}
 	public async authenticate(password: string): Promise<void> {
+		await this._connected;
 		if(typeof password !== 'string' || password === ''){
 			throw new Error('RCON password must be a non-empty string');
 		}
@@ -221,10 +242,10 @@ class RCON extends EventEmitter{
 		const ID = this._getID();
 		await this._send(makeCommand(ID, PacketType.Auth, password));
 
-		const EXEC_RESPONSE = this._awaitResponse(PacketType.CommandResponse, ID);
-		const AUTH_RESPONSE = this._awaitResponse(PacketType.AuthResponse, ID, -1);
+		this._auth = (async () => {
+			const EXEC_RESPONSE = this._awaitResponse(PacketType.CommandResponse, ID);
+			const AUTH_RESPONSE = this._awaitResponse(PacketType.AuthResponse, ID, -1);
 
-		this._auth = (async function(){
 			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
 
 			if(firstResponse.type === 2){
