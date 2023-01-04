@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
-import { parseRCONOptions, type RawRCONOptions, type RCONData } from '../Base/options';
-import { createConnection as createSocket, type Socket } from 'net';
-import { BufferReader, BufferWriter, debug, delay } from '../Base/utils';
+import { parseRCONOptions, type RawRCONOptions } from '../Base/options';
+import { BufferWriter, debug } from '../Base/utils';
+import Connection, { PacketType, type RCONPacket } from './connection';
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 	return new BufferWriter()
@@ -23,158 +23,46 @@ declare interface RCON {
 	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
 }
 
-enum PacketType {
-	Auth = 3,
-	AuthResponse = 2,
-	Command = 2,
-	CommandResponse = 0,
-}
-
-interface RCONPacket {
-	size: number;
-	ID: number;
-	type: PacketType;
-	body: string;
-}
-
-function parseRCONPacket(buffer: Buffer): RCONPacket {
-	const reader = new BufferReader(buffer);
-
-	return {
-		size: reader.long(),
-		ID: reader.long(),
-		type: reader.long(),
-		body: reader.string(),
-	};
-	// there is an extra null byte that doesn't matter
-}
-
 const PROMISES = {
 	NOT_CONNECTED: Promise.reject(new Error('Not connected to server.')),
 	NOT_AUTH: Promise.reject(new Error('Not authenticated.')),
 };
 
 class RCON extends EventEmitter{
+	public isConnnected = false;
 	private _connected: Promise<void> = Promise.reject(new Error('Not connected to server. call RCON.connect() first.'));
 	private _auth: Promise<void> = Promise.reject(new Error('Not authenticated. call RCON.connect() first.'));
 
-	public data!: RCONData;
-	private socket!: Socket;
-
-	private remaining = 0;
-	private buffers: Buffer[] = [];
-
-	private async _send(command: Buffer): Promise<void> {
-		await this._connected;
-		debug(this.data, 'RCON sending:', command);
-
-		await new Promise<void>((res, rej) => {
-			this.socket.write(command, 'ascii', err => {
-				if(err) rej(err);
-				else res();
-			});
-		});
-	}
-
-	private _awaitResponse(type: PacketType, ...IDs: number[]): Promise<RCONPacket> {
-		return this._awaitEvent(
-			'packet',
-			'Response timeout.',
-			(packet: RCONPacket) => packet.type === type && IDs.includes(packet.ID)
-		) as Promise<RCONPacket>;
-	}
-
-	private _awaitEvent(
-		event: 'connect' | 'packet',
-		timeoutMsg: string,
-		filter: ((packet: RCONPacket) => unknown) | null = null
-	): Promise<unknown> {
-		return new Promise((res, rej) => {
-			const clear = (): void => {
-				/* eslint-disable @typescript-eslint/no-use-before-define */
-				this.socket
-					.off(event, onEvent)
-					.off('error', onError);
-
-				clearTimeout(timeout);
-				/* eslint-enable @typescript-eslint/no-use-before-define */
-			};
-
-			const onError = (err: unknown): void => {
-				clear(); rej(err);
-			};
-			const onEvent = (arg: RCONPacket): void => { // all events only have 1 argument
-				if(filter === null || filter(arg)){
-					clear(); res(arg);
-				}
-			};
-
-			const timeout = setTimeout(onError, this.data.timeout, new Error(timeoutMsg));
-			this.socket
-				.on(event, onEvent)
-				.on('error', onError);
-		});
-	}
+	private connection!: Connection;
 
 	private _reset(): void {
 		this._connected = PROMISES.NOT_CONNECTED;
 		this._auth = PROMISES.NOT_CONNECTED;
 
-		this.buffers = [];
-		this.remaining = 0;
-	}
-
-	private onData(buffer: Buffer): void {
-		debug(this.data, 'RCON received:', buffer);
-
-		if(this.remaining === 0){
-			this.remaining = buffer.readUInt32LE() + 4; // size field
-		}
-		this.remaining -= buffer.length;
-
-		if(this.remaining === 0){ // got the whole packet
-			this.buffers.push(buffer);
-			this.socket.emit('packet', parseRCONPacket(
-				Buffer.concat(this.buffers)
-			));
-
-			this.buffers = [];
-		}else if(this.remaining > 0){ // needs more packets
-			this.buffers.push(buffer);
-		}else{ // got more than one packet
-			this.buffers.push(buffer.slice(0, this.remaining));
-			this.socket.emit('packet', parseRCONPacket(
-				Buffer.concat(this.buffers)
-			));
-
-			const excess = this.remaining;
-			this.buffers = [];
-			this.remaining = 0;
-			this.socket.emit('data', buffer.slice(excess));
-		}
+		this.connection.buffers = [];
+		this.connection.remaining = 0;
 	}
 
 	public async connect(options: RawRCONOptions): Promise<void> {
+		if(this.connection) throw new Error('Already connected to server.');
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
-			debug(this.data, `RCON disconnected: ${reason}`);
+			debug(this.connection.data, `RCON disconnected: ${reason}`);
 
 			this._reset();
+			this.isConnnected = false;
 			this.emit('disconnect', reason);
 		};
 		const data = await parseRCONOptions(options);
 
-		this.data = data;
-		this.socket = createSocket(data.port, data.ip)
-			.unref()
-			.on('end', onError)
-			.on('error', onError)
-			.on('data', this.onData.bind(this));
+		this.connection = new Connection(data, onError);
+		this.connection.data = data;
 
-		debug(this.data, 'RCON connecting');
+		debug(this.connection.data, 'RCON connecting');
 		this._connected = (async () => {
-			await this._awaitEvent('connect', 'Connection timeout.');
-			debug(this.data, 'RCON connected');
+			await this.connection.awaitConnect();
+			debug(this.connection.data, 'RCON connected');
+			this.isConnnected = true;
 
 			await this.authenticate(data.password);
 			this._auth = Promise.resolve();
@@ -183,22 +71,15 @@ class RCON extends EventEmitter{
 		await this._connected;
 	}
 	public async reconnect(): Promise<void> {
-		// Tiny delay to avoid "Error: Already connected" while reconnecting
-		await delay(1);
-		debug(this.data, 'RCON reconnecting...');
-
-		this.socket.connect(this.data.port, this.data.ip);
-		await this._awaitEvent('connect', 'Connection timeout.');
-
-		debug(this.data, 'RCON reconnected');
+		await this.connection.reconnect();
+		this.isConnnected = true;
 
 		if(this.listenerCount('passwordChange') === 0){
-			await this.authenticate(this.data.password);
+			await this.authenticate(this.connection.data.password);
 		}else{
 			try{
-				await this.authenticate(this.data.password);
+				await this.authenticate(this.connection.data.password);
 			}catch(e: unknown){
-				this._auth = PROMISES.NOT_AUTH;
 				if(e instanceof Error && e.message === 'RCON: wrong password'){
 					this.emit('passwordChange');
 				}else throw e;
@@ -206,9 +87,9 @@ class RCON extends EventEmitter{
 		}
 	}
 	public destroy(): void {
-		if(!this.socket) throw new Error('RCON: not connected');
-		this.socket.removeAllListeners();
-		this.socket.destroy();
+		if(!this.connection) throw new Error('RCON: not connected');
+		this.connection.socket.removeAllListeners();
+		this.connection.socket.destroy();
 	}
 
 	public async exec(command: string): Promise<string> {
@@ -216,20 +97,17 @@ class RCON extends EventEmitter{
 
 		const ID = this._getID(), ID2 = this._getID();
 
-		await this._send(makeCommand(ID, PacketType.Command, command));
-		await this._send(makeCommand(ID2, PacketType.Command));
+		await this.connection.send(makeCommand(ID, PacketType.Command, command));
+		await this.connection.send(makeCommand(ID2, PacketType.Command));
 
-		const packets: RCONPacket[] = [
-			await this._awaitResponse(PacketType.CommandResponse, ID),
-		];
-		const cb = (p: RCONPacket): void => {
-			if(p.ID === ID) packets.push(p);
-		};
+		const packets: RCONPacket[] = [];
 
-		this.socket.on('packet', cb);
-
-		await this._awaitResponse(PacketType.CommandResponse, ID2);
-		this.socket.off('packet', cb);
+		// eslint-disable-next-line no-constant-condition
+		while(true){
+			const packet = await this.connection.awaitResponse(PacketType.CommandResponse, ID, ID2);
+			if(packet.ID === ID2) break;
+			packets.push(packet);
+		}
 
 		return packets.map(p => p.body).join('');
 	}
@@ -240,11 +118,11 @@ class RCON extends EventEmitter{
 		}
 
 		const ID = this._getID();
-		await this._send(makeCommand(ID, PacketType.Auth, password));
+		await this.connection.send(makeCommand(ID, PacketType.Auth, password));
 
 		this._auth = (async () => {
-			const EXEC_RESPONSE = this._awaitResponse(PacketType.CommandResponse, ID);
-			const AUTH_RESPONSE = this._awaitResponse(PacketType.AuthResponse, ID, -1);
+			const EXEC_RESPONSE = this.connection.awaitResponse(PacketType.CommandResponse, ID);
+			const AUTH_RESPONSE = this.connection.awaitResponse(PacketType.AuthResponse, ID, -1);
 
 			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
 
@@ -257,9 +135,9 @@ class RCON extends EventEmitter{
 			}
 		})();
 
-		this.data.password = password;
+		this.connection.data.password = password;
 
-		debug(this.data, 'RCON autenticated');
+		debug(this.connection.data, 'RCON autenticated');
 	}
 
 	private _lastID = 0x33333333;
@@ -269,12 +147,12 @@ class RCON extends EventEmitter{
 	}
 
 	public ref(): void {
-		if(!this.socket) throw new Error('RCON: not connected');
-		this.socket.ref();
+		if(!this.connection) throw new Error('RCON: not connected');
+		this.connection.socket.ref();
 	}
 	public unref(): void {
-		if(!this.socket) throw new Error('RCON: not connected');
-		this.socket.unref();
+		if(!this.connection) throw new Error('RCON: not connected');
+		this.connection.socket.unref();
 	}
 }
 
