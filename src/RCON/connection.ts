@@ -36,7 +36,6 @@ export default class Connection {
 	constructor(data: RCONData, onError: (err?: Error) => void) {
 		this.data = data;
 		this.socket = createSocket(data.port, data.ip)
-			.unref()
 			.on('end', onError)
 			.on('error', onError)
 			.on('data', this.onData.bind(this));
