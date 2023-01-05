@@ -1,4 +1,5 @@
-import { isIPv4 } from 'net';
+import { isIPv6 } from 'net';
+import { lookup } from 'dns/promises';
 import { type ValueIn } from './utils';
 import Filter from '../MasterServer/filter';
 
@@ -89,17 +90,24 @@ export function setDefaultOptions(options: BaseRawOptions): void {
 }
 // #endregion
 
-function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): BaseData & T {
-	if(options.ip.includes(':')){
+async function resolveHostname(options: Required<BaseRawOptions>): Promise<void> {
+	if(options.ip.includes(':') && !isIPv6(options.ip)){
 		[options.ip, options.port] = options.ip.split(':') as [string, string];
 	}
-	if(typeof options.port === 'string'){
-		options.port = parseInt(options.port);
-	}
 
-	if(!isIPv4(options.ip)){
-		throw Error('Only IPv4 addresses are supported');
-	}else if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
+	try{
+		const r = await lookup(options.ip, { verbatim: false });
+		if(r.family !== 4 && r.family !== 6){
+			// eslint-disable-next-line @typescript-eslint/no-throw-literal
+			throw '';
+		}
+	}catch(e){
+		throw Error("'ip' is not a valid IP address or hostname");
+	}
+}
+
+async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
+	if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
 		throw Error('The port to connect should be a number between 0 and 65535');
 	}else if(typeof options.enableWarns !== 'boolean'){
 		throw Error("'enableWarns' should be a boolean");
@@ -109,6 +117,12 @@ function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): BaseData & 
 		throw Error("'ip' should be a string");
 	}
 
+	await resolveHostname(options);
+
+	if(typeof options.port === 'string'){
+		options.port = parseInt(options.port);
+	}
+
 	// @ts-expect-error port can't be a string
 	return {
 		...options,
@@ -116,21 +130,21 @@ function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): BaseData & 
 	};
 }
 
-export function parseServerOptions(options: RawServerOptions): ServerData {
+export async function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
 	if(typeof options === 'string') options = { ip: options };
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 
-	return parseBaseOptions({
+	return await parseBaseOptions({
 		...DEFAULT_SERVER_OPTIONS,
 		...options,
 	});
 }
 
-export function parseMasterServerOptions(options: RawMasterServerOptions): MasterServerData {
+export async function parseMasterServerOptions(options: RawMasterServerOptions): Promise<MasterServerData> {
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { ip: options };
 
-	const parsedOptions = parseBaseOptions({
+	const parsedOptions = await parseBaseOptions({
 		...DEFAULT_MASTER_SERVER_OPTIONS,
 		...options,
 	});
@@ -157,11 +171,11 @@ export function parseMasterServerOptions(options: RawMasterServerOptions): Maste
 	};
 }
 
-export function parseRCONOptions(options: RawRCONOptions | null = null): RCONData {
+export async function parseRCONOptions(options: RawRCONOptions | null = null): Promise<RCONData> {
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 	if(typeof options === 'string') options = { password: options };
 
-	const parsedOptions = parseBaseOptions({
+	const parsedOptions = await parseBaseOptions({
 		...DEFAULT_OPTIONS,
 		...options,
 	});
