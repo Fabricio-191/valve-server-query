@@ -1,8 +1,6 @@
 import { debug, BufferReader, type NonEmptyArray } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
-// @ts-expect-error no typings
-import { decode } from 'seek-bzip';
 
 interface MultiPacket {
 	ID: number;
@@ -25,16 +23,6 @@ const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 https://github.com/cscott/seek-bzip
 https://github.com/antimatter15/bzip2.js
 
-const isBzip2 = (buffer: Buffer): boolean => {
-	// return buffer.subarray(0, 3).toString() === ;
-	// return buffer.subarray(0, 3).equals(Buffer.from('BZh'));
-
-	if(buffer.length < 4) return false;
-	return buffer[0] === 0x42 && buffer[1] === 0x5A && buffer[2] === 0x68;
-};
-*/
-
-/*
 const bzipStart = Buffer.from('BZh');
 const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 function getPacketType(buffer: Buffer): string {
@@ -58,14 +46,11 @@ function getPacketType(buffer: Buffer): string {
 		}else if(i === 12){
 			return 'bzip';
 		}
-
-		throw new Error('Invalid multi-packet');
-	}else{
-		return 'unknown';
 	}
+
+	throw new Error('Invalid multi-packet');
 }
 */
-
 export default class Connection extends BaseConnection {
 	public readonly data!: ServerData;
 	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();
@@ -116,20 +101,28 @@ export default class Connection extends BaseConnection {
 		);
 
 		if(queue[0].bzip){
-			try{
-				// eslint-disable-next-line
-				payload = decode(payload, queue[0].bzip.uncompressedSize);
-			}catch(e){
-				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-				debug(this.data, `SERVER bzip error: ${e instanceof Error ? e.message : e}`);
-				if(this.data.enableWarns){
-					// eslint-disable-next-line no-console
-					console.warn('Warning: bzip error', e);
-				}
-			}
+			// @ts-expect-error seek-bzip has no declarations
+			import('seek-bzip')
+				.then(({ decode }) => {
+					try{
+						// eslint-disable-next-line
+						payload = decode(payload, queue[0].bzip!.uncompressedSize);
+						this.socket.emit('message', payload);
+					}catch{
+						throw new Error('Invalid bzip data');
+					}
+				})
+				.catch(e => {
+					// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+					debug(this.data, `SERVER bzip error: ${e instanceof Error ? e.message : e}`);
+					if(this.data.enableWarns){
+						// eslint-disable-next-line no-console
+						console.warn('Warning: bzip error', e);
+					}
+				});
+		}else{
+			this.socket.emit('message', payload);
 		}
-
-		this.socket.emit('message', payload);
 	}
 
 	private _parseMultiPacket(buffer: Buffer): MultiPacket {
@@ -213,7 +206,7 @@ export default class Connection extends BaseConnection {
 	}
 
 	public static async init(options: RawServerOptions): Promise<Connection> {
-		const data = parseServerOptions(options);
+		const data = await parseServerOptions(options);
 		const connection = new Connection(data);
 		await connection.connect();
 		return connection;
