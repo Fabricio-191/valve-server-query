@@ -101,10 +101,6 @@ export class BufferReader{
 		return this.buffer.subarray(this.offset);
 	}
 
-	public remainingIncludes(byte: number): boolean {
-		return this.buffer.includes(byte, this.offset);
-	}
-
 	public checkRemaining(): void {
 		if(this.hasRemaining) throw new Error('Buffer has remaining bytes');
 	}
@@ -142,6 +138,8 @@ debug.enable = function enableDebug(file = 'debug.log'): void {
 	if(log !== null) throw new Error('Debug already enabled');
 	log = '';
 
+	setInterval(debug.save, 1000, file);
+
 	process.on('beforeExit', () => {
 		if(log !== '') writeFileSync(file, log as string);
 	});
@@ -152,26 +150,6 @@ debug.save = function saveDebug(file = 'debug.log'): void {
 
 	writeFileSync(file, log);
 };
-
-export class DeferredPromise<T> {
-	constructor(executor?: (resolve: (value: PromiseLike<T> | T) => void, reject: (reason?: unknown) => void) => void){
-		this.promise = new Promise<T>((resolve, reject) => {
-			this.resolve = resolve;
-			this.reject = reject;
-			if(executor) executor(resolve, reject);
-		});
-
-		this.then = this.promise.then.bind(this.promise);
-		this.catch = this.promise.catch.bind(this.promise);
-		this.finally = this.promise.finally.bind(this.promise);
-	}
-	public promise: Promise<T>;
-	public resolve!: (value: PromiseLike<T> | T) => void;
-	public reject!: (reason?: unknown) => void;
-	public then;
-	public catch;
-	public finally;
-}
 
 export function delay(ms: number): Promise<void> {
 	return new Promise(resolve => {
