@@ -11,11 +11,12 @@ setDefaultOptions({
 });
 
 const options = {
-	ip: '213.239.207.78:33042',
+	ip: '213.239.207.78:33006',
 	password: 'cosas',
 
 	enableWarns: false,
 	debug: true,
+	timeout: 15000,
 };
 
 const rcon = new RCON();
@@ -23,9 +24,11 @@ const rcon = new RCON();
 rcon.connect(options)
 	.catch(console.error);
 
-rcon.exec('status')
+rcon.exec('cvarlist')
 	.then(console.log)
 	.catch(console.error);
+
+
 
 /*
 To-do:
