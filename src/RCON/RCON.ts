@@ -13,65 +13,61 @@ function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
 		.end();
 }
 
-interface Events {
-	'disconnect': (reason?: string) => void;
-	'passwordChange': () => void;
-}
-
 declare interface RCON {
-	on<T extends keyof Events>(event: T, listener: Events[T]): this;
-	emit<T extends keyof Events>(event: T, ...args: Parameters<Events[T]>): boolean;
+	on(event: 'disconnect', listener: (reason: string) => void): this;
+	on(event: 'passwordChange', listener: () => void): this;
+	emit(event: 'disconnect', reason: string): boolean;
+	emit(event: 'passwordChange'): boolean;
 }
-
-const PROMISES = {
-	NOT_CONNECTED: Promise.reject(new Error('Not connected to server.')),
-	NOT_AUTH: Promise.reject(new Error('Not authenticated.')),
-};
 
 class RCON extends EventEmitter{
 	public isConnnected = false;
-	private _connected: Promise<void> = Promise.reject(new Error('Not connected to server. call RCON.connect() first.'));
-	private _auth: Promise<void> = Promise.reject(new Error('Not authenticated. call RCON.connect() first.'));
+	private _connected: Promise<void> | false = false;
+	private _auth: Promise<void> | false  = false;
 
 	private connection!: Connection;
 
 	private _reset(): void {
-		this._connected = PROMISES.NOT_CONNECTED;
-		this._auth = PROMISES.NOT_CONNECTED;
-
 		this.connection.buffers = [];
 		this.connection.remaining = 0;
+
+		this._connected = this._auth = false;
+		this.isConnnected = false;
 	}
 
 	public async connect(options: RawRCONOptions): Promise<void> {
 		if(this.connection) throw new Error('Already connected to server.');
+
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
 			debug(this.connection.data, `RCON disconnected: ${reason}`);
 
 			this._reset();
-			this.isConnnected = false;
 			this.emit('disconnect', reason);
 		};
-		const data = await parseRCONOptions(options);
 
-		this.connection = new Connection(data, onError);
-		this.connection.data = data;
-
-		debug(this.connection.data, 'RCON connecting');
 		this._connected = (async () => {
-			await this.connection.awaitConnect();
-			debug(this.connection.data, 'RCON connected');
-			this.isConnnected = true;
+			const data = await parseRCONOptions(options);
 
-			await this.authenticate(data.password);
-			this._auth = Promise.resolve();
+			debug(data, 'RCON connecting');
+			this.connection = new Connection(data, onError);
+
+			await this.connection.awaitConnect();
+			debug(data, 'RCON connected');
+			this.isConnnected = true;
 		})();
 
 		await this._connected;
+		// @ts-expect-error asdads
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		await this.authenticate(this.connection.data.password);
 	}
 	public async reconnect(): Promise<void> {
-		await this.connection.reconnect();
+		if(!this.connection) throw new Error('RCON: not connected, call RCON.connect() first');
+		if(this._connected) throw new Error('RCON: already connected');
+
+		this._connected = this.connection.reconnect();
+		await this._connected;
 		this.isConnnected = true;
 
 		if(this.listenerCount('passwordChange') === 0){
@@ -90,10 +86,15 @@ class RCON extends EventEmitter{
 		if(!this.connection) throw new Error('RCON: not connected');
 		this.connection.socket.removeAllListeners();
 		this.connection.socket.destroy();
+		this._reset();
 	}
 
 	public async exec(command: string): Promise<string> {
-		await this._auth;
+		if(this._connected) await this._connected;
+		else throw new Error('RCON: not connected');
+
+		if(this._auth) await this._auth;
+		else throw new Error('RCON: not authenticated');
 
 		const ID = this._getID(), ID2 = this._getID();
 
@@ -121,16 +122,9 @@ class RCON extends EventEmitter{
 		await this.connection.send(makeCommand(ID, PacketType.Auth, password));
 
 		this._auth = (async () => {
-			const EXEC_RESPONSE = this.connection.awaitResponse(PacketType.CommandResponse, ID);
-			const AUTH_RESPONSE = this.connection.awaitResponse(PacketType.AuthResponse, ID, -1);
+			const AUTH_RESPONSE = await this.connection.awaitResponse(PacketType.AuthResponse, ID, -1);
 
-			const firstResponse = await Promise.race([EXEC_RESPONSE, AUTH_RESPONSE]);
-
-			if(firstResponse.type === 2){
-				if(firstResponse.ID === -1){
-					throw new Error('RCON: wrong password');
-				}
-			}else if((await AUTH_RESPONSE).ID === -1){
+			if(AUTH_RESPONSE.ID === -1){
 				throw new Error('RCON: wrong password');
 			}
 		})();

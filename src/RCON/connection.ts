@@ -138,7 +138,7 @@ export default class Connection {
 		debug(this.data, 'RCON reconnecting...');
 
 		this.socket.connect(this.data.port, this.data.ip);
-		await this._awaitEvent('connect', 'Connection timeout.');
+		await this.awaitConnect();
 
 		debug(this.data, 'RCON reconnected');
 	}

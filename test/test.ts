@@ -1,45 +1,17 @@
 /* eslint-disable */
 
 // @ts-ignore
-import { Server, MasterServer, debug, AnyServerInfo, setDefaultOptions } from '../src';
+import { Server, RCON, MasterServer, debug, AnyServerInfo, setDefaultOptions } from '../src';
 // @ts-expect-error why-is-node-running has no typings
 import * as log from 'why-is-node-running';
 
 debug.enable('./test/debug.log');
 setDefaultOptions({
-	timeout: 60000,
+	timeout: 10000,
 });
 
-
-/*
-To-do:
-* Master Server rate limit
-* Master Server web api
-* RCON better connected and authenticated promises
-* Server BZIP
-* Server better connected promises
-* Server ping command
-* Server watch statusUpdate event
-
-*/
-
-const onChunk = (servers: string[]): void => {
-	console.log(servers.length)
-}
-
-MasterServer({
-	ip: '208.64.200.65',
-	port: 27011,
-	timeout: 5000,
-	quantity: 60000,
-}, onChunk)
-	.catch(console.error)
-
-/*
-import { RCON } from '../src';
-
 const options = {
-	ip: '49.12.122.244:33008',
+	ip: '213.239.207.78:33042',
 	password: 'cosas',
 
 	enableWarns: false,
@@ -54,6 +26,32 @@ rcon.connect(options)
 rcon.exec('status')
 	.then(console.log)
 	.catch(console.error);
+
+/*
+To-do:
+* Master Server rate limit
+* Master Server web api
+* RCON better connected and authenticated promises
+* Server BZIP
+* Server better connected promises
+* Server ping command
+* Server watch statusUpdate event
+
+*/
+
+/*
+const onChunk = (servers: string[]): void => {
+	console.log(servers.length)
+}
+
+MasterServer({
+	ip: '208.64.200.65',
+	port: 27011,
+	timeout: 5000,
+	quantity: 60000,
+}, onChunk)
+	.catch(console.error)
+
 */
 
 /*
