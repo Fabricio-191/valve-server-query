@@ -75,7 +75,7 @@ const DEFAULT_SERVER_OPTIONS = {
 } as const;
 
 const DEFAULT_MASTER_SERVER_OPTIONS = {
-	ip: '208.64.201.194',
+	ip: 'hl2master.steampowered.com',
 	port: 27011,
 	timeout: 5000,
 	enableWarns: true,
