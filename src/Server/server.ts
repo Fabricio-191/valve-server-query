@@ -41,30 +41,36 @@ async function getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
 
 type ConnectedServer = Server & { connection: Connection };
 export default class Server{
+	public _connected: Promise<parsers.AnyServerInfo> | false = false;
 	public connection: Connection | null = null;
 
 	public isConnected(): this is ConnectedServer {
 		return this.connection !== null;
 	}
 
-	private _mustBeConnected(): asserts this is ConnectedServer {
-		if(!this.isConnected()) throw new Error('Not connected');
+	private async _mustBeConnected(): Promise<void> {
+		if(this._connected) await this._connected;
+		else throw new Error('Not connected');
 	}
 
-	public async connect(options: RawServerOptions = {}): Promise<this> {
+	public async connect(options: RawServerOptions = {}): Promise<parsers.AnyServerInfo> {
 		if(this.isConnected()){
 			throw new Error('Server: already connected.');
 		}
 
-		this.connection = await Connection.init(options);
-		const info = await getInfo(this.connection);
+		this._connected = (async () => {
+			this.connection = await Connection.init(options);
+			const info = await getInfo(this.connection);
 
-		Object.assign(this.connection.data, {
-			appID: 'appID' in info ? info.appID : -1,
-			protocol: info.protocol,
-		});
+			Object.assign(this.connection.data, {
+				appID: 'appID' in info ? info.appID : -1,
+				protocol: info.protocol,
+			});
 
-		return this;
+			return info;
+		})();
+
+		return await this._connected;
 	}
 
 	public destroy(): void {
@@ -74,26 +80,26 @@ export default class Server{
 	}
 
 	public get lastPing(): number {
-		this._mustBeConnected();
-		return this.connection.lastPing;
+		if(this.connection) return this.connection.lastPing;
+		return -1;
 	}
 
 	public async getInfo(): Promise<parsers.AnyServerInfo> {
-		this._mustBeConnected();
-		return await getInfo(this.connection);
+		await this._mustBeConnected();
+		return await getInfo(this.connection!);
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		this._mustBeConnected();
+		await this._mustBeConnected();
 
-		const buffer = await this.connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-		return parsers.players(buffer, this.connection.data);
+		const buffer = await this.connection!.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
+		return parsers.players(buffer, this.connection!.data);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
-		this._mustBeConnected();
+		await this._mustBeConnected();
 
-		const buffer = await this.connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
+		const buffer = await this.connection!.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 		return parsers.rules(buffer);
 	}
 

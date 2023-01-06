@@ -10,14 +10,22 @@ valve.setDefaultOptions({
 	timeout: 10000,
 });
 
+const server = new valve.Server();
+
+server.connect('85.190.154.179:27017')
+	.then(console.log)
+	.catch(console.error);
+
 /*
 To-do:
+* Server better connected promises
+* Server ping command
+* ServerWatch statusUpdate event
+
+To-upgrade:
 * Master Server rate limit
 * Master Server web api
 * Server BZIP
-* Server better connected promises
-* Server ping command
-* Server watch statusUpdate event
 */
 
 /*
