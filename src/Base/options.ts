@@ -29,6 +29,7 @@ export interface MasterServerData extends BaseData {
 	quantity: number;
 	region: ValueIn<typeof REGIONS>;
 	filter: string;
+	slow: boolean;
 }
 
 export interface RCONData extends BaseData {
@@ -56,6 +57,7 @@ export type RawMasterServerOptions = string | (BaseRawOptions & {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
 	filter?: Filter;
+	slow?: boolean;
 });
 // #endregion
 
@@ -83,6 +85,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	quantity: 200,
 	region: 'ANY',
 	filter: new Filter(),
+	slow: false,
 } as const;
 
 export function setDefaultOptions(options: BaseRawOptions): void {
@@ -161,6 +164,8 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 		throw Error(`'region' should be one of the following: ${Object.keys(REGIONS).join(', ')}`);
 	}else if(!(parsedOptions.filter instanceof Filter)){
 		throw Error("'filter' should be an instance of Filter");
+	}else if(typeof parsedOptions.slow !== 'boolean'){
+		throw Error("'slow' should be a boolean");
 	}
 
 	return {
