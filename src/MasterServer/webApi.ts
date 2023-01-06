@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/explicit-function-return-type */
 
+// https://steamcommunity.com/dev/apikey
 // https://partner.steamgames.com/doc/webapi/ISteamApps#GetServerList
 // https://steamapi.xpaw.me/#IGameServersService/GetServerList
 
@@ -52,27 +53,22 @@ class WebApi {
 	}
 	private readonly key: string;
 
-	public async getServerList(filter: Filter | number = new Filter(), limit = 100): Promise<string[]> {
+	public async getServerList(filter: Filter | number = new Filter(), limit = 100) {
 		const url = new URL('https://api.steampowered.com/IGameServersService/GetServerList/v1/');
 		url.searchParams.set('key', this.key);
+		url.searchParams.set('limit', limit.toString());
+
 		if(filter instanceof Filter && filter.toString()){
 			url.searchParams.set('filter', filter.toString());
 		}else if(Number.isInteger(filter)){
 			limit = filter as number;
 		}
 
-		url.searchParams.set('limit', limit.toString());
 		const data = await get(url.toString()) as Response<{ servers: string[] }>;
 		if(!data.response.success) throw new Error(data.response.message);
 
 		return data.response.servers;
 	}
-
-	/*
-	public async getServersInAddress(address: string, limit = 100): Promise<string[]> {
-		return this.getServerList(new Filter().address(address), limit);
-	}
-	*/
 
 	public static async getServersInAddress(address: string) {
 		const url = new URL('https://api.steampowered.com/ISteamApps/GetServersAtAddress/v1/');
