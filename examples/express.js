@@ -7,14 +7,9 @@ const servers = {};
 
 async function getServer(address){
 	if(!(address in servers)){
-		const [ip, port] = address.split(':');
-		servers[address] = new Server({
-			ip,
-			port: parseInt(port),
-			timeout: 4000,
-		});
+		servers[address] = new Server();
 
-		await servers[address].connect();
+		await servers[address].connect(address);
 	}
 
 	return servers[address];

@@ -2,14 +2,14 @@
 Example of a tiny personalized Discord bot for a server
 */
 const Discord = require('discord.js');
-const { Server, ServerWacth } = require('@fabricio-191/valve-server-query');
+const { Server, ServerWatch } = require('@fabricio-191/valve-server-query');
 
 const client = new Discord.Client();
 const server = new Server({
 	ip: '127.0.0.1',
 	port: 27015,
 });
-const serverWatch = new ServerWacth(server, {
+const serverWatch = new ServerWatch(server, {
 	interval: 1000,
 });
 const serverData = {};
