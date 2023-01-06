@@ -1,45 +1,23 @@
 /* eslint-disable */
 
 // @ts-ignore
-import { Server, RCON, MasterServer, debug, AnyServerInfo, setDefaultOptions } from '../src';
+import valve from '../src';
 // @ts-expect-error why-is-node-running has no typings
 import * as log from 'why-is-node-running';
 
-debug.enable('./test/debug.log');
-setDefaultOptions({
+valve.debug.enable('./test/debug.log');
+valve.setDefaultOptions({
 	timeout: 10000,
 });
-
-const options = {
-	ip: '213.239.207.78:33006',
-	password: 'cosas',
-
-	enableWarns: false,
-	debug: true,
-	timeout: 15000,
-};
-
-const rcon = new RCON();
-
-rcon.connect(options)
-	.catch(console.error);
-
-rcon.exec('cvarlist')
-	.then(console.log)
-	.catch(console.error);
-
-
 
 /*
 To-do:
 * Master Server rate limit
 * Master Server web api
-* RCON better connected and authenticated promises
 * Server BZIP
 * Server better connected promises
 * Server ping command
 * Server watch statusUpdate event
-
 */
 
 /*

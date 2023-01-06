@@ -1,8 +1,8 @@
 /* eslint-disable new-cap, @typescript-eslint/no-invalid-this */
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
-import { Server, RCON, MasterServer, debug, type AnyServerInfo } from '../src';
-debug.enable('./test/debug.log');
+import * as valve from '../src';
+valve.debug.enable('./test/debug.log');
 
 const doNothing = (): void => { /* do nothing */ };
 
@@ -22,7 +22,7 @@ describe('Server', () => {
 		}
 	}
 
-	const server = new Server();
+	const server = new valve.Server();
 	it('connect', async function(){
 		this.slow(9000);
 		this.timeout(10000);
@@ -34,23 +34,23 @@ describe('Server', () => {
 		const info = await server.getInfo();
 
 		checkInfo(info);
-		debug(info, 'Server info');
+		valve.debug(info, 'Server info');
 	});
 
 	it('getPlayers()', async () => {
 		const players = await server.getPlayers();
-		debug(players, 'Server players');
+		valve.debug(players, 'Server players');
 	});
 
 	it('getRules()', async () => {
 		const rules = await server.getRules();
-		debug(rules, 'Server rules');
+		valve.debug(rules, 'Server rules');
 	});
 
 	/*
 	it('getPing()', async () => {
 		const ping = await server.getPing();
-		debug(ping, 'Server ping');
+		valve.debug(ping, 'Server ping');
 	});
 	*/
 
@@ -61,7 +61,7 @@ describe('Server', () => {
 			throw new Error(`Server.lastPing is too small (${server.lastPing})`);
 		}
 
-		debug(server.lastPing, 'Server ping');
+		valve.debug(server.lastPing, 'Server ping');
 	});
 });
 
@@ -91,7 +91,7 @@ describe('MasterServer', () => {
 		this.slow(14000);
 		this.timeout(15000);
 
-		const IPs = await MasterServer({
+		const IPs = await valve.MasterServer({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
@@ -105,31 +105,31 @@ describe('MasterServer', () => {
 
 		IPs.forEach(checkIP);
 
-		debug(IPs, 'MasterServer result');
+		valve.debug(IPs, 'MasterServer result');
 	});
 
 	it('filter', async function(){
 		this.slow(14000);
 		this.timeout(15000);
 
-		const filter = new MasterServer.Filter()
+		const filter = new valve.MasterServer.Filter()
 			.appId(730)
 			.is('linux', 'dedicated', 'password_protected')
 			.is('not_secure');
 
-		const IPs = await MasterServer({
+		const IPs = await valve.MasterServer({
 			filter,
 			region: 'SOUTH_AMERICA',
 			quantity: 1000,
 		});
 
-		const results = await Promise.allSettled(IPs.map(Server.getInfo));
+		const results = await Promise.allSettled(IPs.map(valve.Server.getInfo));
 
 		const satisfiesFilter = results
 			.filter(x => x.status === 'fulfilled')
 			// @ts-expect-error promise are fullfiled
-			.map(x => x.value as AnyServerInfo)
-			.filter((x: AnyServerInfo) =>
+			.map(x => x.value as valve.AnyServerInfo)
+			.filter((x: valve.AnyServerInfo) =>
 				('appID' in x ? x.appID : -1) === 730 &&
 				x.OS === 'linux' &&
 				x.type === 'dedicated' &&
@@ -145,7 +145,7 @@ describe('MasterServer', () => {
 });
 
 describe.only('RCON', () => {
-	const rcon = new RCON();
+	const rcon = new valve.RCON();
 
 	rcon.unref();
 
@@ -153,7 +153,7 @@ describe.only('RCON', () => {
 
 	it("exec('sv_gravity') (single packet response)", async () => {
 		const result = await rcon.exec('sv_gravity');
-		debug(result, "exec('sv_gravity')");
+		valve.debug(result, "exec('sv_gravity')");
 	});
 
 	it("exec('cvarlist') (multiple packet response)", async function(){
@@ -161,12 +161,12 @@ describe.only('RCON', () => {
 		this.timeout(10000);
 
 		const result = await rcon.exec('cvarlist');
-		debug(result, "exec('cvarlist')");
+		valve.debug(result, "exec('cvarlist')");
 	});
 
 	it("exec('status')", async () => {
 		const result = await rcon.exec('status');
-		debug(result, "exec('status')");
+		valve.debug(result, "exec('status')");
 	});
 
 	it('multiple requests', async function(){
