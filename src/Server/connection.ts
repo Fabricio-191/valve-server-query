@@ -1,6 +1,12 @@
-import { debug, BufferReader, type NonEmptyArray } from '../Base/utils';
+import { debug, BufferReader, type NonEmptyArray, optionalImport } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
+
+interface SeekBzip {
+	decode: (buffer: Buffer, uncompressedSize: number) => Buffer;
+}
+
+const seekBzip = optionalImport<SeekBzip>('seek-bzip');
 
 interface MultiPacket {
 	ID: number;
@@ -101,25 +107,15 @@ export default class Connection extends BaseConnection {
 		);
 
 		if(queue[0].bzip){
-			// @ts-expect-error seek-bzip has no declarations
-			import('seek-bzip')
-				.then(({ decode }) => {
-					try{
-						// eslint-disable-next-line
-						payload = decode(payload, queue[0].bzip!.uncompressedSize);
-						this.socket.emit('message', payload);
-					}catch{
-						throw new Error('Invalid bzip data');
-					}
-				})
-				.catch(e => {
-					// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-					debug(this.data, `SERVER bzip error: ${e instanceof Error ? e.message : e}`);
-					if(this.data.enableWarns){
-						// eslint-disable-next-line no-console
-						console.warn('Warning: bzip error', e);
-					}
-				});
+			if(!seekBzip) throw new Error('Bzip2 is not installed (npm i seek-bzip)');
+
+			try{
+				// eslint-disable-next-line
+				payload = seekBzip.decode(payload, queue[0].bzip!.uncompressedSize);
+				this.socket.emit('message', payload);
+			}catch{
+				throw new Error('Invalid bzip data');
+			}
 		}else{
 			this.socket.emit('message', payload);
 		}
