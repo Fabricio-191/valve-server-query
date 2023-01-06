@@ -1,10 +1,9 @@
 import { EventEmitter } from 'events';
 import type Server from './server';
-import type { AnyServerInfo, Players, Rules } from './parsers';
+import type { AnyServerInfo, Player, Players, Rules } from './parsers';
 import type { NonEmptyArray } from '../Base/utils';
 
 type InfoKeys = NonEmptyArray<keyof AnyServerInfo>;
-type Player = Players['list'][number];
 
 const queries = ['info', 'players', 'rules'] as const;
 
@@ -29,6 +28,8 @@ function parseOptions(options: RawOptions, previousOptions: Options): Options {
 		throw new Error('The watch option must be an array.');
 	}else if(data.watch.some(item => !queries.includes(item))){
 		throw new Error('The watch option must be an array with only "info", "players" or "rules".');
+	}else if(!Number.isInteger(data.interval) || data.interval < 0){
+		throw new Error('The interval option must be a positive integer.');
 	}
 
 	return data;
