@@ -58,5 +58,8 @@
   "funding": {
     "type": "patreon",
     "url": "https://www.patreon.com/fabricio_191"
+  },
+  "dependencies": {
+    "axios": "^1.2.2"
   }
 }
