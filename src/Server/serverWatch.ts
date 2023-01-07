@@ -43,7 +43,7 @@ function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
 
 
 interface Events {
-	statusUpdate: (status: 'offline' | 'online') => void;
+	statusUpdate: (newStatus: 'offline' | 'online') => void;
 
 	infoUpdate: (oldInfo: AnyServerInfo, newInfo: AnyServerInfo, changed: InfoKeys) => void;
 	playersUpdate: (oldPlayers: Players, newPlayers: Players) => void;
@@ -73,9 +73,10 @@ class ServerWatch extends EventEmitter {
 	private options: Options;
 	private interval: NodeJS.Timeout | null = null;
 
-	public info!: AnyServerInfo;
-	public players!: Players;
-	public rules!: Rules;
+	public info: AnyServerInfo | null = null;
+	public players: Players | null = null;
+	public rules: Rules | null = null;
+	public status: 'offline' | 'online' = 'offline';
 
 	public setOptions(options: RawOptions): this {
 		this.options = parseOptions(options, this.options);
@@ -101,26 +102,45 @@ class ServerWatch extends EventEmitter {
 	}
 
 	private update(): void {
-		Promise.all(
+		Promise.allSettled(
 			this.options.watch.map(x => this[`update_${x}`]())
 		)
-			.catch(err => this.emit('error', err))
+			.then(results => {
+				for(const promise of results){
+					if(promise.status === 'rejected'){
+						this.emit('error', promise.reason);
+					}
+				}
+
+				const status = results.some(x => x.status === 'fulfilled') ? 'online' : 'offline';
+				if(status !== this.status){
+					this.status = status;
+					this.emit('statusUpdate', status);
+				}
+			})
 			.finally(() => this.emit('update'));
 	}
 
 	private async update_info(): Promise<void> {
 		const oldInfo = this.info;
-		this.info = await this.server.getInfo();
+		try{
+			this.info = await this.server.getInfo();
+		}catch(e){
 
-		const changed = diferentKeys(oldInfo, this.info);
+		}
+		if(oldInfo === null) return;
+
+		const changed = diferentKeys(oldInfo, this.info as AnyServerInfo);
 		if(changed.length){
-			this.emit('infoUpdate', oldInfo, this.info, changed as InfoKeys);
+			this.emit('infoUpdate', oldInfo, this.info as AnyServerInfo, changed as InfoKeys);
 		}
 	}
 
 	private async update_players(): Promise<void> {
 		const oldPlayers = this.players;
 		this.players = await this.server.getPlayers();
+		if(oldPlayers === null) return;
+
 		let playersChanged = false;
 
 		for(const p of oldPlayers.list){
@@ -145,6 +165,7 @@ class ServerWatch extends EventEmitter {
 	private async update_rules(): Promise<void> {
 		const oldRules = this.rules;
 		this.rules = await this.server.getRules();
+		if(oldRules === null) return;
 
 		const changed = diferentKeys(oldRules, this.rules);
 		if(changed.length){
