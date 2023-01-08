@@ -24,17 +24,8 @@ Master-server rate limits:
 30 per minute
 60 per 5 minutes
 
-rate limits are not shared between master servers, the problem is that master servers ip's change (not really frequently)
-before:
 [ '208.64.200.65', '208.64.200.39', '208.64.200.52' ]
-now:
 [ '208.64.201.194', '208.64.201.193', '208.64.200.65' ]
-
-and dns.resolve fails 98% of the time, so i can't get the ip's of the master servers dynamically
-while dns.lookup never fails but returns only one ipx|
-
-master server returns a max of 231 servers per request
-const CHUNK_SIZE = 231;
 */
 
 // makes one query every 5 seconds
@@ -52,7 +43,6 @@ class SlowQueryConnection extends MasterServerConnection {
 		return await super.query(command);
 	}
 }
-// got a list of ~200000 servers in 1 hour and 17 minutes
 
 // makes a max of 30 queries in 1 minute and a max of 60 queries in 5 minutes
 class BulkQueryConnection extends MasterServerConnection {
@@ -65,8 +55,8 @@ class BulkQueryConnection extends MasterServerConnection {
 		this._requestsLastMinute++;
 		this._requestsLast5Minutes++;
 
-		setTimeout(() => this._requestsLastMinute--, 60000);
-		setTimeout(() => this._requestsLast5Minutes--, 300000);
+		setTimeout(() => this._requestsLastMinute--, 60000).unref();
+		setTimeout(() => this._requestsLast5Minutes--, 300000).unref();
 
 		return await super.query(command);
 	}
