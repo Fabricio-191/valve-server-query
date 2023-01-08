@@ -10,15 +10,8 @@ valve.setDefaultOptions({
 	timeout: 10000,
 });
 
-const server = new valve.Server();
-
-server.connect('85.190.154.179:27017')
-	.then(console.log)
-	.catch(console.error);
-
 /*
 To-do:
-* Server better connected promises
 * Server ping command
 * ServerWatch statusUpdate event
 
@@ -29,19 +22,35 @@ To-upgrade:
 */
 
 /*
+
+*/
+
+/*
+hostname: Fabricio
+version : 2022.06.08/24 8607 insecure
+udp/ip  : 49.12.122.244:33026  (public ip: 49.12.122.244)
+map     : gm_construct at: 0 x, 0 y, 0 z
+players : 1 (2 max)
+
+# userid name                uniqueid            connected ping loss state  adr
+#      2 "Fabricio-191"      STEAM_0:0:428035076 01:05      735    0 spawning 186.159.120.18:27005
+
+*/
+
 const onChunk = (servers: string[]): void => {
 	console.log(servers.length)
 }
 
-MasterServer({
+valve.MasterServer({
 	ip: '208.64.200.65',
 	port: 27011,
 	timeout: 5000,
-	quantity: 60000,
+	quantity: 20000,
+	// slow: true,
 }, onChunk)
-	.catch(console.error)
-
-*/
+	.then(x => console.log(x.length))
+	.catch(console.trace)
+	.finally(() => setTimeout(log, 1000));
 
 /*
 function classifyErrors(results: PromiseSettledResult<unknown>[], servers: string[]): void {
