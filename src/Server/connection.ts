@@ -8,13 +8,23 @@ interface SeekBzip {
 
 const seekBzip = optionalImport<SeekBzip>('seek-bzip');
 
-interface MultiPacket {
+interface GldSrcMultiPacket {
 	ID: number;
 	packets: {
 		current: number;
 		total: number;
 	};
-	goldSource: boolean;
+	goldSource: true;
+	payload: Buffer;
+}
+
+interface SourceMultiPacket {
+	ID: number;
+	packets: {
+		current: number;
+		total: number;
+	};
+	goldSource: false;
 	payload: Buffer;
 	raw: Buffer;
 	bzip?: {
@@ -22,6 +32,8 @@ interface MultiPacket {
 		CRC32_sum: number;
 	};
 }
+
+type MultiPacket = GldSrcMultiPacket | SourceMultiPacket;
 
 const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 
@@ -106,12 +118,12 @@ export default class Connection extends BaseConnection {
 				.map(p => p.payload)
 		);
 
-		if(queue[0].bzip){
+		if('bzip' in queue[0]){
 			if(!seekBzip) throw new Error('Bzip2 is not installed (npm i seek-bzip)');
 
 			try{
 				// eslint-disable-next-line
-				payload = seekBzip.decode(payload, queue[0].bzip!.uncompressedSize);
+				payload = seekBzip.decode(payload, queue[0].bzip.uncompressedSize);
 				this.socket.emit('message', payload);
 			}catch{
 				throw new Error('Invalid bzip data');
@@ -133,11 +145,10 @@ export default class Connection extends BaseConnection {
 			},
 			payload: reader.remaining(),
 			goldSource: true,
-			raw: buffer,
 		};
 
 		// @ts-expect-error payload will be added later
-		const info: MultiPacket = {
+		const info: SourceMultiPacket = {
 			ID,
 			packets: {
 				total: packets,
@@ -165,27 +176,7 @@ export default class Connection extends BaseConnection {
 		return info;
 	}
 
-	public lastPing = -1;
-	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
-		await this.send(command);
-		let start = Date.now();
-
-		const timeout = setTimeout(() => {
-			this.send(command).catch(() => { /* do nothing */ });
-			start = Date.now();
-		}, this.data.timeout / 2)
-			.unref();
-
-		return await this.awaitResponse(responseHeaders)
-			.finally(() => {
-				clearTimeout(timeout);
-				this.lastPing = Date.now() - start;
-			});
-	}
-
 	public async makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
-		await this.mustBeConnected();
-
 		let buffer = await this.query(command(), responseHeaders);
 		let attempt = 0;
 

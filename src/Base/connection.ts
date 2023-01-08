@@ -18,24 +18,17 @@ export default abstract class BaseConnection {
 	public readonly data: BaseData;
 	protected readonly socket: Socket;
 
-	private _isConnected: Promise<void> | false = false;
-	public async mustBeConnected(): Promise<void> {
-		if(!this._isConnected) throw new Error('Not connected/ing');
-		await this._isConnected;
-	}
-
 	protected abstract onMessage(buffer: Buffer): void;
 
+	// must call connect method right after creating the connection
 	public connect(): Promise<void> {
-		this._isConnected = new Promise((res, rej) => {
-			// @ts-expect-error asdasdasd
+		return new Promise((res, rej) => {
+			// @ts-expect-error bad typings
 			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
 				if(err) rej(err);
 				else res();
 			});
 		});
-
-		return this._isConnected;
 	}
 
 	public destroy(): void {
