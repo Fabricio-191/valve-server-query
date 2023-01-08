@@ -81,10 +81,6 @@ export default class Connection extends BaseConnection {
 			this.handleMultiplePackets(buffer);
 		}else{
 			debug(this.data, 'SERVER cannot parse packet', buffer);
-			if(this.data.enableWarns){
-				// eslint-disable-next-line no-console
-				console.warn("Warning: a packet couln't be handled");
-			}
 		}
 	}
 

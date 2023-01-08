@@ -22,7 +22,6 @@ export interface BaseData {
 	ip: string;
 	port: number;
 	timeout: number;
-	enableWarns: boolean;
 }
 
 export interface MasterServerData extends BaseData {
@@ -48,7 +47,6 @@ interface BaseRawOptions {
 	ip?: string;
 	port?: number | string;
 	timeout?: number;
-	enableWarns?: boolean;
 }
 
 export type RawRCONOptions = string | (BaseRawOptions & { password: string });
@@ -66,30 +64,28 @@ const DEFAULT_OPTIONS = {
 	ip: '127.0.0.1',
 	port: 27015,
 	timeout: 5000,
-	enableWarns: true,
-} as const;
+};
 
 const DEFAULT_SERVER_OPTIONS = {
 	...DEFAULT_OPTIONS,
 	appID: -1,
 	multiPacketGoldSource: false,
 	protocol: -1,
-} as const;
+};
 
 const DEFAULT_MASTER_SERVER_OPTIONS = {
 	ip: 'hl2master.steampowered.com',
 	port: 27011,
 	timeout: 5000,
-	enableWarns: true,
 
 	quantity: 200,
-	region: 'ANY',
+	region: 'ANY' as const,
 	filter: new Filter(),
 	slow: false,
-} as const;
+};
 
-export function setDefaultOptions(options: BaseRawOptions): void {
-	Object.assign(DEFAULT_OPTIONS, options);
+export function setDefaultTimeout(timeout: number): void {
+	DEFAULT_OPTIONS.timeout = DEFAULT_MASTER_SERVER_OPTIONS.timeout = DEFAULT_SERVER_OPTIONS.timeout = timeout;
 }
 // #endregion
 
@@ -112,8 +108,6 @@ async function resolveHostname(options: Required<BaseRawOptions>): Promise<void>
 async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
 	if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
 		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.enableWarns !== 'boolean'){
-		throw Error("'enableWarns' should be a boolean");
 	}else if(typeof options.timeout !== 'number' || isNaN(options.timeout) || options.timeout < 0){
 		throw Error("'timeout' should be a number greater than zero");
 	}else if(typeof options.ip !== 'string'){
@@ -168,9 +162,9 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 		throw Error("'slow' should be a boolean");
 	}
 
+	// @ts-expect-error quantity is a number
 	return {
 		...parsedOptions,
-		quantity: parsedOptions.quantity,
 		region: REGIONS[parsedOptions.region],
 		filter: parsedOptions.filter.toString(),
 	};
