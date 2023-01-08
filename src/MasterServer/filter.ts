@@ -111,6 +111,10 @@ export default class Filter{
 		return this.nand(new Filter().nor(filter));
 	}
 
+	public get isEmpty(): boolean {
+		return this.filters.length === 0;
+	}
+
 	public toString(): string {
 		return this.filters.join('');
 	}

@@ -10,9 +10,9 @@ import type Axios from 'axios';
 
 const axios = optionalImport<typeof Axios>('axios');
 
-async function get(url: string): Promise<unknown> {
+async function get(url: URL): Promise<unknown> {
 	if(!axios) throw new Error('axios not installed');
-	const res = await axios.get(url);
+	const res = await axios.get(url.toString());
 	if(res.status !== 200) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
 	return res.data as unknown;
@@ -58,13 +58,13 @@ class WebApi {
 		url.searchParams.set('key', this.key);
 		url.searchParams.set('limit', limit.toString());
 
-		if(filter instanceof Filter && filter.toString()){
+		if(filter instanceof Filter && !filter.isEmpty){
 			url.searchParams.set('filter', filter.toString());
 		}else if(Number.isInteger(filter)){
 			limit = filter as number;
 		}
 
-		const data = await get(url.toString()) as Response<{ servers: string[] }>;
+		const data = await get(url) as Response<{ servers: string[] }>;
 		if(!data.response.success) throw new Error(data.response.message);
 
 		return data.response.servers;
@@ -74,7 +74,7 @@ class WebApi {
 		const url = new URL('https://api.steampowered.com/ISteamApps/GetServersAtAddress/v1/');
 		url.searchParams.set('addr', address);
 
-		const data = await get(url.toString()) as Response<{ servers: serverData[] }>;
+		const data = await get(url) as Response<{ servers: serverData[] }>;
 		if(!data.response.success) throw new Error(data.response.message);
 
 		return data.response.servers;
@@ -82,7 +82,7 @@ class WebApi {
 
 	public static async getAppsList() {
 		const url = new URL('https://api.steampowered.com/ISteamApps/GetAppList/v2/');
-		const data = await get(url.toString()) as {
+		const data = await get(url) as {
 			applist: {
 				apps: Array<{
 					appid: number;
