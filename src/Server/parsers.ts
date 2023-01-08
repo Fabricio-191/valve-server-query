@@ -96,7 +96,7 @@ export interface Rules {
 	count: number;
 	partial: boolean;
 	rules: {
-		[key: string]: boolean | number | string;
+		[key: string]: string;
 	};
 }
 // #endregion
@@ -301,17 +301,7 @@ export function rules(buffer: Buffer): Rules {
 		try{
 			const key = reader.string(), value = reader.string();
 
-			if(value === 'True'){
-				data.rules[key] = true;
-			}else if(value === 'False'){
-				data.rules[key] = false;
-			}else{
-				try{
-					data.rules[key] = Number(value);
-				}catch{
-					data.rules[key] = value;
-				}
-			}
+			data.rules[key] = value;
 		}catch{
 			data.partial = true;
 			break;
