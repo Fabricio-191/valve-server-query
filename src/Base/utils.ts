@@ -138,7 +138,7 @@ debug.enable = function enableDebug(file = 'debug.log'): void {
 	if(log !== null) throw new Error('Debug already enabled');
 	log = '';
 
-	setInterval(debug.save, 1000, file);
+	setInterval(debug.save, 1000, file).unref();
 
 	process.on('beforeExit', () => {
 		if(log !== '') writeFileSync(file, log as string);
