@@ -13,7 +13,7 @@ const responsesHeaders = {
 	GLDSRC_INFO: [0x6D],
 	PLAYERS_OR_CHALLENGE: [0x44, 0x41],
 	RULES_OR_CHALLENGE: [0x45, 0x41],
-};
+} as const;
 
 const COMMANDS = {
 	_INFO: makeCommand(0x54, Buffer.from('Source Engine Query\0')),
@@ -39,14 +39,9 @@ async function getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
 	return info;
 }
 
-type ConnectedServer = Server & { connection: Connection };
 export default class Server{
 	public _connected: Promise<parsers.AnyServerInfo> | false = false;
 	public connection: Connection | null = null;
-
-	public isConnected(): this is ConnectedServer {
-		return this.connection !== null;
-	}
 
 	private async _mustBeConnected(): Promise<void> {
 		if(this._connected) await this._connected;
@@ -54,7 +49,7 @@ export default class Server{
 	}
 
 	public async connect(options: RawServerOptions = {}): Promise<parsers.AnyServerInfo> {
-		if(this.isConnected()){
+		if(this._connected){
 			throw new Error('Server: already connected.');
 		}
 
@@ -77,11 +72,6 @@ export default class Server{
 		if(!this.connection) throw new Error('Not connected');
 		this.connection.destroy();
 		this.connection = null;
-	}
-
-	public get lastPing(): number {
-		if(this.connection) return this.connection.lastPing;
-		return -1;
 	}
 
 	public async getInfo(): Promise<parsers.AnyServerInfo> {
