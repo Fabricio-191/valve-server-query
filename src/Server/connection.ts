@@ -1,4 +1,4 @@
-import { debug, BufferReader, type NonEmptyArray, optionalImport } from '../Base/utils';
+import { BufferReader, type NonEmptyArray, optionalImport } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
 
@@ -8,6 +8,7 @@ interface SeekBzip {
 
 const seekBzip = optionalImport<SeekBzip>('seek-bzip');
 
+// const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
 interface GldSrcMultiPacket {
 	ID: number;
 	packets: {
@@ -18,14 +19,8 @@ interface GldSrcMultiPacket {
 	payload: Buffer;
 }
 
-interface SourceMultiPacket {
-	ID: number;
-	packets: {
-		current: number;
-		total: number;
-	};
+interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
 	goldSource: false;
-	payload: Buffer;
 	raw: Buffer;
 	bzip?: {
 		uncompressedSize: number;
@@ -35,141 +30,79 @@ interface SourceMultiPacket {
 
 type MultiPacket = GldSrcMultiPacket | SourceMultiPacket;
 
-const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
-
-/*
-https://github.com/cscott/seek-bzip
-https://github.com/antimatter15/bzip2.js
-
-const bzipStart = Buffer.from('BZh');
+const bzipStart = Buffer.from('BZh'); // 42 5a 68
 const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
-function getPacketType(buffer: Buffer): string {
-	const header = buffer.readInt32LE();
+type PacketType = 0 | 1 | 2 | 3;
+function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works for first packet only
+	const i = buffer.indexOf(h);
+	if(i === 9) return 1; // GoldSource multi packet
 
-	if(header === -1){
-		return 'simple';
-	}else if(header === -2){
-		const index = buffer.indexOf(h);
-		if(index === 9){
-			return 'gld-src-multi';
-		}else if(index === 10){
-			return 'multi-without-maxPacketSize';
-		}else if(index === 12){
-			return 'multi';
-		}
+	const currentPacket = buffer.readUInt8(9);
+	if(currentPacket !== 0) return 0; // not the first packet or unknown
 
-		const i = buffer.indexOf(bzipStart);
-		if(i === 10){
-			return 'bzip-without-maxPacketSize';
-		}else if(i === 12){
-			return 'bzip';
-		}
+	if(currentPacket === 0 && ID & 0x80000000){
+		const i2 = buffer.indexOf(bzipStart);
+		if(i2 === 18) return 2; // Source multi packet without maxPacketSize (with bzip)
+		else if(i2 === 20) return 3; // Source multi packet with maxPacketSize (with bzip)
+	}else{
+		// eslint-disable-next-line no-lonely-if
+		if(i === 10) return 2; // Source multi packet without maxPacketSize (without bzip)
+		else if(i === 12) return 3; // Source multi packet with maxPacketSize (without bzip)
 	}
 
-	throw new Error('Invalid multi-packet');
+	return 0; // not the first packet or unknown
 }
-*/
-export default class Connection extends BaseConnection {
-	public readonly data!: ServerData;
-	private readonly packetsQueues: Map<number, NonEmptyArray<MultiPacket>> = new Map();
 
-	protected onMessage(buffer: Buffer): void {
-		const header = buffer.readInt32LE();
-		if(header === -1){
-			this.socket.emit('packet', buffer.subarray(4));
-		}else if(header === -2){
-			this.handleMultiplePackets(buffer);
-		}else{
-			debug(this.data, 'SERVER cannot parse packet', buffer);
-		}
-	}
+export default class Connection extends BaseConnection<ServerData> {
+	private readonly packetsQueues: Map<number, {
+		list: Buffer[];
+		totalPackets: number;
+		type: PacketType;
+	}> = new Map();
 
-	private handleMultiplePackets(buffer: Buffer): void {
-		if(buffer.length > 13 && buffer.readInt32LE(9) === -1){
-			this.data.multiPacketGoldSource = true;
-			debug(this.data, 'SERVER changed packet parsing');
+	protected handleMultiplePackets(buffer: Buffer): void {
+		const packetID = buffer.readUInt32LE();
+
+		if(!this.packetsQueues.has(packetID)){
+			this.packetsQueues.set(packetID, {
+				list: [],
+				totalPackets: -1,
+				type: 0,
+			});
 		}
 
-		const packet = this._parseMultiPacket(buffer);
-		if(!this.packetsQueues.has(packet.ID)){
-			this.packetsQueues.set(packet.ID, [packet]);
-			return;
-		}
+		const queue = this.packetsQueues.get(packetID)!;
+		queue.list.push(buffer);
 
-		let queue = this.packetsQueues.get(packet.ID)!;
-		if(queue.push(packet) !== packet.packets.total) return;
+		if(queue.list.length === queue.totalPackets){
+			const packets = queue.list.map(p => parsePacket(p, queue.type as 1 | 2 | 3)) as NonEmptyArray<MultiPacket>;
 
-		this.packetsQueues.delete(packet.ID);
+			let payload = Buffer.concat(
+				packets.sort((p1, p2) => p1.packets.current - p2.packets.current)
+					.map(p => p.payload)
+			);
 
-		if(this.data.multiPacketGoldSource){
-			queue = queue.map(p => {
-				if(p.goldSource) return p;
-				return this._parseMultiPacket(p.raw);
-			}) as NonEmptyArray<MultiPacket>;
-		}
+			if('bzip' in packets[0]){
+				if(!seekBzip) throw new Error('optional dependency seek-bzip is not installed');
 
-		let payload = Buffer.concat(
-			queue
-				.sort((p1, p2) => p1.packets.current - p2.packets.current)
-				.map(p => p.payload)
-		);
-
-		if('bzip' in queue[0]){
-			if(!seekBzip) throw new Error('Bzip2 is not installed (npm i seek-bzip)');
-
-			try{
-				// eslint-disable-next-line
-				payload = seekBzip.decode(payload, queue[0].bzip.uncompressedSize);
-				this.socket.emit('message', payload);
-			}catch{
-				throw new Error('Invalid bzip data');
+				payload = seekBzip.decode(payload, packets[0].bzip.uncompressedSize);
 			}
-		}else{
+
 			this.socket.emit('message', payload);
-		}
-	}
+			this.packetsQueues.delete(packetID);
+		}else{
+			const packetType = getMultiPacketType(buffer, packetID);
+			if(packetType === 0) return;
 
-	private _parseMultiPacket(buffer: Buffer): MultiPacket {
-		const reader = new BufferReader(buffer, 4);
-		const ID = reader.long(), packets = reader.byte();
-
-		if(this.data.multiPacketGoldSource) return {
-			ID,
-			packets: {
-				current: packets >> 4,
-				total: packets & 0x0F,
-			},
-			payload: reader.remaining(),
-			goldSource: true,
-		};
-
-		// @ts-expect-error payload will be added later
-		const info: SourceMultiPacket = {
-			ID,
-			packets: {
-				total: packets,
-				current: reader.byte(),
-			},
-			goldSource: false,
-			raw: buffer,
-		};
-
-		if(!(this.data.protocol === 7 && MPS_IDS.includes(this.data.appID))){
-			// info.maxPacketSize = reader.short();
-			reader.addOffset(2);
+			if(queue.type === 0){
+				queue.type = packetType;
+				queue.totalPackets = parsePacket(buffer, packetType).packets.total;
+			}else if(queue.type !== packetType){
+				throw new Error('Multiple packets with different types');
+			}
 		}
 
-		if(info.packets.current === 0 && info.ID & 0x80000000){
-			debug(this.data, 'SERVER bzip');
-			info.bzip = {
-				uncompressedSize: reader.long(),
-				CRC32_sum: reader.long(),
-			};
-		}
-
-		info.payload = reader.remaining();
-
-		return info;
+		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
 	}
 
 	public async makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
@@ -194,4 +127,43 @@ export default class Connection extends BaseConnection {
 		await connection.connect();
 		return connection;
 	}
+}
+
+function parsePacket(buffer: Buffer, type: Exclude<PacketType, 0>): MultiPacket {
+	const reader = new BufferReader(buffer, 4);
+	const ID = reader.long(), packets = reader.byte();
+
+	if(type === 1) return {
+		ID,
+		packets: {
+			current: packets >> 4,
+			total: packets & 0x0F,
+		},
+		payload: reader.remaining(),
+		goldSource: true,
+	};
+
+	// @ts-expect-error payload is added later
+	const packet: SourceMultiPacket = {
+		ID: reader.long(),
+		packets: {
+			total: packets,
+			current: reader.byte(),
+		},
+		goldSource: false,
+		raw: buffer,
+	};
+
+	if(type === 3) reader.addOffset(2); // skip maxPacketSize
+
+	if(packet.packets.current === 0 && packet.ID & 0x80000000){
+		packet.bzip = {
+			uncompressedSize: reader.long(),
+			CRC32_sum: reader.long(),
+		};
+	}
+
+	packet.payload = reader.remaining();
+
+	return packet;
 }
