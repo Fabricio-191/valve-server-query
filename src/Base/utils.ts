@@ -106,7 +106,8 @@ export class BufferReader{
 	}
 }
 
-let log: string | null = null;
+let log = '';
+let logFile: string | null = null;
 export function debug(data: BaseData | number | object | string, string: string, buffer?: Buffer): void {
 	if(log === null) return;
 
@@ -135,20 +136,21 @@ export function debug(data: BaseData | number | object | string, string: string,
 }
 
 debug.enable = function enableDebug(file = 'debug.log'): void {
-	if(log !== null) throw new Error('Debug already enabled');
+	if(logFile !== null) throw new Error('Debug already enabled');
 	log = '';
+	logFile = file;
 
-	setInterval(debug.save, 1000, file).unref();
+	setInterval(debug.save, 1000).unref();
 
 	process.on('beforeExit', () => {
-		if(log !== '') writeFileSync(file, log as string);
+		if(log !== '') writeFileSync(file, log);
 	});
 };
 
-debug.save = function saveDebug(file = 'debug.log'): void {
-	if(log === null) throw new Error('Debug disabled');
+debug.save = function saveDebug(): void {
+	if(logFile === null) throw new Error('Debug disabled');
 
-	writeFileSync(file, log);
+	writeFileSync(logFile, log);
 };
 
 export function delay(ms: number): Promise<void> {
