@@ -21,13 +21,15 @@ const COMMANDS = {
 		if(key) return Buffer.concat([COMMANDS._INFO, key]);
 		return COMMANDS._INFO;
 	},
-	PLAYERS: 	makeCommand.bind(null, 0x55),
-	RULES:   	makeCommand.bind(null, 0x56),
+	PLAYERS: makeCommand.bind(null, 0x55),
+	RULES:   makeCommand.bind(null, 0x56),
 };
 
-async function getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
+type InfoWithPing = parsers.AnyServerInfo & { ping: number };
+async function getInfo(connection: Connection): Promise<InfoWithPing> {
 	const buffer = await connection.makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
-	const info: parsers.AnyServerInfo = parsers.serverInfo(buffer);
+	// @ts-expect-error ping is added later
+	const info: InfoWithPing = parsers.serverInfo(buffer);
 
 	try{
 		const otherHeader = buffer[0] === 0x49 ? responsesHeaders.GLDSRC_INFO : responsesHeaders.INFO;
@@ -36,11 +38,13 @@ async function getInfo(connection: Connection): Promise<parsers.AnyServerInfo> {
 		Object.assign(info, parsers.serverInfo(otherBuffer));
 	}catch{}
 
+	info.ping = connection._lastPing;
+
 	return info;
 }
 
 export default class Server{
-	public _connected: Promise<parsers.AnyServerInfo> | false = false;
+	public _connected: Promise<InfoWithPing> | false = false;
 	public connection: Connection | null = null;
 
 	private async _mustBeConnected(): Promise<void> {
@@ -48,7 +52,7 @@ export default class Server{
 		else throw new Error('Not connected');
 	}
 
-	public async connect(options: RawServerOptions = {}): Promise<parsers.AnyServerInfo> {
+	public async connect(options: RawServerOptions = {}): Promise<InfoWithPing> {
 		if(this._connected){
 			throw new Error('Server: already connected.');
 		}
@@ -74,7 +78,7 @@ export default class Server{
 		this.connection = null;
 	}
 
-	public async getInfo(): Promise<parsers.AnyServerInfo> {
+	public async getInfo(): Promise<InfoWithPing> {
 		await this._mustBeConnected();
 		return await getInfo(this.connection!);
 	}
@@ -93,12 +97,36 @@ export default class Server{
 		return parsers.rules(buffer);
 	}
 
-	public static async getInfo(options: RawServerOptions): Promise<parsers.AnyServerInfo> {
+	public get lastPing(): number {
+		return this.connection ? this.connection._lastPing : -1;
+	}
+
+	public static async getInfo(options: RawServerOptions): Promise<InfoWithPing> {
 		const connection = await Connection.init(options);
 		const info = await getInfo(connection);
 
 		connection.destroy();
 		return info;
+	}
+
+	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
+		const connection = await Connection.init(options);
+		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
+
+		const players = parsers.players(buffer, connection.data);
+		connection.destroy();
+
+		return players;
+	}
+
+	public static async getRules(options: RawServerOptions): Promise<parsers.Rules> {
+		const connection = await Connection.init(options);
+		const buffer = await connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
+
+		const rules = parsers.rules(buffer);
+		connection.destroy();
+
+		return rules;
 	}
 
 	public static async init(options: RawServerOptions): Promise<Server> {
