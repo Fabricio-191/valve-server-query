@@ -2,20 +2,14 @@ import BaseConnection from '../Base/connection';
 import { delay } from '../Base/utils';
 import type { MasterServerData } from '../Base/options';
 
-class MasterServerConnection extends BaseConnection {
+class MasterServerConnection extends BaseConnection<MasterServerData> {
 	public async query(command: Buffer): Promise<Buffer> {
 		return await super.query(command, [0x66]);
 	}
 
-	protected onMessage(buffer: Buffer): void {
-		const header = buffer.readInt32LE();
-		if(header === -1){
-			this.socket.emit('packet', buffer.subarray(4));
-		}else if(header === -2){
-			throw new Error("Multi-packet shouldn't happen in master servers");
-		}else{
-			throw new Error('Invalid packet');
-		}
+	// eslint-disable-next-line class-methods-use-this
+	protected handleMultiplePackets(): void {
+		throw new Error('Master servers should not send multiple packets');
 	}
 }
 
