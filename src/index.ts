@@ -2,7 +2,6 @@ import Server from './Server/server';
 import MasterServer from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
 import { debug } from './Base/utils';
-import { setDefaultOptions } from './Base/options';
 
 const enableDebug = debug.enable;
 
@@ -13,5 +12,5 @@ export type {
 	Player, TheShipPlayer
 } from './Server/parsers';
 
-export { Server, MasterServer, RCON, enableDebug, debug, setDefaultOptions };
-export default { Server, MasterServer, RCON, enableDebug, debug, setDefaultOptions };
+export { Server, MasterServer, RCON, enableDebug, debug };
+export default { Server, MasterServer, RCON, enableDebug, debug };
