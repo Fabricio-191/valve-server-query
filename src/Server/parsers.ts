@@ -299,9 +299,7 @@ export function rules(buffer: Buffer): Rules {
 
 	for(let i = 0; i < data.count; i++){
 		try{
-			const key = reader.string(), value = reader.string();
-
-			data.rules[key] = value;
+			data.rules[reader.string()] = reader.string();
 		}catch{
 			data.partial = true;
 			break;
