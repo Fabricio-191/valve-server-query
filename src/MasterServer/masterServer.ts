@@ -1,8 +1,8 @@
 /* eslint-disable new-cap */
-import { BufferWriter, BufferReader } from '../Base/utils';
 import { parseMasterServerOptions, type RawMasterServerOptions } from '../Base/options';
-import Filter from './filter';
+import { BufferReader, BufferWriter } from '../Base/utils';
 import createConnection from './connection';
+import Filter from './filter';
 
 function makeCommand(region: number, filter: string, last: string): Buffer {
 	return new BufferWriter()

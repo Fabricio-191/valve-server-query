@@ -3,7 +3,7 @@ import { delay } from '../Base/utils';
 import type { MasterServerData } from '../Base/options';
 
 class MasterServerConnection extends BaseConnection<MasterServerData> {
-	public async query(command: Buffer): Promise<Buffer> {
+	public override async query(command: Buffer): Promise<Buffer> {
 		return await super.query(command, [0x66]);
 	}
 
@@ -17,7 +17,7 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 const TIME_BETWEEN_REQUESTS = 5000;
 class SlowQueryConnection extends MasterServerConnection {
 	private _lastRequest = 0;
-	public async query(command: Buffer): Promise<Buffer> {
+	public override async query(command: Buffer): Promise<Buffer> {
 		const diff = Date.now() - this._lastRequest;
 		if(diff < TIME_BETWEEN_REQUESTS){
 			await delay(TIME_BETWEEN_REQUESTS - diff);
@@ -34,7 +34,7 @@ class BulkQueryConnection extends MasterServerConnection {
 	private _requestsLastMinute = 0;
 	private _requestsLast5Minutes = 0;
 
-	public async query(command: Buffer): Promise<Buffer> {
+	public override async query(command: Buffer): Promise<Buffer> {
 		while(this._requestsLastMinute >= 30 || this._requestsLast5Minutes >= 60) await delay(100);
 
 		this._requestsLastMinute++;
