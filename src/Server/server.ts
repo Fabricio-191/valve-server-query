@@ -30,6 +30,7 @@ async function getInfo(connection: Connection): Promise<InfoWithPing> {
 	const buffer = await connection.makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
 	// @ts-expect-error ping is added later
 	const info: InfoWithPing = parsers.serverInfo(buffer);
+	info.ping = connection._lastPing;
 
 	try{
 		const otherHeader = buffer[0] === 0x49 ? responsesHeaders.GLDSRC_INFO : responsesHeaders.INFO;
@@ -38,7 +39,6 @@ async function getInfo(connection: Connection): Promise<InfoWithPing> {
 		Object.assign(info, parsers.serverInfo(otherBuffer));
 	}catch{}
 
-	info.ping = connection._lastPing;
 
 	return info;
 }

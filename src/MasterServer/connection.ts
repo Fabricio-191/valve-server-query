@@ -13,15 +13,6 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 	}
 }
 
-/*
-Master-server rate limits:
-30 per minute
-60 per 5 minutes
-
-[ '208.64.200.65', '208.64.200.39', '208.64.200.52' ]
-[ '208.64.201.194', '208.64.201.193', '208.64.200.65' ]
-*/
-
 // makes one query every 5 seconds
 const TIME_BETWEEN_REQUESTS = 5000;
 class SlowQueryConnection extends MasterServerConnection {
@@ -44,7 +35,7 @@ class BulkQueryConnection extends MasterServerConnection {
 	private _requestsLast5Minutes = 0;
 
 	public async query(command: Buffer): Promise<Buffer> {
-		while(this._requestsLastMinute >= 30 || this._requestsLast5Minutes >= 60) await delay(1000);
+		while(this._requestsLastMinute >= 30 || this._requestsLast5Minutes >= 60) await delay(100);
 
 		this._requestsLastMinute++;
 		this._requestsLast5Minutes++;
@@ -62,3 +53,12 @@ export default async function createConnection(data: MasterServerData): Promise<
 
 	return connection;
 }
+
+/*
+Master-server rate limits:
+30 per minute
+60 per 5 minutes
+
+[ '208.64.200.65', '208.64.200.39', '208.64.200.52' ]
+[ '208.64.201.194', '208.64.201.193', '208.64.200.65' ]
+*/

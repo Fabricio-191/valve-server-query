@@ -91,7 +91,7 @@ export default abstract class BaseConnection<T extends BaseData> {
 
 		const start = Date.now();
 		const timeout = setTimeout(() => {
-			// this.send(command).catch(() => { /* do nothing */ });
+			this.send(command).catch(() => { /* do nothing */ });
 		}, this.data.timeout / 2)
 			.unref();
 

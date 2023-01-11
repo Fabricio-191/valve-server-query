@@ -19,9 +19,8 @@ export default async function MasterServer(
 	const data = await parseMasterServerOptions(options);
 	const connection = await createConnection(data);
 
-	let last = '0.0.0.0:0';
-
 	const servers: string[] = [];
+	let last = '0.0.0.0:0';
 
 	do{
 		const command = makeCommand(data.region, data.filter, last);
