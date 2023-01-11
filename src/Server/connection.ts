@@ -38,26 +38,24 @@ function indexOf(buffer: Buffer, value: Buffer, maxIndex: number): number {
 
 const bzipStart = Buffer.from('BZh'); // 42 5a 68
 const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
-type PacketType = 0 | 1 | 2 | 3;
+type PacketType = 'gldSrc' | 'src' | 'srcWithoutSize' | null;
 function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works for first packet only
-	const i = indexOf(buffer, h, 16);
-	if(i === -1) return 0; // not the first packet or unknown
-	if(i === 9) return 1; // GoldSource multi packet
+	let i = indexOf(buffer, h, 16);
+	if(i === -1) return null;
+	if(i === 9) return 'gldSrc';
 
 	const currentPacket = buffer.readUInt8(9);
-	if(currentPacket !== 0) return 0; // not the first packet
+	if(currentPacket !== 0) return null;
 
 	if(ID & 0x80000000){
-		const i2 = indexOf(buffer, bzipStart, 24);
-		if(i2 === 18) return 2; // Source multi packet without maxPacketSize (with bzip)
-		else if(i2 === 20) return 3; // Source multi packet with maxPacketSize (with bzip)
-	}else{
-		// eslint-disable-next-line no-lonely-if
-		if(i === 10) return 2; // Source multi packet without maxPacketSize (without bzip)
-		else if(i === 12) return 3; // Source multi packet with maxPacketSize (without bzip)
+		i = indexOf(buffer, bzipStart, 24) - 8;
+		if(i === -1) return null;
 	}
 
-	return 0; // not the first packet or unknown
+	if(i === 10) return 'srcWithoutSize';
+	if(i === 12) return 'src';
+
+	return null;
 }
 
 export default class Connection extends BaseConnection<ServerData> {
@@ -74,7 +72,7 @@ export default class Connection extends BaseConnection<ServerData> {
 			this.packetsQueues.set(packetID, {
 				list: [],
 				totalPackets: -1,
-				type: 0,
+				type: null,
 			});
 		}
 
@@ -82,7 +80,7 @@ export default class Connection extends BaseConnection<ServerData> {
 		queue.list.push(buffer);
 
 		if(queue.list.length === queue.totalPackets){
-			const packets = queue.list.map(p => parsePacket(p, queue.type as 1 | 2 | 3)) as NonEmptyArray<MultiPacket>;
+			const packets = queue.list.map(p => parsePacket(p, queue.type!)) as NonEmptyArray<MultiPacket>;
 
 			let payload = Buffer.concat(
 				packets.sort((p1, p2) => p1.packets.current - p2.packets.current)
@@ -99,14 +97,14 @@ export default class Connection extends BaseConnection<ServerData> {
 			this.packetsQueues.delete(packetID);
 		}else{
 			const packetType = getMultiPacketType(buffer, packetID);
-			if(packetType === 0) return;
+			if(!packetType) return;
 
-			if(queue.type === 0){
+			if(queue.type) throw new Error('Multiple packets with different types');
+			else{
 				queue.type = packetType;
 				queue.totalPackets = parsePacket(buffer, packetType).packets.total;
-			}else throw new Error('Multiple packets with different types');
+			}
 		}
-
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
 	}
 
@@ -134,11 +132,11 @@ export default class Connection extends BaseConnection<ServerData> {
 	}
 }
 
-function parsePacket(buffer: Buffer, type: Exclude<PacketType, 0>): MultiPacket {
+function parsePacket(buffer: Buffer, type: Exclude<PacketType, null>): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
 
-	if(type === 1) return {
+	if(type === 'gldSrc') return {
 		ID,
 		packets: {
 			current: packets >> 4,
@@ -159,7 +157,7 @@ function parsePacket(buffer: Buffer, type: Exclude<PacketType, 0>): MultiPacket 
 		raw: buffer,
 	};
 
-	if(type === 3) reader.addOffset(2); // skip maxPacketSize
+	if(type === 'src') reader.addOffset(2); // skip maxPacketSize
 
 	if(packet.packets.current === 0 && packet.ID & 0x80000000){
 		packet.bzip = {
