@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import Connection from './connection';
+import createConnection, { type Connection } from './connection';
 import * as parsers from './parsers';
 import type { RawServerOptions } from '../Base/options';
 
@@ -58,7 +58,7 @@ export default class Server{
 		}
 
 		this._connected = (async () => {
-			this.connection = await Connection.init(options);
+			this.connection = await createConnection(options);
 			const info = await getInfo(this.connection);
 
 			Object.assign(this.connection.data, {
@@ -102,7 +102,7 @@ export default class Server{
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<InfoWithPing> {
-		const connection = await Connection.init(options);
+		const connection = await createConnection(options);
 		const info = await getInfo(connection);
 
 		connection.destroy();
@@ -110,7 +110,7 @@ export default class Server{
 	}
 
 	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
-		const connection = await Connection.init(options);
+		const connection = await createConnection(options);
 		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 
 		const players = parsers.players(buffer, connection.data);
@@ -120,7 +120,7 @@ export default class Server{
 	}
 
 	public static async getRules(options: RawServerOptions): Promise<parsers.Rules> {
-		const connection = await Connection.init(options);
+		const connection = await createConnection(options);
 		const buffer = await connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 
 		const rules = parsers.rules(buffer);
