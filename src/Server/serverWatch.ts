@@ -101,7 +101,7 @@ class ServerWatch extends EventEmitter {
 		else this.interval.unref();
 	}
 
-	private update(): void {
+	public update(): void {
 		Promise.allSettled(
 			this.options.watch.map(x => this[`update_${x}`]())
 		)
@@ -123,11 +123,7 @@ class ServerWatch extends EventEmitter {
 
 	private async update_info(): Promise<void> {
 		const oldInfo = this.info;
-		try{
-			this.info = await this.server.getInfo();
-		}catch(e){
-
-		}
+		this.info = await this.server.getInfo();
 		if(oldInfo === null) return;
 
 		const changed = diferentKeys(oldInfo, this.info as AnyServerInfo);
