@@ -100,6 +100,8 @@ async function resolveHostname(options: Required<BaseRawOptions>): Promise<void>
 			// eslint-disable-next-line @typescript-eslint/no-throw-literal
 			throw '';
 		}
+
+		options.ip = r.address;
 	}catch(e){
 		throw Error("'ip' is not a valid IP address or hostname");
 	}
