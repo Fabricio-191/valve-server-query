@@ -8,57 +8,39 @@ interface SeekBzip {
 
 const seekBzip = optionalImport<SeekBzip>('seek-bzip');
 
-// const MPS_IDS = Object.freeze([ 215, 240, 17550, 17700 ]);
-interface GldSrcMultiPacket {
-	ID: number;
-	packets: {
-		current: number;
-		total: number;
-	};
-	goldSource: true;
-	payload: Buffer;
-}
+function equals(buf1: Buffer, buf2: Buffer, start: number): boolean {
+	const end = start + buf2.length;
+	if(buf1.length < end) return false;
 
-interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
-	goldSource: false;
-	raw: Buffer;
-	bzip?: {
-		uncompressedSize: number;
-		CRC32_sum: number;
-	};
-}
-
-type MultiPacket = GldSrcMultiPacket | SourceMultiPacket;
-
-function indexOf(buffer: Buffer, value: Buffer, maxIndex: number): number {
-	// if(value.length > buffer.length) return -1;
-
-	return buffer.subarray(0, maxIndex).indexOf(value);
+	return buf2.compare(buf1, start, end) === 0;
 }
 
 const bzipStart = Buffer.from('BZh'); // 42 5a 68
-const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+const header1 = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 type PacketType = 'gldSrc' | 'src' | 'srcWithoutSize' | null;
 function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works for first packet only
-	let i = indexOf(buffer, h, 16);
-	if(i === -1) return null;
-	if(i === 9) return 'gldSrc';
+	if(equals(buffer, header1, 9)){
+		const currentPacket = buffer.readUInt8(8) >> 4;
+		if(currentPacket !== 0) return null;
+
+		return 'gldSrc';
+	}
 
 	const currentPacket = buffer.readUInt8(9);
 	if(currentPacket !== 0) return null;
 
 	if(ID & 0x80000000){
-		i = indexOf(buffer, bzipStart, 24) - 8;
-		if(i === -1) return null;
+		if(equals(buffer, bzipStart, 18)) return 'srcWithoutSize';
+		if(equals(buffer, bzipStart, 20)) return 'src';
+	}else{
+		if(equals(buffer, header1, 10)) return 'srcWithoutSize';
+		if(equals(buffer, header1, 12)) return 'src';
 	}
-
-	if(i === 10) return 'srcWithoutSize';
-	if(i === 12) return 'src';
 
 	return null;
 }
 
-export default class Connection extends BaseConnection<ServerData> {
+export class Connection extends BaseConnection<ServerData> {
 	private readonly packetsQueues = new Map<number, {
 		list: Buffer[];
 		totalPackets: number;
@@ -114,7 +96,7 @@ export default class Connection extends BaseConnection<ServerData> {
 
 		// if the response has a 0x41 header it means it needs challenge
 		// some servers need multiple challenges to accept the query
-		while(buffer[0] === 0x41 && attempt < 10){
+		while(buffer[0] === 0x41 && attempt < 30){
 			buffer = await this.query(command(buffer.subarray(1)), responseHeaders);
 			attempt++;
 		}
@@ -123,14 +105,35 @@ export default class Connection extends BaseConnection<ServerData> {
 
 		return buffer;
 	}
-
-	public static async init(options: RawServerOptions): Promise<Connection> {
-		const data = await parseServerOptions(options);
-		const connection = new Connection(data);
-		await connection.connect();
-		return connection;
-	}
 }
+
+export default async function createConnection(options: RawServerOptions): Promise<Connection> {
+	const data = await parseServerOptions(options);
+	const connection = new Connection(data);
+	await connection.connect();
+	return connection;
+}
+
+interface GldSrcMultiPacket {
+	ID: number;
+	packets: {
+		current: number;
+		total: number;
+	};
+	goldSource: true;
+	payload: Buffer;
+}
+
+interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
+	goldSource: false;
+	raw: Buffer;
+	bzip?: {
+		uncompressedSize: number;
+		CRC32_sum: number;
+	};
+}
+
+type MultiPacket = GldSrcMultiPacket | SourceMultiPacket;
 
 function parsePacket(buffer: Buffer, type: Exclude<PacketType, null>): MultiPacket {
 	const reader = new BufferReader(buffer, 4);
