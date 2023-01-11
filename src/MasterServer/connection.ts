@@ -9,11 +9,10 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 
 	// eslint-disable-next-line class-methods-use-this
 	protected handleMultiplePackets(): void {
-		throw new Error('Master servers should not send multiple packets');
+		throw new Error('Master servers should use multiple packets response');
 	}
 }
 
-// makes one query every 5 seconds
 const TIME_BETWEEN_REQUESTS = 5000;
 class SlowQueryConnection extends MasterServerConnection {
 	private _lastRequest = 0;
@@ -29,7 +28,6 @@ class SlowQueryConnection extends MasterServerConnection {
 	}
 }
 
-// makes a max of 30 queries in 1 minute and a max of 60 queries in 5 minutes
 class BulkQueryConnection extends MasterServerConnection {
 	private _requestsLastMinute = 0;
 	private _requestsLast5Minutes = 0;
