@@ -30,18 +30,25 @@ interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
 
 type MultiPacket = GldSrcMultiPacket | SourceMultiPacket;
 
+function indexOf(buffer: Buffer, value: Buffer, maxIndex: number): number {
+	// if(value.length > buffer.length) return -1;
+
+	return buffer.subarray(0, maxIndex).indexOf(value);
+}
+
 const bzipStart = Buffer.from('BZh'); // 42 5a 68
 const h = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 type PacketType = 0 | 1 | 2 | 3;
 function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works for first packet only
-	const i = buffer.indexOf(h);
+	const i = indexOf(buffer, h, 16);
+	if(i === -1) return 0; // not the first packet or unknown
 	if(i === 9) return 1; // GoldSource multi packet
 
 	const currentPacket = buffer.readUInt8(9);
-	if(currentPacket !== 0) return 0; // not the first packet or unknown
+	if(currentPacket !== 0) return 0; // not the first packet
 
-	if(currentPacket === 0 && ID & 0x80000000){
-		const i2 = buffer.indexOf(bzipStart);
+	if(ID & 0x80000000){
+		const i2 = indexOf(buffer, bzipStart, 24);
 		if(i2 === 18) return 2; // Source multi packet without maxPacketSize (with bzip)
 		else if(i2 === 20) return 3; // Source multi packet with maxPacketSize (with bzip)
 	}else{
@@ -54,14 +61,14 @@ function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works f
 }
 
 export default class Connection extends BaseConnection<ServerData> {
-	private readonly packetsQueues: Map<number, {
+	private readonly packetsQueues = new Map<number, {
 		list: Buffer[];
 		totalPackets: number;
 		type: PacketType;
-	}> = new Map();
+	}>();
 
 	protected handleMultiplePackets(buffer: Buffer): void {
-		const packetID = buffer.readUInt32LE();
+		const packetID = buffer.readUInt32LE(4);
 
 		if(!this.packetsQueues.has(packetID)){
 			this.packetsQueues.set(packetID, {
@@ -97,9 +104,7 @@ export default class Connection extends BaseConnection<ServerData> {
 			if(queue.type === 0){
 				queue.type = packetType;
 				queue.totalPackets = parsePacket(buffer, packetType).packets.total;
-			}else if(queue.type !== packetType){
-				throw new Error('Multiple packets with different types');
-			}
+			}else throw new Error('Multiple packets with different types');
 		}
 
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
@@ -145,7 +150,7 @@ function parsePacket(buffer: Buffer, type: Exclude<PacketType, 0>): MultiPacket 
 
 	// @ts-expect-error payload is added later
 	const packet: SourceMultiPacket = {
-		ID: reader.long(),
+		ID,
 		packets: {
 			total: packets,
 			current: reader.byte(),
