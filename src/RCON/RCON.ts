@@ -153,13 +153,17 @@ class RCON extends EventEmitter{
 	}
 
 	private _ref = true;
-	public ref(): void {
+	public ref(): this {
 		this._ref = true;
 		if(this.connection) this.connection.socket.ref();
+
+		return this;
 	}
-	public unref(): void {
+	public unref(): this {
 		this._ref = false;
 		if(this.connection) this.connection.socket.unref();
+
+		return this;
 	}
 }
 
