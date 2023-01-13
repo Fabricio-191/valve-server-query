@@ -44,7 +44,7 @@ async function getInfo(connection: Connection): Promise<InfoWithPing> {
 }
 
 export default class Server{
-	public _connected: Promise<InfoWithPing> | false = false;
+	public _connected: Promise<void> | false = false;
 	public connection: Connection | null = null;
 
 	private async _mustBeConnected(): Promise<void> {
@@ -52,21 +52,13 @@ export default class Server{
 		else throw new Error('Not connected');
 	}
 
-	public async connect(options: RawServerOptions = {}): Promise<InfoWithPing> {
+	public async connect(options: RawServerOptions = {}): Promise<void> {
 		if(this._connected){
 			throw new Error('Server: already connected.');
 		}
 
 		this._connected = (async () => {
 			this.connection = await createConnection(options);
-			const info = await getInfo(this.connection);
-
-			Object.assign(this.connection.data, {
-				appID: 'appID' in info ? info.appID : -1,
-				protocol: info.protocol,
-			});
-
-			return info;
 		})();
 
 		return await this._connected;
@@ -87,7 +79,7 @@ export default class Server{
 		await this._mustBeConnected();
 
 		const buffer = await this.connection!.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-		return parsers.players(buffer, this.connection!.data);
+		return parsers.players(buffer);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
@@ -113,7 +105,7 @@ export default class Server{
 		const connection = await createConnection(options);
 		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 
-		const players = parsers.players(buffer, connection.data);
+		const players = parsers.players(buffer);
 		connection.destroy();
 
 		return players;

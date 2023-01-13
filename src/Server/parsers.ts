@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { BufferReader, type ValueIn } from '../Base/utils';
-import type { ServerData } from '../Base/options';
 
 const THE_SHIP_MODES = Object.freeze([
 		'hunt',
@@ -243,7 +242,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	return info;
 }
 
-export function players(buffer: Buffer, svdata: ServerData): Players {
+export function players(buffer: Buffer): Players {
 	const reader = new BufferReader(buffer, 1);
 	const count = reader.byte();
 	const data = {
@@ -252,24 +251,27 @@ export function players(buffer: Buffer, svdata: ServerData): Players {
 		partial: false,
 	};
 
-	if(THE_SHIP_IDS.includes(svdata.appID)){
-		while(reader.remainingLength !== data.list.length * 8){
+	for(let i = 0; i < count && reader.hasRemaining; i++){
+		try{
 			data.list.push({
 				index: reader.byte(),
 				name: reader.string(),
 				score: reader.long(),
 				timeOnline: new Time(reader.float()),
 			});
+		}catch{
+			data.partial = true;
+			return data;
 		}
+	}
 
+	if(reader.remainingLength === count * 8){
 		for(const player of data.list){
 			Object.assign(player, {
 				deaths: reader.long(),
 				money: reader.long(),
 			});
 		}
-
-		reader.checkRemaining();
 	}else{
 		while(reader.hasRemaining){
 			try{

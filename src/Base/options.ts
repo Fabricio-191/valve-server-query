@@ -35,11 +35,7 @@ export interface RCONData extends BaseData {
 	password: string;
 }
 
-export interface ServerData extends BaseData {
-	appID: number;
-	multiPacketGoldSource: boolean;
-	protocol: number;
-}
+export type ServerData = BaseData;
 // #endregion
 
 // #region raw options
