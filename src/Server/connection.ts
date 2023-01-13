@@ -1,4 +1,4 @@
-import { BufferReader, type NonEmptyArray, optionalImport } from '../Base/utils';
+import { BufferReader, type NonEmptyArray, optionalImport, debug } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
 
@@ -56,6 +56,19 @@ export class Connection extends BaseConnection<ServerData> {
 				totalPackets: -1,
 				type: null,
 			});
+
+			setTimeout(() => {
+				if(this.packetsQueues.has(packetID)){
+					console.log(this.data.address);
+					debug(this.data, 'multi packet not recieved completely', buffer.subarray(4, 8));
+					const queue = this.packetsQueues.get(packetID)!;
+
+					// @ts-expect-error asdasd
+					delete queue.list;
+					debug(this.data, JSON.stringify(queue, null, '  '));
+					this.packetsQueues.delete(packetID);
+				}
+			}, this.data.timeout).unref();
 		}
 
 		const queue = this.packetsQueues.get(packetID)!;
