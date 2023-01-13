@@ -37,6 +37,6 @@
 		"allowJs": true,
 		"forceConsistentCasingInFileNames": true
 	},
-	"include": ["src", "test", "src copy", "../../Bzip2.ts"],
+	"include": ["src", "test", "scripts"],
 	"exclude": ["lib"]
 }

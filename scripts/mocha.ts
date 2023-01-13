@@ -8,7 +8,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '213.239.207.78:33006',
+	ip: '49.12.122.244:33045',
 	password: 'cosas',
 	enableWarns: false,
 };
@@ -144,7 +144,7 @@ describe('MasterServer', () => {
 	});
 });
 
-describe.only('RCON', () => {
+describe('RCON', () => {
 	const rcon = new valve.RCON();
 
 	rcon.unref();
