@@ -1,6 +1,3 @@
-import { writeFileSync } from 'fs';
-import type { BaseData } from './options';
-
 export type NonEmptyArray<T> = [T, ...T[]];
 export type ValueIn<T> = T[keyof T];
 
@@ -106,47 +103,6 @@ export class BufferReader{
 	}
 }
 
-let log = '';
-export function debug(data: BaseData | number | object | string, string: string, buffer?: Buffer): void {
-	if(!debug.isEnabled) return;
-
-	if(typeof data === 'object' && 'address' in data){
-		const type =
-			// eslint-disable-next-line no-nested-ternary
-			'multiPacketGoldSource' in data ? 'Server' : 'region' in data ? 'MasterServer' : 'RCON';
-
-		log += `[${type}] ${data.address} - ${string} `;
-
-		if(buffer){
-			const parts = buffer.toString('hex').match(/../g) ?? [ '<empty>' ];
-
-			log += parts.join(' ');
-		}
-	}else{
-		data = JSON.stringify(data, (_, v: unknown) => {
-			if(typeof v === 'bigint') return v.toString() + 'n';
-			return v;
-		}, 2);
-
-		log += `[${string}] - ${data}`;
-	}
-
-	log += '\n\n';
-}
-
-debug.enable = function enableDebug(file = 'debug.log'): void {
-	if(debug.isEnabled) throw new Error('Debug already enabled');
-	debug.isEnabled = true;
-
-	setInterval(writeFileSync, 1000, file, log).unref();
-
-	process.on('beforeExit', () => {
-		if(log !== '') writeFileSync(file, log);
-	});
-};
-
-debug.isEnabled = false;
-
 export function delay(ms: number): Promise<void> {
 	return new Promise(resolve => {
 		setTimeout(resolve, ms);
@@ -161,3 +117,5 @@ export function optionalImport<T>(moduleName: string): T | null {
 		return null;
 	}
 }
+
+export * from './debugger';
