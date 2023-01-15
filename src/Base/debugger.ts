@@ -38,7 +38,7 @@ debug.enable = function(file = 'debug.log'): void {
 	debugFile = file;
 
 	setInterval(debug.save, 1000).unref();
-	process.on('beforeExit', debug.save);
+	process.on('beforeExit', () => debug.save());
 };
 
 debug.save = function(file = debugFile): void {
