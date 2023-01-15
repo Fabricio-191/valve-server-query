@@ -100,13 +100,12 @@ export interface Rules {
 }
 // #endregion
 
-
 type ServerType = 'dedicated' | 'non-dedicated' | 'source tv relay' | 'unknown';
 function serverType(type: string): ServerType {
 	switch(type.toLowerCase()){
-		case 'd': return 'dedicated';
-		case 'l': return 'non-dedicated';
-		case 'p': return 'source tv relay';
+		case 'd': return 'dedicated'; // 64 44
+		case 'l': return 'non-dedicated'; // 6c 4c
+		case 'p': return 'source tv relay'; // 70 50
 		case '\x00': return 'unknown';
 		default: throw new Error(`Unknown server type: ${type}`);
 	}
@@ -115,10 +114,10 @@ function serverType(type: string): ServerType {
 type OS = 'linux' | 'mac' | 'unknown' | 'windows';
 function operativeSystem(OS: string): OS {
 	switch(OS.toLowerCase()){
-		case 'l': return 'linux';
-		case 'w': return 'windows';
-		case 'm':
-		case 'o': return 'mac';
+		case 'l': return 'linux'; // 6c 4c
+		case 'w': return 'windows'; // 77 57
+		case 'm': // 6d 4d
+		case 'o': return 'mac'; // 6f 4f
 		case '\x00': return 'unknown';
 		default: throw new Error(`Unknown operative system: ${OS}`);
 	}
@@ -169,20 +168,25 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			VAC: false,
 		};
 
-		// some servers dont have the 'mod' byte
-		if(reader.remainingLength > 2 && reader.byte()){
-			info.mod = {
-				link: reader.string(),
-				downloadLink: reader.string(),
-				version: reader.addOffset(1).long(), // null byte
-				size: reader.long(),
-				multiplayerOnly: reader.byte() === 1,
-				ownDLL: reader.byte() === 1,
-			};
-		}
+		try{
+			if(reader.remainingLength > 2 && reader.byte()){
+				info.mod = {
+					link: reader.string(),
+					downloadLink: reader.string(),
+					version: reader.addOffset(1).long(),
+					size: reader.long(),
+					multiplayerOnly: reader.byte() === 1,
+					ownDLL: reader.byte() === 1,
+				};
+			}
 
-		info.VAC = reader.byte() === 1;
-		if(reader.hasRemaining) info.players.bots = reader.byte();
+			info.VAC = reader.byte() === 1;
+			if(reader.hasRemaining) info.players.bots = reader.byte();
+		}catch{ // some servers send bad mod data
+			reader.setOffset(-2);
+			info.VAC = reader.byte() === 1;
+			info.players.bots = reader.byte();
+		}
 
 		reader.checkRemaining();
 		return info;
@@ -217,6 +221,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	}
 
 	info.version = reader.string();
+
 
 	if(!reader.hasRemaining) return info;
 	const EDF = reader.byte();

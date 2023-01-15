@@ -86,6 +86,15 @@ export class BufferReader{
 		return this;
 	}
 
+	public setOffset(offset: number): this {
+		if(offset < 0){
+			offset = this.length + offset;
+		}
+
+		this.offset = offset;
+		return this;
+	}
+
 	public get hasRemaining(): boolean {
 		return this.offset < this.length;
 	}
