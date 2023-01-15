@@ -74,6 +74,18 @@ export class Connection extends BaseConnection<ServerData> {
 		const queue = this.packetsQueues.get(packetID)!;
 		queue.list.push(buffer);
 
+		const packetType = getMultiPacketType(buffer, packetID);
+		if(packetType){
+			if(queue.type){
+				debug(this.data, `multiple packets with different types: ${queue.type} and ${packetType}`);
+				debug.save();
+				throw new Error('Multiple packets with different types');
+			}else{
+				queue.type = packetType;
+				queue.totalPackets = parsePacket(buffer, packetType).packets.total;
+			}
+		}
+
 		if(queue.list.length === queue.totalPackets){
 			const packets = queue.list.map(p => parsePacket(p, queue.type!)) as NonEmptyArray<MultiPacket>;
 
@@ -90,15 +102,6 @@ export class Connection extends BaseConnection<ServerData> {
 
 			this.socket.emit('message', payload);
 			this.packetsQueues.delete(packetID);
-		}else{
-			const packetType = getMultiPacketType(buffer, packetID);
-			if(!packetType) return;
-
-			if(queue.type) throw new Error('Multiple packets with different types');
-			else{
-				queue.type = packetType;
-				queue.totalPackets = parsePacket(buffer, packetType).packets.total;
-			}
 		}
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
 	}
