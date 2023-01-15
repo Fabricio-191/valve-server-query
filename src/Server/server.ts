@@ -37,6 +37,7 @@ async function getInfo(connection: Connection): Promise<InfoWithPing> {
 		const otherBuffer = await connection.awaitResponse(otherHeader, 500);
 
 		Object.assign(info, parsers.serverInfo(otherBuffer));
+		info.goldSource = true;
 	}catch{}
 
 
