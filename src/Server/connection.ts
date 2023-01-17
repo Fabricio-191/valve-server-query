@@ -17,6 +17,7 @@ function equals(buf1: Buffer, buf2: Buffer, start: number): boolean {
 
 const bzipStart = Buffer.from('BZh'); // 42 5a 68
 const header1 = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+
 type PacketType = 'gldSrc' | 'src' | 'srcWithoutSize' | null;
 function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works for first packet only
 	if(equals(buffer, header1, 9)){
@@ -47,6 +48,27 @@ export class Connection extends BaseConnection<ServerData> {
 		type: PacketType;
 	}>();
 
+	protected onMessage(buffer: Buffer): void {
+		const header = buffer.readInt32LE();
+		if(header === -1){
+			if(buffer[4] === 0x6C){
+				const reason = buffer.toString('utf8', 5, buffer.length - 1);
+				const error = Object.assign(
+					new Error('Banned by server ?? (probably)'),
+					{ reason, rawMessage: buffer }
+				);
+
+				this.socket.emit('error', error);
+			}else{
+				this.socket.emit('packet', buffer.subarray(4));
+			}
+		}else if(header === -2){
+			this.handleMultiplePackets(buffer);
+		}else{
+			debug(this.data, 'cannot parse packet', buffer);
+		}
+	}
+
 	protected handleMultiplePackets(buffer: Buffer): void {
 		const packetID = buffer.readUInt32LE(4);
 
@@ -59,12 +81,9 @@ export class Connection extends BaseConnection<ServerData> {
 
 			setTimeout(() => {
 				if(this.packetsQueues.has(packetID)){
-					console.log(this.data.address);
-					debug(this.data, 'multi packet not recieved completely', buffer.subarray(4, 8));
 					const queue = this.packetsQueues.get(packetID)!;
 
-					// @ts-expect-error asdasd
-					delete queue.list;
+					debug(this.data, 'multi packet not recieved completely', buffer.subarray(4, 8));
 					debug(this.data, JSON.stringify(queue, null, '  '));
 					this.packetsQueues.delete(packetID);
 				}
