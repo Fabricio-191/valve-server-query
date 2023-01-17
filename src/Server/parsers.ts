@@ -18,7 +18,6 @@ const THE_SHIP_MODES = Object.freeze([
 
 // #region types
 interface BaseInfo {
-	goldSource: boolean;
 	address: string;
 	name: string;
 	map: string;
@@ -37,7 +36,6 @@ interface BaseInfo {
 }
 
 export interface GoldSourceServerInfo extends BaseInfo {
-	goldSource: true;
 	mod: false | {
 		link: string;
 		downloadLink: string;
@@ -49,7 +47,6 @@ export interface GoldSourceServerInfo extends BaseInfo {
 }
 
 export interface ServerInfo extends BaseInfo {
-	goldSource: false;
 	appID: number;
 	version?: string;
 	gamePort?: number;
@@ -64,6 +61,7 @@ export interface ServerInfo extends BaseInfo {
 }
 
 export interface TheShipServerInfo extends ServerInfo {
+	_isTheShip: true;
 	mode: ValueIn<typeof THE_SHIP_MODES>;
 	witnesses: number;
 	duration: number;
@@ -149,7 +147,6 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	if(reader.byte() === 0x6D){
 		const info: GoldSourceServerInfo = {
-			goldSource: true,
 			address: reader.string(),
 			name: reader.string().trim(),
 			map: reader.string(),
@@ -194,7 +191,6 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {
-		goldSource: false,
 		protocol: reader.byte(),
 		name: reader.string().trim(),
 		map: reader.string(),
@@ -214,6 +210,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	if(THE_SHIP_IDS.includes(info.appID)){
 		Object.assign(info, {
+			_isTheShip: true,
 			mode: THE_SHIP_MODES[reader.byte()],
 			witnesses: reader.byte(),
 			duration: reader.byte(),
@@ -247,7 +244,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	return info;
 }
 
-export function players(buffer: Buffer): Players {
+export function players(buffer: Buffer, isTheShip = false): Players {
 	const reader = new BufferReader(buffer, 1);
 	const count = reader.byte();
 	const data = {
@@ -256,27 +253,24 @@ export function players(buffer: Buffer): Players {
 		partial: false,
 	};
 
-	for(let i = 0; i < count && reader.hasRemaining; i++){
-		try{
+	if(isTheShip){
+		while(reader.remainingLength !== data.list.length * 8){
 			data.list.push({
 				index: reader.byte(),
 				name: reader.string(),
 				score: reader.long(),
 				timeOnline: new Time(reader.float()),
 			});
-		}catch{
-			data.partial = true;
-			return data;
 		}
-	}
 
-	if(reader.remainingLength === count * 8){
 		for(const player of data.list){
 			Object.assign(player, {
 				deaths: reader.long(),
 				money: reader.long(),
 			});
 		}
+
+		reader.checkRemaining();
 	}else{
 		while(reader.hasRemaining){
 			try{
