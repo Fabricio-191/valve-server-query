@@ -2,8 +2,8 @@ import { debug } from './utils';
 import { createSocket, type Socket } from 'dgram';
 import type { BaseData } from './options';
 
-export default abstract class BaseConnection<T extends BaseData> {
-	constructor(data: T) {
+export default abstract class BaseConnection<Data extends BaseData> {
+	constructor(data: Data) {
 		this.data = data;
 
 		this.socket = createSocket('udp4')
@@ -15,31 +15,15 @@ export default abstract class BaseConnection<T extends BaseData> {
 			})
 			.unref();
 	}
-	public readonly data: T;
+	public readonly data: Data;
 	protected readonly socket: Socket;
 
-	private onMessage(buffer: Buffer): void {
-		const header = buffer.readInt32LE();
-		if(header === -1){
-			this.socket.emit('packet', buffer.subarray(4));
-		}else if(header === -2){
-			this.handleMultiplePackets(buffer);
-		}else{
-			debug(this.data, 'SERVER cannot parse packet', buffer);
-		}
-	}
+	protected abstract onMessage(buffer: Buffer): void;
 
-	protected abstract handleMultiplePackets(buffer: Buffer): void;
+	public async connect(): Promise<void> {
+		this.socket.connect(this.data.port, this.data.ip);
 
-	// must call connect method right after creating the connection
-	public connect(): Promise<void> {
-		return new Promise((res, rej) => {
-			// @ts-expect-error bad typings
-			this.socket.connect(this.data.port, this.data.ip, (err: unknown) => {
-				if(err) rej(err);
-				else res();
-			});
-		});
+		await this._awaitEvent('connect', 'Connection timeout.');
 	}
 
 	public destroy(): void {
@@ -57,13 +41,19 @@ export default abstract class BaseConnection<T extends BaseData> {
 		});
 	}
 
-	public async awaitResponse(responseHeaders: readonly number[], timeoutTime = this.data.timeout): Promise<Buffer> {
+	private _awaitEvent<T>(
+		event: string,
+		timeoutMsg: string,
+		filter: ((arg: T) => boolean) | null = null,
+		tiemoutTime = this.data.timeout
+	): Promise<T> {
 		return new Promise((res, rej) => {
 			const clear = (): void => {
 				/* eslint-disable @typescript-eslint/no-use-before-define */
 				this.socket
-					.off('packet', onPacket)
+					.off(event, onEvent)
 					.off('error', onError);
+
 				clearTimeout(timeout);
 				/* eslint-enable @typescript-eslint/no-use-before-define */
 			};
@@ -71,34 +61,44 @@ export default abstract class BaseConnection<T extends BaseData> {
 			const onError = (err: unknown): void => {
 				clear(); rej(err);
 			};
-			const onPacket = (buffer: Buffer): void => {
-				if(!responseHeaders.includes(buffer[0]!)) return;
-
-				clear(); res(buffer);
+			const onEvent = (arg: T): void => {
+				if(filter === null || filter(arg)){
+					clear(); res(arg);
+				}
 			};
 
-			const timeout = setTimeout(onError, timeoutTime, new Error('Response timeout.'));
-
+			const timeout = setTimeout(onError, tiemoutTime, new Error(timeoutMsg));
 			this.socket
-				.on('packet', onPacket)
+				.on(event, onEvent)
 				.on('error', onError);
 		});
 	}
 
+	public awaitResponse(responseHeaders: readonly number[], tiemoutTime = this.data.timeout): Promise<Buffer> {
+		return this._awaitEvent<Buffer>(
+			'packet',
+			'Response timeout.',
+			buffer => responseHeaders.includes(buffer[0]!),
+			tiemoutTime
+		);
+	}
+
 	public _lastPing = -1;
 	protected async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
-		await this.send(command);
+		return new Promise((res, rej) => {
+			const interval = setInterval(() => {
+				this.send(command).catch(() => { /* do nothing */ });
+			}, this.data.timeout / 3).unref();
 
-		const start = Date.now();
-		const timeout = setTimeout(() => {
-			this.send(command).catch(() => { /* do nothing */ });
-		}, this.data.timeout / 2)
-			.unref();
-
-		return await this.awaitResponse(responseHeaders)
-			.finally(() => {
-				clearTimeout(timeout);
-				this._lastPing = Date.now() - start;
-			});
+			const start = Date.now();
+			this.send(command)
+				.then(() => this.awaitResponse(responseHeaders))
+				.then(buffer => {
+					this._lastPing = Date.now() - start;
+					res(buffer);
+				})
+				.catch(rej)
+				.finally(() => clearInterval(interval));
+		});
 	}
 }

@@ -1,5 +1,5 @@
 import BaseConnection from '../Base/connection';
-import { delay } from '../Base/utils';
+import { delay, debug } from '../Base/utils';
 import type { MasterServerData } from '../Base/options';
 
 class MasterServerConnection extends BaseConnection<MasterServerData> {
@@ -7,9 +7,15 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 		return await super.query(command, [0x66]);
 	}
 
-	// eslint-disable-next-line class-methods-use-this
-	protected handleMultiplePackets(): void {
-		throw new Error('Master servers should use multiple packets response');
+	protected onMessage(buffer: Buffer): void {
+		const header = buffer.readInt32LE();
+		if(header === -1){
+			this.socket.emit('packet', buffer.subarray(4));
+		}else if(header === -2){
+			throw new Error('Master servers should not use multiple packets response');
+		}else{
+			debug(this.data, 'cannot parse packet', buffer);
+		}
 	}
 }
 
