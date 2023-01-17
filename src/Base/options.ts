@@ -1,5 +1,4 @@
 import { isIPv6 } from 'net';
-import { lookup } from 'dns/promises';
 import { type ValueIn } from './utils';
 import Filter from '../MasterServer/filter';
 
@@ -17,8 +16,6 @@ export const REGIONS = {
 
 // #region data types
 export interface BaseData {
-	address: string;
-
 	ip: string;
 	port: number;
 	timeout: number;
@@ -85,10 +82,10 @@ export function setDefaultTimeout(timeout: number): void {
 }
 // #endregion
 
+/*
+import { lookup } from 'dns/promises';
+
 async function resolveHostname(options: Required<BaseRawOptions>): Promise<void> {
-	if(options.ip.includes(':') && !isIPv6(options.ip)){
-		[options.ip, options.port] = options.ip.split(':') as [string, string];
-	}
 
 	try{
 		const r = await lookup(options.ip, { verbatim: false });
@@ -102,27 +99,29 @@ async function resolveHostname(options: Required<BaseRawOptions>): Promise<void>
 		throw Error("'ip' is not a valid IP address or hostname");
 	}
 }
+*/
 
 async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
-	if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
-		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.timeout !== 'number' || isNaN(options.timeout) || options.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
-	}else if(typeof options.ip !== 'string'){
+	if(typeof options.ip !== 'string'){
 		throw Error("'ip' should be a string");
+	}else if(options.ip.includes(':') && !isIPv6(options.ip)){
+		[options.ip, options.port] = options.ip.split(':') as [string, string];
 	}
-
-	await resolveHostname(options);
 
 	if(typeof options.port === 'string'){
 		options.port = parseInt(options.port);
 	}
 
+	if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
+		throw Error('The port to connect should be a number between 0 and 65535');
+	}else if(typeof options.timeout !== 'number' || isNaN(options.timeout) || options.timeout < 0){
+		throw Error("'timeout' should be a number greater than zero");
+	}
+
+	// await resolveHostname(options);
+
 	// @ts-expect-error port can't be a string
-	return {
-		...options,
-		address: `${options.ip}:${options.port}`,
-	};
+	return options;
 }
 
 export async function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
