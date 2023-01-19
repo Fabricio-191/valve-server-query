@@ -43,22 +43,36 @@ async function getInfo(connection: Connection): Promise<InfoWithPing> {
 	return info;
 }
 
+interface BulkQueryResult {
+	ip: string;
+	port: number;
+	info: InfoWithPing | null;
+	players?: parsers.Players | null;
+	rules?: parsers.Rules | null;
+}
+
 export default class Server{
-	public _connected: Promise<void> | false = false;
-	public connection: Connection | null = null;
+	private _isTheShip = false;
+	private _connected: Promise<InfoWithPing> | false = false;
+	private connection: Connection | null = null;
 
 	private async _mustBeConnected(): Promise<void> {
 		if(this._connected) await this._connected;
 		else throw new Error('Not connected');
 	}
 
-	public async connect(options: RawServerOptions = {}): Promise<void> {
+	public async connect(options: RawServerOptions = {}): Promise<InfoWithPing> {
 		if(this._connected){
 			throw new Error('Server: already connected.');
 		}
 
 		this._connected = (async () => {
 			this.connection = await createConnection(options);
+
+			const info = await getInfo(this.connection);
+
+			this._isTheShip = '_isTheShip' in info && info._isTheShip;
+			return info;
 		})();
 
 		return await this._connected;
@@ -79,7 +93,7 @@ export default class Server{
 		await this._mustBeConnected();
 
 		const buffer = await this.connection!.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-		return parsers.players(buffer);
+		return parsers.players(buffer, this._isTheShip);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
@@ -103,11 +117,11 @@ export default class Server{
 
 	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
 		const connection = await createConnection(options);
+
 		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
+		const players = parsers.players(buffer, false);
 
-		const players = parsers.players(buffer);
 		connection.destroy();
-
 		return players;
 	}
 
@@ -125,5 +139,29 @@ export default class Server{
 		const server = new Server();
 		await server.connect(options);
 		return server;
+	}
+
+	public static bulkQuery(servers: RawServerOptions[], getPlayers = true, getRules = false): Promise<BulkQueryResult[]> {
+		return Promise.all(servers.map(async options => {
+			const server = new Server();
+			const info = await server.connect(options)
+				.catch(() => null);
+
+			const result: BulkQueryResult = {
+				ip: server.connection!.data.ip,
+				port: server.connection!.data.port,
+				info,
+			};
+
+			if(!info) return result;
+
+			if(getPlayers) result.players = await server.getPlayers()
+				.catch(() => null);
+			if(getRules) result.rules = await server.getRules()
+				.catch(() => null);
+
+			server.destroy();
+			return result;
+		}));
 	}
 }
