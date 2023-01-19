@@ -43,14 +43,6 @@ async function getInfo(connection: Connection): Promise<InfoWithPing> {
 	return info;
 }
 
-interface BulkQueryResult {
-	ip: string;
-	port: number;
-	info: InfoWithPing | null;
-	players?: parsers.Players | null;
-	rules?: parsers.Rules | null;
-}
-
 export default class Server{
 	private _isTheShip = false;
 	private _connected: Promise<InfoWithPing> | false = false;
@@ -103,6 +95,18 @@ export default class Server{
 		return parsers.rules(buffer);
 	}
 
+	public get ip(): string {
+		return this.connection ? this.connection.data.ip : '';
+	}
+
+	public get port(): number {
+		return this.connection ? this.connection.data.port : -1;
+	}
+
+	public get address(): string {
+		return this.connection ? `${this.connection.data.ip}:${this.connection.data.port}` : '';
+	}
+
 	public get lastPing(): number {
 		return this.connection ? this.connection._lastPing : -1;
 	}
@@ -141,27 +145,58 @@ export default class Server{
 		return server;
 	}
 
-	public static bulkQuery(servers: RawServerOptions[], getPlayers = true, getRules = false): Promise<BulkQueryResult[]> {
-		return Promise.all(servers.map(async options => {
+	public static bulkQuery = bulkQuery;
+}
+
+interface BulkQueryResult {
+	ip: string;
+	port: number;
+	info: InfoWithPing | null;
+	players?: parsers.Players | null;
+	rules?: parsers.Rules | null;
+}
+
+interface BulkQueryOptions {
+	getPlayers?: boolean;
+	getRules?: boolean;
+	chunkSize?: number;
+}
+
+function chunkify<T>(array: T[], size: number): T[][] {
+	const chunks = Array<T[]>(Math.ceil(array.length / size));
+	for(let i = 0; i < array.length; i += size){
+		chunks.push(array.slice(i, i + size));
+	}
+	return chunks;
+}
+
+async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions = {}): Promise<BulkQueryResult[]> {
+	const chunks = chunkify(servers, options.chunkSize ?? 10000);
+
+	const results: BulkQueryResult[][] = [];
+	for(const chunk of chunks){
+		results.push(await Promise.all(chunk.map(async opts => {
 			const server = new Server();
-			const info = await server.connect(options)
+			const info = await server.connect(opts)
 				.catch(() => null);
 
 			const result: BulkQueryResult = {
-				ip: server.connection!.data.ip,
-				port: server.connection!.data.port,
+				ip: server.ip,
+				port: server.port,
 				info,
 			};
 
 			if(!info) return result;
 
-			if(getPlayers) result.players = await server.getPlayers()
+			if(options.getPlayers) result.players = await server.getPlayers()
 				.catch(() => null);
-			if(getRules) result.rules = await server.getRules()
+			if(options.getRules) result.rules = await server.getRules()
 				.catch(() => null);
 
 			server.destroy();
 			return result;
-		}));
+		})));
 	}
+
+	return results.flat();
 }
