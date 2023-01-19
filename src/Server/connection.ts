@@ -1,4 +1,4 @@
-import { BufferReader, type NonEmptyArray, optionalImport, debug } from '../Base/utils';
+import { BufferReader, optionalImport, debug } from '../Base/utils';
 import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
 import BaseConnection from '../Base/connection';
 
@@ -54,7 +54,7 @@ export class Connection extends BaseConnection<ServerData> {
 			if(buffer[4] === 0x6C){
 				const reason = buffer.toString('utf8', 5, buffer.length - 1);
 				const error = Object.assign(
-					new Error('Banned by server ?? (probably)'),
+					new Error('Banned by server'),
 					{ reason, rawMessage: buffer }
 				);
 
@@ -106,15 +106,15 @@ export class Connection extends BaseConnection<ServerData> {
 		}
 
 		if(queue.list.length === queue.totalPackets){
-			const packets = queue.list.map(p => parsePacket(p, queue.type!)) as NonEmptyArray<MultiPacket>;
+			const packets = queue.list.map(p => parsePacket(p, queue.type!));
 
 			let payload = Buffer.concat(
 				packets.sort((p1, p2) => p1.packets.current - p2.packets.current)
 					.map(p => p.payload)
 			);
 
-			if('bzip' in packets[0]){
-				if(!seekBzip) throw new Error('optional dependency seek-bzip is not installed');
+			if('bzip' in packets[0]!){
+				if(!seekBzip) throw new Error('optional dependency "seek-bzip" needed');
 
 				payload = seekBzip.decode(payload, packets[0].bzip.uncompressedSize);
 			}
@@ -168,9 +168,7 @@ interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
 	};
 }
 
-type MultiPacket = GldSrcMultiPacket | SourceMultiPacket;
-
-function parsePacket(buffer: Buffer, type: Exclude<PacketType, null>): MultiPacket {
+function parsePacket(buffer: Buffer, type: Exclude<PacketType, null>): GldSrcMultiPacket | SourceMultiPacket {
 	const reader = new BufferReader(buffer, 4);
 	const ID = reader.long(), packets = reader.byte();
 
