@@ -36,6 +36,7 @@ interface BaseInfo {
 }
 
 export interface GoldSourceServerInfo extends BaseInfo {
+	_wrongModData?: boolean;
 	mod: false | {
 		link: string;
 		downloadLink: string;
@@ -57,7 +58,7 @@ export interface ServerInfo extends BaseInfo {
 	};
 	keywords?: string[];
 	gameID?: bigint;
-	wrongEDF?: boolean;
+	_wrongEDF?: boolean;
 }
 
 export interface TheShipServerInfo extends ServerInfo {
@@ -180,8 +181,10 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			info.VAC = reader.byte() === 1;
 			if(reader.hasRemaining) info.players.bots = reader.byte();
 		}catch{ // some servers send bad mod data
-			reader.setOffset(-2);
 			info.mod = false;
+			info._wrongModData = true;
+
+			reader.setOffset(-2);
 			info.VAC = reader.byte() === 1;
 			info.players.bots = reader.byte();
 		}
@@ -239,7 +242,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 		reader.checkRemaining();
 	}catch{
-		info.wrongEDF = true;
+		info._wrongEDF = true;
 	}
 
 	return info;
