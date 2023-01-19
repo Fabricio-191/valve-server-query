@@ -18,24 +18,39 @@ function equals(buf1: Buffer, buf2: Buffer, start: number): boolean {
 const bzipStart = Buffer.from('BZh'); // 42 5a 68
 const header1 = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 
-type PacketType = 'gldSrc' | 'src' | 'srcWithoutSize' | null;
-function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works for first packet only
+type PacketData = {
+	goldSource?: true;
+	hasSize?: true;
+	bzip?: true;
+	hasHeader?: true;
+	totalPackets: number;
+} | null;
+
+function getMultiPacketData(buffer: Buffer, ID: number): PacketData { // works for first packet only
 	if(equals(buffer, header1, 9)){
 		const currentPacket = buffer.readUInt8(8) >> 4;
 		if(currentPacket !== 0) return null;
 
-		return 'gldSrc';
+		return { goldSource: true, totalPackets: buffer.readUInt8(8) & 0x0F };
 	}
 
 	const currentPacket = buffer.readUInt8(9);
 	if(currentPacket !== 0) return null;
+	const totalPackets = buffer.readUInt8(8);
 
 	if(ID & 0x80000000){
-		if(equals(buffer, bzipStart, 18)) return 'srcWithoutSize';
-		if(equals(buffer, bzipStart, 20)) return 'src';
+		if(equals(buffer, bzipStart, 18)) return { totalPackets, bzip: true };
+		if(equals(buffer, bzipStart, 20)) return { totalPackets, bzip: true, hasSize: true };
 	}else{
-		if(equals(buffer, header1, 10)) return 'srcWithoutSize';
-		if(equals(buffer, header1, 12)) return 'src';
+		if(equals(buffer, header1, 10)) return { totalPackets, hasHeader: true };
+		if(equals(buffer, header1, 12)) return { totalPackets, hasHeader: true, hasSize: true };
+
+		// some servers dont have the header in the payload
+		if([0x44, 0x45].includes(buffer[12]!)){
+			return { totalPackets, hasSize: true };
+		}else if([0x44, 0x45].includes(buffer[10]!)){
+			return { totalPackets };
+		}
 	}
 
 	return null;
@@ -44,8 +59,7 @@ function getMultiPacketType(buffer: Buffer, ID: number): PacketType { // works f
 export class Connection extends BaseConnection<ServerData> {
 	private readonly packetsQueues = new Map<number, {
 		list: Buffer[];
-		totalPackets: number;
-		type: PacketType;
+		data: PacketData;
 	}>();
 
 	protected onMessage(buffer: Buffer): void {
@@ -73,11 +87,7 @@ export class Connection extends BaseConnection<ServerData> {
 		const packetID = buffer.readUInt32LE(4);
 
 		if(!this.packetsQueues.has(packetID)){
-			this.packetsQueues.set(packetID, {
-				list: [],
-				totalPackets: -1,
-				type: null,
-			});
+			this.packetsQueues.set(packetID, { list: [], data: null });
 
 			setTimeout(() => {
 				if(this.packetsQueues.has(packetID)){
@@ -93,23 +103,21 @@ export class Connection extends BaseConnection<ServerData> {
 		const queue = this.packetsQueues.get(packetID)!;
 		queue.list.push(buffer);
 
-		const packetType = getMultiPacketType(buffer, packetID);
-		if(packetType){
-			if(queue.type){
-				debug(this.data, `multiple packets with different types: ${queue.type} and ${packetType}`);
-				debug.save();
+		const mpData = getMultiPacketData(buffer, packetID);
+		if(mpData){
+			if(queue.data){
+				debug(this.data, 'multiple packets with different types');
 				throw new Error('Multiple packets with different types');
 			}else{
-				queue.type = packetType;
-				queue.totalPackets = parsePacket(buffer, packetType).packets.total;
+				queue.data = mpData;
 			}
 		}
 
-		if(queue.list.length === queue.totalPackets){
-			const packets = queue.list.map(p => parsePacket(p, queue.type!));
+		if(queue.data && queue.list.length === queue.data.totalPackets){
+			const packets = queue.list.map(p => parsePacket(p, queue.data!));
 
 			let payload = Buffer.concat(
-				packets.sort((p1, p2) => p1.packets.current - p2.packets.current)
+				packets.sort((p1, p2) => p1.currentPacket - p2.currentPacket)
 					.map(p => p.payload)
 			);
 
@@ -119,7 +127,11 @@ export class Connection extends BaseConnection<ServerData> {
 				payload = seekBzip.decode(payload, packets[0].bzip.uncompressedSize);
 			}
 
-			this.socket.emit('message', payload);
+			if(payload.readInt32LE() === -1){
+				payload = payload.subarray(4);
+			}
+
+			this.socket.emit('packet', payload);
 			this.packetsQueues.delete(packetID);
 		}
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
@@ -129,9 +141,7 @@ export class Connection extends BaseConnection<ServerData> {
 		let buffer = await this.query(command(), responseHeaders);
 		let attempt = 0;
 
-		// if the response has a 0x41 header it means it needs challenge
-		// some servers need multiple challenges to accept the query
-		while(buffer[0] === 0x41 && attempt < 30){
+		while(buffer[0] === 0x41 && attempt < 15){
 			buffer = await this.query(command(buffer.subarray(1)), responseHeaders);
 			attempt++;
 		}
@@ -151,11 +161,7 @@ export default async function createConnection(options: RawServerOptions): Promi
 
 interface GldSrcMultiPacket {
 	ID: number;
-	packets: {
-		current: number;
-		total: number;
-	};
-	goldSource: true;
+	currentPacket: number;
 	payload: Buffer;
 }
 
@@ -168,34 +174,25 @@ interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
 	};
 }
 
-function parsePacket(buffer: Buffer, type: Exclude<PacketType, null>): GldSrcMultiPacket | SourceMultiPacket {
+function parsePacket(buffer: Buffer, data: Exclude<PacketData, null>): GldSrcMultiPacket | SourceMultiPacket {
 	const reader = new BufferReader(buffer, 4);
-	const ID = reader.long(), packets = reader.byte();
 
-	if(type === 'gldSrc') return {
-		ID,
-		packets: {
-			current: packets >> 4,
-			total: packets & 0x0F,
-		},
+	if(data.goldSource) return {
+		ID: reader.long(),
+		currentPacket: reader.byte() >> 4,
 		payload: reader.remaining(),
-		goldSource: true,
 	};
 
 	// @ts-expect-error payload is added later
 	const packet: SourceMultiPacket = {
-		ID,
-		packets: {
-			total: packets,
-			current: reader.byte(),
-		},
-		goldSource: false,
+		ID: reader.long(),
+		currentPacket: reader.addOffset(1).byte(),
 		raw: buffer,
 	};
 
-	if(type === 'src') reader.addOffset(2); // skip maxPacketSize
+	if(data.hasSize) reader.addOffset(2);
 
-	if(packet.packets.current === 0 && packet.ID & 0x80000000){
+	if(packet.currentPacket === 0 && packet.ID & 0x80000000){
 		packet.bzip = {
 			uncompressedSize: reader.long(),
 			CRC32_sum: reader.long(),
