@@ -23,7 +23,7 @@ function parseRCONPacket(buffer: Buffer): RCONPacket {
 		size: reader.long(),
 		ID: reader.long(),
 		type: reader.long(),
-		body: reader.string(),
+		body: reader.string('ascii'),
 	};
 
 	reader.addOffset(1);
