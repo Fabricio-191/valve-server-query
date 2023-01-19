@@ -60,7 +60,7 @@ export class BufferReader{
 		return this.buffer.readBigUInt64LE(this.offset - 8);
 	}
 
-	public string(encoding: BufferEncoding = 'ascii'): string {
+	public string(encoding: BufferEncoding = 'utf8'): string {
 		const stringEndIndex = this.buffer.indexOf(0, this.offset);
 		if(stringEndIndex === -1) throw new Error('string not terminated');
 
