@@ -163,10 +163,11 @@ interface BulkQueryOptions {
 }
 
 function chunkify<T>(array: T[], size: number): T[][] {
-	const chunks = Array<T[]>(Math.ceil(array.length / size));
+	const chunks: T[][] = [];
 	for(let i = 0; i < array.length; i += size){
 		chunks.push(array.slice(i, i + size));
 	}
+
 	return chunks;
 }
 
@@ -186,12 +187,12 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 				info,
 			};
 
-			if(!info) return result;
-
-			if(options.getPlayers) result.players = await server.getPlayers()
-				.catch(() => null);
-			if(options.getRules) result.rules = await server.getRules()
-				.catch(() => null);
+			if(info){
+				if(options.getPlayers) result.players = await server.getPlayers()
+					.catch(() => null);
+				if(options.getRules) result.rules = await server.getRules()
+					.catch(() => null);
+			}
 
 			server.destroy();
 			return result;
