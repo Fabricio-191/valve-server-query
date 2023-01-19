@@ -40,8 +40,11 @@ debug.enable = function(file = 'debug.log'): void {
 
 	setInterval(debug.save, 1000).unref();
 
-	const handleExit = (): void => {
+	const handleExit = (err?: unknown): void => {
 		debug.save();
+
+		// eslint-disable-next-line no-console
+		if(err) console.error(err);
 
 		setTimeout(() => {
 			debug.save();
