@@ -51,6 +51,7 @@ class RCON extends EventEmitter{
 
 			debug(data, 'RCON connecting');
 			this.connection = new Connection(data, onError);
+
 			if(this._ref) this.connection.socket.ref();
 			else this.connection.socket.unref();
 
