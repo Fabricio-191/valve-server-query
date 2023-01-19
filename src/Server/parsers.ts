@@ -181,6 +181,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			if(reader.hasRemaining) info.players.bots = reader.byte();
 		}catch{ // some servers send bad mod data
 			reader.setOffset(-2);
+			info.mod = false;
 			info.VAC = reader.byte() === 1;
 			info.players.bots = reader.byte();
 		}
@@ -244,7 +245,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	return info;
 }
 
-export function players(buffer: Buffer, isTheShip = false): Players {
+export function players(buffer: Buffer, isTheShip: boolean): Players {
 	const reader = new BufferReader(buffer, 1);
 	const count = reader.byte();
 	const data = {
