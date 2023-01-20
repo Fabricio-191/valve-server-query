@@ -74,12 +74,12 @@ export default abstract class BaseConnection<Data extends BaseData> {
 		});
 	}
 
-	public awaitResponse(responseHeaders: readonly number[], tiemoutTime = this.data.timeout): Promise<Buffer> {
+	public awaitResponse(responseHeaders: readonly number[], timeoutTime = this.data.timeout): Promise<Buffer> {
 		return this._awaitEvent<Buffer>(
 			'packet',
 			'Response timeout.',
 			buffer => responseHeaders.includes(buffer[0]!),
-			tiemoutTime
+			timeoutTime
 		);
 	}
 
