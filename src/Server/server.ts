@@ -160,20 +160,10 @@ interface BulkQueryOptions {
 	getPlayers?: boolean;
 	getRules?: boolean;
 	chunkSize?: number;
-}
-
-function chunkify<T>(array: T[], size: number): T[][] {
-	const chunks: T[][] = [];
-	for(let i = 0; i < array.length; i += size){
-		chunks.push(array.slice(i, i + size));
-	}
-
-	return chunks;
+	timeout?: number;
 }
 
 async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions = {}): Promise<BulkQueryResult[]> {
-	const chunks = chunkify(servers, options.chunkSize ?? 10000);
-
 	const _query = async (opts: RawServerOptions): Promise<BulkQueryResult> => {
 		const server = new Server();
 		const info = await server.connect(opts)
@@ -190,16 +180,27 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 				.catch(() => null);
 			if(options.getRules) result.rules = await server.getRules()
 				.catch(() => null);
+
+			server.destroy();
 		}
 
-		server.destroy();
 		return result;
 	};
 
-	const results: BulkQueryResult[][] = [];
-	for(const chunk of chunks){
-		results.push(await Promise.all(chunk.map(_query)));
+	servers = servers.map(x => {
+		if(typeof x === 'string') return { ip: x };
+		x.timeout ??= options.timeout ?? 5000;
+
+		return x;
+	});
+
+	let results: BulkQueryResult[] = [];
+	const step = options.chunkSize ?? 5000;
+
+	for(let i = 0; i < servers.length; i += step){
+		const chunk = servers.slice(i, i + step).map(_query);
+		results = results.concat(await Promise.all(chunk));
 	}
 
-	return results.flat();
+	return results;
 }
