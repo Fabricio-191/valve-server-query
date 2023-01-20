@@ -47,7 +47,7 @@ class RCON extends EventEmitter{
 		};
 
 		this._connected = (async () => {
-			const data = await parseRCONOptions(options);
+			const data = parseRCONOptions(options);
 
 			debug(data, 'RCON connecting');
 			this.connection = new Connection(data, onError);

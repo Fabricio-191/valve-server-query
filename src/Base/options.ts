@@ -75,26 +75,7 @@ export function setDefaultTimeout(timeout: number): void {
 }
 // #endregion
 
-/*
-import { lookup } from 'dns/promises';
-
-async function resolveHostname(options: Required<BaseRawOptions>): Promise<void> {
-
-	try{
-		const r = await lookup(options.ip, { verbatim: false });
-		if(r.family !== 4 && r.family !== 6){
-			// eslint-disable-next-line @typescript-eslint/no-throw-literal
-			throw '';
-		}
-
-		options.ip = r.address;
-	}catch(e){
-		throw Error("'ip' is not a valid IP address or hostname");
-	}
-}
-*/
-
-async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promise<BaseData & T> {
+function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): BaseData & T {
 	if(typeof options.ip !== 'string'){
 		throw Error("'ip' should be a string");
 	}else if(options.ip.includes(':') && !isIPv6(options.ip)){
@@ -107,31 +88,29 @@ async function parseBaseOptions<T>(options: Required<BaseRawOptions> & T): Promi
 
 	if(!Number.isInteger(options.port) || options.port < 0 || options.port > 65535){
 		throw Error('The port to connect should be a number between 0 and 65535');
-	}else if(typeof options.timeout !== 'number' || isNaN(options.timeout) || options.timeout < 0){
-		throw Error("'timeout' should be a number greater than zero");
+	}else if(!Number.isInteger(options.timeout) || options.timeout < 0){
+		throw Error("'timeout' should be a integer greater than zero");
 	}
-
-	// await resolveHostname(options);
 
 	// @ts-expect-error port can't be a string
 	return options;
 }
 
-export async function parseServerOptions(options: RawServerOptions): Promise<ServerData> {
+export function parseServerOptions(options: RawServerOptions): ServerData {
 	if(typeof options === 'string') options = { ip: options };
-	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
+	if(typeof options !== 'object') throw new TypeError('Options must be an object');
 
-	return await parseBaseOptions({
+	return parseBaseOptions({
 		...DEFAULT_OPTIONS,
 		...options,
 	});
 }
 
-export async function parseMasterServerOptions(options: RawMasterServerOptions): Promise<MasterServerData> {
-	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
+export function parseMasterServerOptions(options: RawMasterServerOptions): MasterServerData {
 	if(typeof options === 'string') options = { ip: options };
+	if(typeof options !== 'object') throw new TypeError('Options must be an object or a string');
 
-	const parsedOptions = await parseBaseOptions({
+	const parsedOptions = parseBaseOptions({
 		...DEFAULT_MASTER_SERVER_OPTIONS,
 		...options,
 	});
@@ -140,7 +119,7 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 		parsedOptions.quantity = Infinity;
 	}
 
-	if(typeof parsedOptions.quantity !== 'number' || isNaN(parsedOptions.quantity) || parsedOptions.quantity < 0){
+	if(!Number.isInteger(options.quantity) || parsedOptions.quantity < 0){
 		throw Error("'quantity' should be a number greater than zero");
 	}else if(typeof parsedOptions.region !== 'string'){
 		throw Error("'region' should be a string");
@@ -160,14 +139,11 @@ export async function parseMasterServerOptions(options: RawMasterServerOptions):
 	};
 }
 
-export async function parseRCONOptions(options: RawRCONOptions | null = null): Promise<RCONData> {
-	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
+export function parseRCONOptions(options: RawRCONOptions): RCONData {
 	if(typeof options === 'string') options = { password: options };
+	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 
-	const parsedOptions = await parseBaseOptions({
-		...DEFAULT_OPTIONS,
-		...options,
-	});
+	const parsedOptions = parseServerOptions(options) as RCONData;
 
 	if(typeof parsedOptions.password !== 'string' || parsedOptions.password === ''){
 		throw new Error('RCON password must be a non-empty string');

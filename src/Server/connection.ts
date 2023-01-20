@@ -153,8 +153,7 @@ export class Connection extends BaseConnection<ServerData> {
 }
 
 export default async function createConnection(options: RawServerOptions): Promise<Connection> {
-	const data = await parseServerOptions(options);
-	const connection = new Connection(data);
+	const connection = new Connection(parseServerOptions(options));
 	await connection.connect();
 	return connection;
 }
