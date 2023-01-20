@@ -151,7 +151,9 @@ export default class Server{
 interface BulkQueryResult {
 	ip: string;
 	port: number;
-	info: InfoWithPing | null;
+	info: InfoWithPing | {
+		error: unknown;
+	};
 	players?: parsers.Players | null;
 	rules?: parsers.Rules | null;
 }
@@ -167,7 +169,7 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 	const _query = async (opts: RawServerOptions): Promise<BulkQueryResult> => {
 		const server = new Server();
 		const info = await server.connect(opts)
-			.catch(() => null);
+			.catch((e: unknown) => ({ error: e }));
 
 		const result: BulkQueryResult = {
 			ip: server.ip,
@@ -175,7 +177,7 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 			info,
 		};
 
-		if(info){
+		if(!('error' in info)){
 			if(options.getPlayers) result.players = await server.getPlayers()
 				.catch(() => null);
 			if(options.getRules) result.rules = await server.getRules()
@@ -194,12 +196,12 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 		return x;
 	});
 
-	let results: BulkQueryResult[] = [];
+	const results: BulkQueryResult[] = [];
 	const step = options.chunkSize ?? 5000;
 
 	for(let i = 0; i < servers.length; i += step){
 		const chunk = servers.slice(i, i + step).map(_query);
-		results = results.concat(await Promise.all(chunk));
+		results.push(...await Promise.all(chunk));
 	}
 
 	return results;
