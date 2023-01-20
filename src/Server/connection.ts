@@ -15,8 +15,9 @@ function equals(buf1: Buffer, buf2: Buffer, start: number): boolean {
 	return buf2.compare(buf1, start, end) === 0;
 }
 
-const bzipStart = Buffer.from('BZh'); // 42 5a 68
-const header1 = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+const BZIP_START = Buffer.from('BZh'); // 42 5a 68
+const HEADER1 = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+const PLAYERS_AND_RULES_HEADERS = Object.freeze([ 0x44, 0x45 ]);
 
 type PacketData = {
 	goldSource?: true;
@@ -27,11 +28,11 @@ type PacketData = {
 } | null;
 
 function getMultiPacketData(buffer: Buffer, ID: number): PacketData { // works for first packet only
-	if(equals(buffer, header1, 9)){
-		const currentPacket = buffer.readUInt8(8) >> 4;
-		if(currentPacket !== 0) return null;
+	if(equals(buffer, HEADER1, 9)){
+		const packets = buffer.readUInt8(8);
+		if(packets >> 4 !== 0) return null;
 
-		return { goldSource: true, totalPackets: buffer.readUInt8(8) & 0x0F };
+		return { goldSource: true, totalPackets: packets & 0x0F };
 	}
 
 	const currentPacket = buffer.readUInt8(9);
@@ -39,18 +40,14 @@ function getMultiPacketData(buffer: Buffer, ID: number): PacketData { // works f
 	const totalPackets = buffer.readUInt8(8);
 
 	if(ID & 0x80000000){
-		if(equals(buffer, bzipStart, 18)) return { totalPackets, bzip: true };
-		if(equals(buffer, bzipStart, 20)) return { totalPackets, bzip: true, hasSize: true };
+		if(equals(buffer, BZIP_START, 18)) return { totalPackets, bzip: true };
+		if(equals(buffer, BZIP_START, 20)) return { totalPackets, bzip: true, hasSize: true };
 	}else{
-		if(equals(buffer, header1, 10)) return { totalPackets, hasHeader: true };
-		if(equals(buffer, header1, 12)) return { totalPackets, hasHeader: true, hasSize: true };
-
+		if(equals(buffer, HEADER1, 10)) return { totalPackets, hasHeader: true };
+		if(equals(buffer, HEADER1, 12)) return { totalPackets, hasHeader: true, hasSize: true };
 		// some servers dont have the header in the payload
-		if([0x44, 0x45].includes(buffer[12]!)){
-			return { totalPackets, hasSize: true };
-		}else if([0x44, 0x45].includes(buffer[10]!)){
-			return { totalPackets };
-		}
+		if(PLAYERS_AND_RULES_HEADERS.includes(buffer[10]!)) return { totalPackets };
+		if(PLAYERS_AND_RULES_HEADERS.includes(buffer[12]!)) return { totalPackets, hasSize: true };
 	}
 
 	return null;
@@ -68,18 +65,21 @@ export class Connection extends BaseConnection<ServerData> {
 			if(buffer[4] === 0x6C){
 				const reason = buffer.toString('utf8', 5, buffer.length - 1);
 				const error = Object.assign(
-					new Error('Banned by server'),
-					{ reason, rawMessage: buffer }
+					new Error('Banned by server'), {
+						reason, rawMessage: buffer,
+						ip: this.data.ip,
+						port: this.data.port,
+					}
 				);
 
-				this.socket.emit('error', error);
+				if(this.socket.listenerCount('error') !== 0) this.socket.emit('error', error);
 			}else{
 				this.socket.emit('packet', buffer.subarray(4));
 			}
 		}else if(header === -2){
 			this.handleMultiplePackets(buffer);
 		}else{
-			debug(this.data, 'cannot parse packet', buffer);
+			debug(this.data, 'ERROR cannot parse packet', buffer);
 		}
 	}
 
@@ -93,7 +93,7 @@ export class Connection extends BaseConnection<ServerData> {
 				if(this.packetsQueues.has(packetID)){
 					const queue = this.packetsQueues.get(packetID)!;
 
-					debug(this.data, 'multi packet not recieved completely', buffer.subarray(4, 8));
+					debug(this.data, 'ERROR multi packet not recieved completely', buffer.subarray(4, 8));
 					debug(this.data, JSON.stringify(queue, null, '  '));
 					this.packetsQueues.delete(packetID);
 				}
@@ -106,7 +106,7 @@ export class Connection extends BaseConnection<ServerData> {
 		const mpData = getMultiPacketData(buffer, packetID);
 		if(mpData){
 			if(queue.data){
-				debug(this.data, 'multiple packets with different types');
+				debug(this.data, 'ERROR multiple packets with different types');
 				throw new Error('Multiple packets with different types');
 			}else{
 				queue.data = mpData;
@@ -160,7 +160,6 @@ export default async function createConnection(options: RawServerOptions): Promi
 }
 
 interface GldSrcMultiPacket {
-	ID: number;
 	currentPacket: number;
 	payload: Buffer;
 }
@@ -175,24 +174,22 @@ interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
 }
 
 function parsePacket(buffer: Buffer, data: Exclude<PacketData, null>): GldSrcMultiPacket | SourceMultiPacket {
-	const reader = new BufferReader(buffer, 4);
+	const reader = new BufferReader(buffer, 8);
 
 	if(data.goldSource) return {
-		ID: reader.long(),
 		currentPacket: reader.byte() >> 4,
 		payload: reader.remaining(),
 	};
 
 	// @ts-expect-error payload is added later
 	const packet: SourceMultiPacket = {
-		ID: reader.long(),
 		currentPacket: reader.addOffset(1).byte(),
 		raw: buffer,
 	};
 
 	if(data.hasSize) reader.addOffset(2);
 
-	if(packet.currentPacket === 0 && packet.ID & 0x80000000){
+	if(packet.currentPacket === 0 && data.bzip){
 		packet.bzip = {
 			uncompressedSize: reader.long(),
 			CRC32_sum: reader.long(),

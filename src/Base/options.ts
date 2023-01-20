@@ -59,13 +59,6 @@ const DEFAULT_OPTIONS = {
 	timeout: 5000,
 };
 
-const DEFAULT_SERVER_OPTIONS = {
-	...DEFAULT_OPTIONS,
-	appID: -1,
-	multiPacketGoldSource: false,
-	protocol: -1,
-};
-
 const DEFAULT_MASTER_SERVER_OPTIONS = {
 	ip: 'hl2master.steampowered.com',
 	port: 27011,
@@ -78,7 +71,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 };
 
 export function setDefaultTimeout(timeout: number): void {
-	DEFAULT_OPTIONS.timeout = DEFAULT_MASTER_SERVER_OPTIONS.timeout = DEFAULT_SERVER_OPTIONS.timeout = timeout;
+	DEFAULT_OPTIONS.timeout = DEFAULT_MASTER_SERVER_OPTIONS.timeout = timeout;
 }
 // #endregion
 
@@ -129,7 +122,7 @@ export async function parseServerOptions(options: RawServerOptions): Promise<Ser
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 
 	return await parseBaseOptions({
-		...DEFAULT_SERVER_OPTIONS,
+		...DEFAULT_OPTIONS,
 		...options,
 	});
 }
