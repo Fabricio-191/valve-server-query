@@ -11,7 +11,7 @@ export function debug(data: BaseData | number | object | string, string: string,
 	if(typeof data === 'object' && 'ip' in data){
 		const type =
 			// eslint-disable-next-line no-nested-ternary
-			'multiPacketGoldSource' in data ? 'Server' : 'region' in data ? 'MasterServer' : 'RCON';
+			'password' in data ? 'RCON' : 'region' in data ? 'MasterServer' : 'Server';
 
 		log += `[${type}] ${data.ip}:${data.port} - ${string} `;
 
@@ -44,7 +44,7 @@ debug.enable = function(file = 'debug.log'): void {
 		debug.save();
 
 		// eslint-disable-next-line no-console
-		if(err) console.error(err);
+		if(err) console.error('unhandled', err);
 
 		setTimeout(() => {
 			debug.save();
