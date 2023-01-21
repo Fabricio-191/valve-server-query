@@ -1,5 +1,5 @@
 import { BufferReader, optionalImport, debug } from '../Base/utils';
-import { type RawServerOptions, type ServerData, parseServerOptions } from '../Base/options';
+import { type ServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
 
 interface SeekBzip {
@@ -53,7 +53,7 @@ function getMultiPacketData(buffer: Buffer, ID: number): PacketData { // works f
 	return null;
 }
 
-export class Connection extends BaseConnection<ServerData> {
+export default class Connection extends BaseConnection<ServerData> {
 	private readonly packetsQueues = new Map<number, {
 		list: Buffer[];
 		data: PacketData;
@@ -94,7 +94,7 @@ export class Connection extends BaseConnection<ServerData> {
 					const queue = this.packetsQueues.get(packetID)!;
 
 					debug(this.data, 'ERROR multi packet not recieved completely', buffer.subarray(4, 8));
-					debug(this.data, JSON.stringify(queue, null, '  '));
+					debug(this.data, JSON.stringify(queue.data, null, '  '));
 					this.packetsQueues.delete(packetID);
 				}
 			}, this.data.timeout).unref();
@@ -150,12 +150,6 @@ export class Connection extends BaseConnection<ServerData> {
 
 		return buffer;
 	}
-}
-
-export default async function createConnection(options: RawServerOptions): Promise<Connection> {
-	const connection = new Connection(parseServerOptions(options));
-	await connection.connect();
-	return connection;
 }
 
 interface GldSrcMultiPacket {

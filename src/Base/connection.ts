@@ -3,9 +3,7 @@ import { createSocket, type Socket } from 'dgram';
 import type { BaseData } from './options';
 
 export default abstract class BaseConnection<Data extends BaseData> {
-	constructor(data: Data) {
-		this.data = data;
-
+	constructor() {
 		this.socket = createSocket('udp4')
 			.on('message', buffer => {
 				debug(this.data, 'recieved:', buffer);
@@ -15,15 +13,19 @@ export default abstract class BaseConnection<Data extends BaseData> {
 			})
 			.unref();
 	}
-	public readonly data: Data;
+	public data!: Data;
 	protected readonly socket: Socket;
+	private _connected: Promise<void> | false = false;
 
 	protected abstract onMessage(buffer: Buffer): void;
 
 	public async connect(): Promise<void> {
+		if(this._connected) return this._connected;
+
 		this.socket.connect(this.data.port, this.data.ip);
 
-		await this._awaitEvent('connect', 'Connection timeout.');
+		this._connected = this._awaitEvent('connect', 'Connection timeout.');
+		await this._connected;
 	}
 
 	public destroy(): void {
@@ -31,6 +33,8 @@ export default abstract class BaseConnection<Data extends BaseData> {
 	}
 
 	private async send(command: Buffer): Promise<void> {
+		await this.connect();
+
 		debug(this.data, 'sent:', command);
 
 		return new Promise((res, rej) => {
@@ -86,9 +90,10 @@ export default abstract class BaseConnection<Data extends BaseData> {
 	public _lastPing = -1;
 	protected async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
-			const interval = setInterval(() => {
-				this.send(command).catch(() => { /* do nothing */ });
-			}, this.data.timeout / 3).unref();
+			// const retries = 3;
+			// const interval = setInterval(() => {
+			// 	// this.send(command).catch(() => { /* do nothing */ });
+			// }, this.data.timeout / retries).unref();
 
 			const start = Date.now();
 			this.send(command)
@@ -97,8 +102,8 @@ export default abstract class BaseConnection<Data extends BaseData> {
 					this._lastPing = Date.now() - start;
 					res(buffer);
 				})
-				.catch(rej)
-				.finally(() => clearInterval(interval));
+				.catch(rej);
+			//	.finally(() => clearInterval(interval));
 		});
 	}
 }

@@ -1,7 +1,8 @@
 /* eslint-disable new-cap */
-import createConnection, { type Connection } from './connection';
+import Connection from './connection';
 import * as parsers from './parsers';
-import type { RawServerOptions } from '../Base/options';
+import { type RawServerOptions, parseServerOptions } from '../Base/options';
+import { delay } from '../Base/utils';
 
 function makeCommand(code: number, body: Buffer | number[] = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
 	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
@@ -26,85 +27,56 @@ const COMMANDS = {
 };
 
 type InfoWithPing = parsers.AnyServerInfo & { ping: number };
-async function getInfo(connection: Connection): Promise<InfoWithPing> {
-	const buffer = await connection.makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
-	// @ts-expect-error ping is added later
-	const info: InfoWithPing = parsers.serverInfo(buffer);
-	info.ping = connection._lastPing;
-
-	try{
-		const otherHeader = buffer[0] === 0x49 ? responsesHeaders.GLDSRC_INFO : responsesHeaders.INFO;
-		const otherBuffer = await connection.awaitResponse(otherHeader, 500);
-
-		Object.assign(info, parsers.serverInfo(otherBuffer));
-	}catch{}
-
-
-	return info;
-}
 
 export default class Server{
-	private _isTheShip = false;
-	private _connected: Promise<InfoWithPing> | false = false;
-	private connection: Connection | null = null;
-
-	private async _mustBeConnected(): Promise<void> {
-		if(this._connected) await this._connected;
-		else throw new Error('Not connected');
+	constructor(options?: RawServerOptions){
+		if(options) this.setOptions(options);
 	}
+	private _isTheShip: boolean | null = null;
+	private readonly connection: Connection = new Connection();
 
-	public async connect(options: RawServerOptions = {}): Promise<InfoWithPing> {
-		if(this._connected){
-			throw new Error('Server: already connected.');
-		}
-
-		this._connected = (async () => {
-			this.connection = await createConnection(options);
-
-			const info = await getInfo(this.connection);
-
-			this._isTheShip = '_isTheShip' in info && info._isTheShip;
-			return info;
-		})();
-
-		return await this._connected;
+	public setOptions(options: RawServerOptions = {}): void {
+		const parsedOptions = parseServerOptions(options);
+		this.connection.data = parsedOptions;
 	}
 
 	public destroy(): void {
-		if(!this.connection) throw new Error('Not connected');
 		this.connection.destroy();
-		this.connection = null;
 	}
 
 	public async getInfo(): Promise<InfoWithPing> {
-		await this._mustBeConnected();
-		return await getInfo(this.connection!);
+		const buffer = await this.connection.makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
+		// @ts-expect-error ping is added later
+		const info: InfoWithPing = parsers.serverInfo(buffer);
+		info.ping = this.connection._lastPing;
+
+		try{
+			const otherHeader = buffer[0] === 0x49 ? responsesHeaders.GLDSRC_INFO : responsesHeaders.INFO;
+			const otherBuffer = await this.connection.awaitResponse(otherHeader, 500);
+
+			Object.assign(info, parsers.serverInfo(otherBuffer));
+		}catch{}
+
+		return info;
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		await this._mustBeConnected();
+		if(this._isTheShip === null){
+			const info = await this.getInfo();
+			this._isTheShip = '_isTheShip' in info && info._isTheShip;
+		}
 
-		const buffer = await this.connection!.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
+		const buffer = await this.connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 		return parsers.players(buffer, this._isTheShip);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
-		await this._mustBeConnected();
-
-		const buffer = await this.connection!.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
+		const buffer = await this.connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 		return parsers.rules(buffer);
 	}
 
-	public get ip(): string {
-		return this.connection ? this.connection.data.ip : '';
-	}
-
-	public get port(): number {
-		return this.connection ? this.connection.data.port : -1;
-	}
-
 	public get address(): string {
-		return this.connection ? `${this.connection.data.ip}:${this.connection.data.port}` : '';
+		return `${this.connection.data.ip}:${this.connection.data.port}`;
 	}
 
 	public get lastPing(): number {
@@ -112,45 +84,34 @@ export default class Server{
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<InfoWithPing> {
-		const connection = await createConnection(options);
-		const info = await getInfo(connection);
+		const server = new Server(options);
+		const info = await server.getInfo();
 
-		connection.destroy();
+		server.destroy();
 		return info;
 	}
 
 	public static async getPlayers(options: RawServerOptions): Promise<parsers.Players> {
-		const connection = await createConnection(options);
+		const server = new Server(options);
+		const players = await server.getPlayers();
 
-		const buffer = await connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-		const players = parsers.players(buffer, false);
-
-		connection.destroy();
+		server.destroy();
 		return players;
 	}
 
 	public static async getRules(options: RawServerOptions): Promise<parsers.Rules> {
-		const connection = await createConnection(options);
-		const buffer = await connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
+		const server = new Server(options);
+		const rules = await server.getRules();
 
-		const rules = parsers.rules(buffer);
-		connection.destroy();
-
+		server.destroy();
 		return rules;
-	}
-
-	public static async init(options: RawServerOptions): Promise<Server> {
-		const server = new Server();
-		await server.connect(options);
-		return server;
 	}
 
 	public static bulkQuery = bulkQuery;
 }
 
 interface BulkQueryResult {
-	ip: string;
-	port: number;
+	address: string;
 	info: InfoWithPing | {
 		error: unknown;
 	};
@@ -167,13 +128,12 @@ interface BulkQueryOptions {
 
 async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions = {}): Promise<BulkQueryResult[]> {
 	const _query = async (opts: RawServerOptions): Promise<BulkQueryResult> => {
-		const server = new Server();
-		const info = await server.connect(opts)
-			.catch((e: unknown) => ({ error: e }));
+		const server = new Server(opts);
+		const info = await server.getInfo()
+			.catch((error: unknown) => ({ error }));
 
 		const result: BulkQueryResult = {
-			ip: server.ip,
-			port: server.port,
+			address: server.address,
 			info,
 		};
 
@@ -202,6 +162,7 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 	for(let i = 0; i < servers.length; i += step){
 		const chunk = servers.slice(i, i + step).map(_query);
 		results.push(...await Promise.all(chunk));
+		await delay(10);
 	}
 
 	return results;
