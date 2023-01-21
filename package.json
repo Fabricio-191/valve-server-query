@@ -5,11 +5,10 @@
   "scripts": {
     "lint": "npx eslint . --fix",
     "mocha": "mocha -r ts-node/register scripts/mocha.ts --slow 5000 --timeout 6000 --trace-warnings",
-    "test": "nodemon scripts/test.ts --trace-warnings",
+    "test": "nodemon scripts/test.ts --trace-warnings --ignore *.json",
     "build": "npm run lint && npm t && tsc -p tsconfig.build.json && mocha scripts/mocha.js --slow 5000 --timeout 6000 && npm publish"
   },
   "optionalDependencies": {
-    "axios": "^1.2.2",
     "seek-bzip": "^2.0.0"
   },
   "devDependencies": {
