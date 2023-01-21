@@ -136,37 +136,18 @@ export default class Connection extends BaseConnection<ServerData> {
 		}
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
 	}
-
-	public async makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
-		let buffer = await this.query(command(), responseHeaders);
-		let attempt = 0;
-
-		while(buffer[0] === 0x41 && attempt < 15){
-			buffer = await this.query(command(buffer.subarray(1)), responseHeaders);
-			attempt++;
-		}
-
-		if(buffer[0] === 0x41) throw new Error('Wrong server response');
-
-		return buffer;
-	}
 }
 
-interface GldSrcMultiPacket {
+interface MultiPacket {
 	currentPacket: number;
 	payload: Buffer;
-}
-
-interface SourceMultiPacket extends Omit<GldSrcMultiPacket, 'goldSource'> {
-	goldSource: false;
-	raw: Buffer;
 	bzip?: {
 		uncompressedSize: number;
 		CRC32_sum: number;
 	};
 }
 
-function parsePacket(buffer: Buffer, data: Exclude<PacketData, null>): GldSrcMultiPacket | SourceMultiPacket {
+function parsePacket(buffer: Buffer, data: Exclude<PacketData, null>): MultiPacket {
 	const reader = new BufferReader(buffer, 8);
 
 	if(data.goldSource) return {
@@ -175,9 +156,8 @@ function parsePacket(buffer: Buffer, data: Exclude<PacketData, null>): GldSrcMul
 	};
 
 	// @ts-expect-error payload is added later
-	const packet: SourceMultiPacket = {
+	const packet: MultiPacket = {
 		currentPacket: reader.addOffset(1).byte(),
-		raw: buffer,
 	};
 
 	if(data.hasSize) reader.addOffset(2);

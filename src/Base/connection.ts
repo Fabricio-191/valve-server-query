@@ -29,7 +29,8 @@ export default abstract class BaseConnection<Data extends BaseData> {
 	}
 
 	public destroy(): void {
-		this.socket.close();
+		this.socket.disconnect();
+		this._connected = false;
 	}
 
 	private async send(command: Buffer): Promise<void> {
@@ -88,7 +89,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 	}
 
 	public _lastPing = -1;
-	protected async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
+	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
 		return new Promise((res, rej) => {
 			// const retries = 3;
 			// const interval = setInterval(() => {

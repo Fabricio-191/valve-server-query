@@ -2,7 +2,6 @@
 import Connection from './connection';
 import * as parsers from './parsers';
 import { type RawServerOptions, parseServerOptions } from '../Base/options';
-import { delay } from '../Base/utils';
 
 function makeCommand(code: number, body: Buffer | number[] = [0xFF, 0xFF, 0xFF, 0xFF]): Buffer {
 	return Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, code, ...body]);
@@ -44,8 +43,22 @@ export default class Server{
 		this.connection.destroy();
 	}
 
+	private async _makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
+		let buffer = await this.connection.query(command(), responseHeaders);
+		let attempt = 0;
+
+		while(buffer[0] === 0x41 && attempt < 15){
+			buffer = await this.connection.query(command(buffer.subarray(1)), responseHeaders);
+			attempt++;
+		}
+
+		if(buffer[0] === 0x41) throw new Error('Wrong server response');
+
+		return buffer;
+	}
+
 	public async getInfo(): Promise<InfoWithPing> {
-		const buffer = await this.connection.makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
+		const buffer = await this._makeQuery(COMMANDS.INFO, responsesHeaders.ANY_INFO_OR_CHALLENGE);
 		// @ts-expect-error ping is added later
 		const info: InfoWithPing = parsers.serverInfo(buffer);
 		info.ping = this.connection._lastPing;
@@ -66,12 +79,12 @@ export default class Server{
 			this._isTheShip = '_isTheShip' in info && info._isTheShip;
 		}
 
-		const buffer = await this.connection.makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
+		const buffer = await this._makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
 		return parsers.players(buffer, this._isTheShip);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
-		const buffer = await this.connection.makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
+		const buffer = await this._makeQuery(COMMANDS.RULES, responsesHeaders.RULES_OR_CHALLENGE);
 		return parsers.rules(buffer);
 	}
 
@@ -162,7 +175,6 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 	for(let i = 0; i < servers.length; i += step){
 		const chunk = servers.slice(i, i + step).map(_query);
 		results.push(...await Promise.all(chunk));
-		await delay(10);
 	}
 
 	return results;
