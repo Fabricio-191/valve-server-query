@@ -127,8 +127,8 @@ class Time {
 		this.raw = raw;
 		this.start = new Date(Date.now() - raw);
 		this.hours = Math.floor(this.raw / 3600)		|| 0;
-		this.minutes = Math.floor(this.raw / 60) % 60 	|| 0;
-		this.seconds = this.raw % 60 					|| 0;
+		this.minutes = Math.floor(this.raw / 60) % 60	|| 0;
+		this.seconds = Math.floor(this.raw % 60) 		|| 0;
 	}
 	public raw: number;
 	public start: Date;
@@ -237,7 +237,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 		if(EDF & 0b00100000) info.keywords = reader.string().trim().split(',');
 		if(EDF & 0b00000001){
 			info.gameID = reader.bigUInt();
-			info.appID = Number(info.gameID & 0xFFFFFFn);
+			info.appID = Number(info.gameID & BigInt(0xFFFFFF));
 		}
 
 		reader.checkRemaining();
