@@ -125,11 +125,9 @@ export default class Server{
 
 interface BulkQueryResult {
 	address: string;
-	info: InfoWithPing | {
-		error: unknown;
-	};
-	players?: parsers.Players | null;
-	rules?: parsers.Rules | null;
+	info: InfoWithPing | { error: unknown };
+	players?: parsers.Players | { error: unknown };
+	rules?: parsers.Rules | { error: unknown };
 }
 
 interface BulkQueryOptions {
@@ -139,11 +137,15 @@ interface BulkQueryOptions {
 	timeout?: number;
 }
 
+const _handleError = (error: Error | string): { error: string } => ({
+	error: error instanceof Error ? error.message : error,
+});
+
 async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions = {}): Promise<BulkQueryResult[]> {
 	const _query = async (opts: RawServerOptions): Promise<BulkQueryResult> => {
 		const server = new Server(opts);
 		const info = await server.getInfo()
-			.catch((error: unknown) => ({ error }));
+			.catch(_handleError);
 
 		const result: BulkQueryResult = {
 			address: server.address,
@@ -152,9 +154,9 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 
 		if(!('error' in info)){
 			if(options.getPlayers) result.players = await server.getPlayers()
-				.catch(() => null);
+				.catch(_handleError);
 			if(options.getRules) result.rules = await server.getRules()
-				.catch(() => null);
+				.catch(_handleError);
 
 			server.destroy();
 		}
