@@ -2,13 +2,13 @@
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
 import * as valve from '../src';
-valve.debug.enable('./test/debug.log');
+valve.debug.enable(__dirname + '/debug.log');
 
 const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33045',
+	ip: '49.12.122.244:33040',
 	password: 'cosas',
 	enableWarns: false,
 };
@@ -22,13 +22,7 @@ describe('Server', () => {
 		}
 	}
 
-	const server = new valve.Server();
-	it('connect', async function(){
-		this.slow(9000);
-		this.timeout(10000);
-
-		await server.connect(options);
-	});
+	const server = new valve.Server(options);
 
 	it('getInfo()', async () => {
 		const info = await server.getInfo();
@@ -46,13 +40,6 @@ describe('Server', () => {
 		const rules = await server.getRules();
 		valve.debug(rules, 'Server rules');
 	});
-
-	/*
-	it('getPing()', async () => {
-		const ping = await server.getPing();
-		valve.debug(ping, 'Server ping');
-	});
-	*/
 
 	it('lastPing', () => {
 		if(typeof server.lastPing !== 'number' || isNaN(server.lastPing)){
