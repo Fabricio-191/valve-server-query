@@ -61,6 +61,7 @@ export default class Connection extends BaseConnection<ServerData> {
 
 	protected onMessage(buffer: Buffer): void {
 		const header = buffer.readInt32LE();
+
 		if(header === -1){
 			if(buffer[4] === 0x6C){
 				const reason = buffer.toString('utf8', 5, buffer.length - 1);
@@ -83,7 +84,7 @@ export default class Connection extends BaseConnection<ServerData> {
 		}
 	}
 
-	protected handleMultiplePackets(buffer: Buffer): void {
+	private handleMultiplePackets(buffer: Buffer): void {
 		const packetID = buffer.readUInt32LE(4);
 
 		if(!this.packetsQueues.has(packetID)){
@@ -127,9 +128,7 @@ export default class Connection extends BaseConnection<ServerData> {
 				payload = seekBzip.decode(payload, packets[0].bzip.uncompressedSize);
 			}
 
-			if(payload.readInt32LE() === -1){
-				payload = payload.subarray(4);
-			}
+			if(queue.data.hasHeader) payload = payload.subarray(4);
 
 			this.socket.emit('packet', payload);
 			this.packetsQueues.delete(packetID);
