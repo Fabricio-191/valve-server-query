@@ -3,7 +3,8 @@ import { createSocket, type Socket } from 'dgram';
 import type { BaseData } from './options';
 
 export default abstract class BaseConnection<Data extends BaseData> {
-	constructor() {
+	constructor(data: Data) {
+		this.data = data;
 		this.socket = createSocket('udp4')
 			.on('message', buffer => {
 				debug(this.data, 'recieved:', buffer);
@@ -12,7 +13,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 			})
 			.unref();
 	}
-	public data!: Data;
+	public data: Data;
 	protected readonly socket: Socket;
 	private _connected: Promise<void> | false = false;
 
@@ -27,8 +28,17 @@ export default abstract class BaseConnection<Data extends BaseData> {
 		await this._connected;
 	}
 
-	public destroy(): void {
+	public async destroy(): Promise<void> {
+		try{
+			await this._connected;
+		}catch{
+			return;
+		}
+
 		this.socket.disconnect();
+		this.socket.close();
+		await this._awaitEvent('close', 'Disconnection timeout.');
+
 		this._connected = false;
 	}
 

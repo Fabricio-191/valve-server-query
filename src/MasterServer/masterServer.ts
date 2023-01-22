@@ -36,7 +36,7 @@ export default async function MasterServer(
 
 	if(last === '0.0.0.0:0') servers.pop();
 
-	connection.destroy();
+	await connection.destroy();
 	return servers;
 }
 

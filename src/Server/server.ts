@@ -28,19 +28,15 @@ const COMMANDS = {
 type InfoWithPing = parsers.AnyServerInfo & { ping: number };
 
 export default class Server{
-	constructor(options?: RawServerOptions){
-		if(options) this.setOptions(options);
+	constructor(options: RawServerOptions = {}){
+		const parsedOptions = parseServerOptions(options);
+		this.connection = new Connection(parsedOptions);
 	}
 	private _isTheShip: boolean | null = null;
-	private readonly connection: Connection = new Connection();
+	private readonly connection: Connection;
 
-	public setOptions(options: RawServerOptions = {}): void {
-		const parsedOptions = parseServerOptions(options);
-		this.connection.data = parsedOptions;
-	}
-
-	public destroy(): void {
-		this.connection.destroy();
+	public destroy(): Promise<void> {
+		return this.connection.destroy();
 	}
 
 	private async _makeQuery(command: (key?: Buffer) => Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
@@ -70,17 +66,16 @@ export default class Server{
 			Object.assign(info, parsers.serverInfo(otherBuffer));
 		}catch{}
 
+		this._isTheShip = '_isTheShip' in info && info._isTheShip;
+
 		return info;
 	}
 
 	public async getPlayers(): Promise<parsers.Players> {
-		if(this._isTheShip === null){
-			const info = await this.getInfo();
-			this._isTheShip = '_isTheShip' in info && info._isTheShip;
-		}
+		if(this._isTheShip === null) await this.getInfo();
 
 		const buffer = await this._makeQuery(COMMANDS.PLAYERS, responsesHeaders.PLAYERS_OR_CHALLENGE);
-		return parsers.players(buffer, this._isTheShip);
+		return parsers.players(buffer, this._isTheShip!);
 	}
 
 	public async getRules(): Promise<parsers.Rules> {
@@ -93,14 +88,14 @@ export default class Server{
 	}
 
 	public get lastPing(): number {
-		return this.connection ? this.connection._lastPing : -1;
+		return this.connection._lastPing;
 	}
 
 	public static async getInfo(options: RawServerOptions): Promise<InfoWithPing> {
 		const server = new Server(options);
 		const info = await server.getInfo();
 
-		server.destroy();
+		await server.destroy();
 		return info;
 	}
 
@@ -108,7 +103,7 @@ export default class Server{
 		const server = new Server(options);
 		const players = await server.getPlayers();
 
-		server.destroy();
+		await server.destroy();
 		return players;
 	}
 
@@ -116,7 +111,7 @@ export default class Server{
 		const server = new Server(options);
 		const rules = await server.getRules();
 
-		server.destroy();
+		await server.destroy();
 		return rules;
 	}
 
@@ -125,9 +120,9 @@ export default class Server{
 
 interface BulkQueryResult {
 	address: string;
-	info: InfoWithPing | { error: unknown };
-	players?: parsers.Players | { error: unknown };
-	rules?: parsers.Rules | { error: unknown };
+	info: InfoWithPing | { error: string };
+	players?: parsers.Players | { error: string };
+	rules?: parsers.Rules | { error: string };
 }
 
 interface BulkQueryOptions {
@@ -157,26 +152,29 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 				.catch(_handleError);
 			if(options.getRules) result.rules = await server.getRules()
 				.catch(_handleError);
-
-			server.destroy();
 		}
 
+		await server.destroy();
+		// @ts-expect-error asdasd
+		delete server.connection.socket;
 		return result;
 	};
 
-	servers = servers.map(x => {
-		if(typeof x === 'string') return { ip: x };
-		x.timeout ??= options.timeout ?? 5000;
+	servers = servers.map(opts => {
+		if(typeof opts === 'string') opts = { ip: opts };
+		opts.timeout ??= options.timeout ?? 15000;
 
-		return x;
+		return opts;
 	});
 
-	const results: BulkQueryResult[] = [];
-	const step = options.chunkSize ?? 5000;
+	const results: BulkQueryResult[] = Array<BulkQueryResult>(servers.length);
+	const step = options.chunkSize ?? 10000;
 
 	for(let i = 0; i < servers.length; i += step){
-		const chunk = servers.slice(i, i + step).map(_query);
-		results.push(...await Promise.all(chunk));
+		const chunk = await Promise.all(servers.slice(i, i + step).map(_query));
+		for(let j = 0; j < chunk.length; j++){
+			results[i + j] = chunk[j]!;
+		}
 	}
 
 	return results;
