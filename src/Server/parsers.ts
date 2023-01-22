@@ -18,6 +18,7 @@ const THE_SHIP_MODES = Object.freeze([
 
 // #region types
 interface BaseInfo {
+	_wrongData?: boolean;
 	address: string;
 	name: string;
 	map: string;
@@ -26,18 +27,17 @@ interface BaseInfo {
 	players: {
 		online: number;
 		max: number;
-		bots: number;
+		bots: number | 'unknown';
 	};
 	protocol: number;
 	type: ServerType;
 	OS: OS;
 	hasPassword: boolean;
-	VAC: boolean;
+	VAC: boolean | 'unknown';
 }
 
 export interface GoldSourceServerInfo extends BaseInfo {
-	_wrongModData?: boolean;
-	mod: false | {
+	mod: boolean | 'unknown' | {
 		link: string;
 		downloadLink: string;
 		version: number;
@@ -58,7 +58,6 @@ export interface ServerInfo extends BaseInfo {
 	};
 	keywords?: string[];
 	gameID?: bigint;
-	_wrongEDF?: boolean;
 }
 
 export interface TheShipServerInfo extends ServerInfo {
@@ -148,14 +147,14 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	if(reader.byte() === 0x6D){
 		const info: GoldSourceServerInfo = {
-			address: reader.string(),
-			name: reader.string().trim(),
-			map: reader.string(),
-			folder: reader.string(),
-			game: reader.string(),
+			address: reader.string(), // 31 32 37 2e 30 2e 30 2e 31 3a 2d 32 30 38 33 31 37 34 39 36 00
+			name: reader.string().trim(), // 47 47 2e 4f 4c 44 53 2e 52 4f 20 23 20 32 30 30 38 00
+			map: reader.string(), // 67 67 5f 66 72 65 61 6b 00
+			folder: reader.string(), // 63 73 74 72 69 6b 65 00
+			game: reader.string(), // 43 6f 75 6e 74 65 72 2d 53 74 72 69 6b 65 00
 			players: {
 				online: reader.byte(),
-				bots: -1,
+				bots: 'unknown',
 				max: reader.byte(),
 			},
 			protocol: reader.byte(),
@@ -166,30 +165,33 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 			VAC: false,
 		};
 
-		try{
-			if(reader.remainingLength > 2 && reader.byte()){
-				info.mod = {
-					link: reader.string(),
-					downloadLink: reader.string(),
-					version: reader.addOffset(1).long(),
-					size: reader.long(),
-					multiplayerOnly: reader.byte() === 1,
-					ownDLL: reader.byte() === 1,
-				};
-			}
+		if(reader.remainingLength === 3){
+			info.mod = reader.byte() === 1;
+			if(info.mod) info._wrongData = true;
+
+			info.VAC = reader.byte() === 1;
+			info.players.bots = reader.byte();
+		}else if(reader.remainingLength >= 16){ // has mod
+			info.mod = {
+				link: reader.string(),
+				downloadLink: reader.string(),
+				version: reader.addOffset(1).long(),
+				size: reader.long(),
+				multiplayerOnly: reader.byte() === 1,
+				ownDLL: reader.byte() === 1,
+			};
 
 			info.VAC = reader.byte() === 1;
 			if(reader.hasRemaining) info.players.bots = reader.byte();
-		}catch{ // some servers send bad mod data
-			info.mod = false;
-			info._wrongModData = true;
+		}else{
+			info.mod = 'unknown';
+			info._wrongData = true;
 
 			reader.setOffset(-2);
 			info.VAC = reader.byte() === 1;
 			info.players.bots = reader.byte();
 		}
 
-		reader.checkRemaining();
 		return info;
 	}
 
@@ -227,7 +229,7 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 	if(!reader.hasRemaining) return info;
 	const EDF = reader.byte();
 
-	try{ // some servers have a bad implementation of EDF
+	try{
 		if(EDF & 0b10000000) info.gamePort = reader.short(true);
 		if(EDF & 0b00010000) info.steamID = reader.bigUInt();
 		if(EDF & 0b01000000) info.tv = {
@@ -242,7 +244,12 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 		reader.checkRemaining();
 	}catch{
-		info._wrongEDF = true;
+		if(EDF & 0b10000000) delete info.gamePort;
+		if(EDF & 0b00010000) delete info.steamID;
+		if(EDF & 0b01000000) delete info.tv;
+		if(EDF & 0b00100000) delete info.keywords;
+		if(EDF & 0b00000001) delete info.gameID;
+		info._wrongData = true;
 	}
 
 	return info;
