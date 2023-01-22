@@ -8,8 +8,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 			.on('message', buffer => {
 				debug(this.data, 'recieved:', buffer);
 
-				// some old servers just thought it would be a good idea to send empty useless packets in very rare occasions
-				if(buffer.length !== 0) this.onMessage(buffer);
+				if(buffer.length > 4) this.onMessage(buffer);
 			})
 			.unref();
 	}
