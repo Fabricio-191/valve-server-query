@@ -42,7 +42,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 		this._connected = false;
 	}
 
-	private async send(command: Buffer): Promise<void> {
+	public async send(command: Buffer): Promise<void> {
 		await this.connect();
 
 		debug(this.data, 'sent:', command);
@@ -97,23 +97,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 		);
 	}
 
-	public _lastPing = -1;
-	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
-		return new Promise((res, rej) => {
-			// const retries = 3;
-			// const interval = setInterval(() => {
-			// 	// this.send(command).catch(() => { /* do nothing */ });
-			// }, this.data.timeout / retries).unref();
-
-			const start = Date.now();
-			this.send(command)
-				.then(() => this.awaitResponse(responseHeaders))
-				.then(buffer => {
-					this._lastPing = Date.now() - start;
-					res(buffer);
-				})
-				.catch(rej);
-			//	.finally(() => clearInterval(interval));
-		});
+	public query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
+		return this.send(command).then(() => this.awaitResponse(responseHeaders));
 	}
 }

@@ -135,6 +135,24 @@ export default class Connection extends BaseConnection<ServerData> {
 		}
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
 	}
+
+	public _lastPing = -1;
+	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
+		return new Promise((res, rej) => {
+			const interval = setInterval(() => {
+				this.send(command).catch(() => { /* do nothing */ });
+			}, this.data.timeout / this.data.retries).unref();
+
+			const start = Date.now();
+			super.query(command, responseHeaders)
+				.then(buffer => {
+					this._lastPing = Date.now() - start;
+					res(buffer);
+				})
+				.catch(rej)
+				.finally(() => clearInterval(interval));
+		});
+	}
 }
 
 interface MultiPacket {

@@ -32,7 +32,9 @@ export interface RCONData extends BaseData {
 	password: string;
 }
 
-export type ServerData = BaseData;
+export interface ServerData extends BaseData {
+	retries: number;
+}
 // #endregion
 
 // #region raw options
@@ -43,7 +45,7 @@ interface BaseRawOptions {
 }
 
 export type RawRCONOptions = string | (BaseRawOptions & { password: string });
-export type RawServerOptions = BaseRawOptions | string;
+export type RawServerOptions = string | (BaseRawOptions & { retries?: number });
 export type RawMasterServerOptions = string | (BaseRawOptions & {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
@@ -57,6 +59,13 @@ const DEFAULT_OPTIONS = {
 	ip: '127.0.0.1',
 	port: 27015,
 	timeout: 5000,
+};
+
+const DEFAULT_SERVER_OPTIONS = {
+	ip: '127.0.0.1',
+	port: 27015,
+	timeout: 5000,
+	retries: 3,
 };
 
 const DEFAULT_MASTER_SERVER_OPTIONS = {
@@ -101,7 +110,7 @@ export function parseServerOptions(options: RawServerOptions): ServerData {
 	if(typeof options !== 'object') throw new TypeError('Options must be an object');
 
 	return parseBaseOptions({
-		...DEFAULT_OPTIONS,
+		...DEFAULT_SERVER_OPTIONS,
 		...options,
 	});
 }
@@ -143,7 +152,10 @@ export function parseRCONOptions(options: RawRCONOptions): RCONData {
 	if(typeof options === 'string') options = { password: options };
 	if(typeof options !== 'object' || options === null) throw new TypeError('Options must be an object');
 
-	const parsedOptions = parseServerOptions(options) as RCONData;
+	const parsedOptions = parseBaseOptions({
+		...DEFAULT_OPTIONS,
+		...options,
+	});
 
 	if(typeof parsedOptions.password !== 'string' || parsedOptions.password === ''){
 		throw new Error('RCON password must be a non-empty string');
