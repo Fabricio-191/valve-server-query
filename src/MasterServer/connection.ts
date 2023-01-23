@@ -52,8 +52,7 @@ class BulkQueryConnection extends MasterServerConnection {
 }
 
 export default async function createConnection(data: MasterServerData): Promise<MasterServerConnection> {
-	const connection = data.slow ? new SlowQueryConnection() : new BulkQueryConnection();
-	connection.data = data;
+	const connection = data.slow ? new SlowQueryConnection(data) : new BulkQueryConnection(data);
 	await connection.connect();
 
 	return connection;
