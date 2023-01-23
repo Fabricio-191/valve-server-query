@@ -155,20 +155,18 @@ async function bulkQuery(servers: RawServerOptions[], options: BulkQueryOptions 
 		}
 
 		await server.destroy();
-		// @ts-expect-error asdasd
-		delete server.connection.socket;
 		return result;
 	};
 
 	servers = servers.map(opts => {
 		if(typeof opts === 'string') opts = { ip: opts };
-		opts.timeout ??= options.timeout ?? 15000;
+		opts.timeout ??= options.timeout ?? 5000;
 
 		return opts;
 	});
 
 	const results: BulkQueryResult[] = Array<BulkQueryResult>(servers.length);
-	const step = options.chunkSize ?? 10000;
+	const step = options.chunkSize ?? 3000;
 
 	for(let i = 0; i < servers.length; i += step){
 		const chunk = await Promise.all(servers.slice(i, i + step).map(_query));
