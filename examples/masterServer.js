@@ -15,7 +15,6 @@ MasterServer({
 	})
 	.catch(console.error);  // pseudo error event
 
-
 /*
 As masterservers are heavily rate limited to: 30 request per minute and 60 request per 5 minutes
 There are 2 options to get around this:

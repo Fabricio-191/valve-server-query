@@ -10,7 +10,7 @@ debug.enable(__dirname + '/debug.log');
 		timeout: 5000,
 		quantity: 30000,
 		region: 'ANY',
-		slow: true,
+		slow: false,
 		filter: new MasterServer.Filter()
 			// .appIds(215, 240, 17550, 17700, 10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // some of these have bzip2
 			// .appIds(10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // generally goldSource
@@ -18,9 +18,7 @@ debug.enable(__dirname + '/debug.log');
 	});
 
 	console.log(servers.length);
-	const results = await Server.bulkQuery(servers, {
-		getPlayers: true,
-	});
+	const results = await Server.bulkQuery(servers, { getPlayers: true });
 
 	console.log('total successful', results.filter(i => !('error' in i.info)).length);
 	console.log('total rejected', results.filter(i => 'error' in i.info).length);
@@ -31,12 +29,12 @@ debug.enable(__dirname + '/debug.log');
 		if(!('error' in result.info)) continue;
 
 		const err = result.info.error;
-		if(!(err in errors)){
-			console.log(result.info.error);
-			errors[err] = [];
+		if(err in errors){
+			errors[err]!.push(result.address);
+		}else{
+			console.log(err);
+			errors[err] = [result.address];
 		}
-
-		errors[err]!.push(result.address);
 	}
 
 	for(const err in errors) debug(errors[err]!, err);
@@ -46,7 +44,4 @@ debug.enable(__dirname + '/debug.log');
 
 // 87.106.170.160:27015
 // 81.28.6.20:27015
-
-Server.getPlayers('87.106.170.160:27015')
-	.then(console.log)
-	.catch(console.error);
+// 135.125.188.144:27025

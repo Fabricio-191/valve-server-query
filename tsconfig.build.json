@@ -11,7 +11,7 @@
 		"declarationDir": "./lib/typings",
 		
 		"sourceMap": false,
-		"inlineSourceMap": true,
+		"inlineSourceMap": false,
 		// "mapRoot": "",
 
 		// "listEmittedFiles": true

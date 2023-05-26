@@ -1,8 +1,13 @@
 {
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "Node 16",
+	"extends": "ts-node/node16/tsconfig.json",
 	"compilerOptions": {
-		"lib": ["ES2021"],
+		// "esModuleInterop": true,
+		// "skipLibCheck": true,
+		"lib": ["ES2015"],
 		"module": "CommonJS",
-		"target": "ES2021",
+		"target": "ES2015",
 		"moduleResolution": "node",
 		"types": ["mocha", "node"],
 
@@ -38,5 +43,18 @@
 		"forceConsistentCasingInFileNames": true
 	},
 	"include": ["src", "test", "scripts"],
-	"exclude": ["lib"]
+	"exclude": ["lib"],
+	"ts-node": {
+		// It is faster to skip typechecking.
+		// Remove if you want ts-node to do typechecking.
+		"transpileOnly": true,
+	
+		"files": true,
+	
+		"compilerOptions": {
+		  // compilerOptions specified here will override those declared below,
+		  // but *only* in ts-node.  Useful if you want ts-node and tsc to use
+		  // different options with a single tsconfig.json.
+		}
+	},
 }

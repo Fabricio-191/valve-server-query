@@ -64,16 +64,16 @@ export default class Connection extends BaseConnection<ServerData> {
 
 		if(header === -1){
 			if(buffer[4] === 0x6C){
+				if(this.socket.listenerCount('error') === 0) return;
 				const reason = buffer.toString('utf8', 5, buffer.length - 1);
-				const error = Object.assign(
+				this.socket.emit('error', Object.assign(
 					new Error('Banned by server'), {
-						reason, rawMessage: buffer,
+						reason,
+						rawMessage: buffer,
 						ip: this.data.ip,
 						port: this.data.port,
-					}
+					})
 				);
-
-				if(this.socket.listenerCount('error') !== 0) this.socket.emit('error', error);
 			}else{
 				this.socket.emit('packet', buffer.subarray(4));
 			}
@@ -130,14 +130,23 @@ export default class Connection extends BaseConnection<ServerData> {
 
 			if(queue.data.hasHeader) payload = payload.subarray(4);
 
-			this.socket.emit('packet', payload);
+			this.socket.emit('message', payload);
 			this.packetsQueues.delete(packetID);
 		}
 		// const hasSizeField = this.data.protocol !== 7 || !MPS_IDS.includes(this.data.appID);
 	}
 
 	public _lastPing = -1;
-	public async query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
+	public query(command: Buffer, responseHeaders: readonly number[]): Promise<Buffer> {
+		if(this.data.retries === 0){
+			const start = Date.now();
+			return super.query(command, responseHeaders)
+				.then(buffer => {
+					this._lastPing = Date.now() - start;
+					return buffer;
+				});
+		}
+
 		return new Promise((res, rej) => {
 			const interval = setInterval(() => {
 				this.send(command).catch(() => { /* do nothing */ });

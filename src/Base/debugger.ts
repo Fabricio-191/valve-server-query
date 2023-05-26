@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { appendFileSync } from 'fs';
 import type { BaseData } from './options';
 
 export let isEnabled = false;
@@ -62,5 +62,7 @@ debug.enable = function(file = 'debug.log'): void {
 };
 
 debug.save = function(file = debugFile): void {
-	if(log !== '') writeFileSync(file, log);
+	if(log === '') return;
+	appendFileSync(file, log);
+	log = '';
 };

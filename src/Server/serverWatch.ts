@@ -35,7 +35,7 @@ function parseOptions(options: RawOptions, previousOptions: Options): Options {
 	return data;
 }
 
-function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
+function diffKeys<T extends object>(a: T, b: T): Array<keyof T> {
 	const keys = Object.keys(a) as Array<keyof T>;
 
 	return keys.filter(key => a[key] !== b[key] && typeof a[key] !== 'object');
@@ -43,17 +43,17 @@ function diferentKeys<T extends object>(a: T, b: T): Array<keyof T> {
 
 
 interface Events {
-	statusUpdate: (newStatus: 'offline' | 'online') => void;
+	statusUpdate(newStatus: 'offline' | 'online'): void;
 
-	infoUpdate: (oldInfo: AnyServerInfo, newInfo: AnyServerInfo, changed: InfoKeys) => void;
-	playersUpdate: (oldPlayers: Players, newPlayers: Players) => void;
-	rulesUpdate: (oldRules: Rules, newRules: Rules, changed: Array<number | string>) => void;
+	infoUpdate(oldInfo: AnyServerInfo, newInfo: AnyServerInfo, changed: InfoKeys): void;
+	playersUpdate(oldPlayers: Players, newPlayers: Players): void;
+	rulesUpdate(oldRules: Rules, newRules: Rules, changed: Array<number | string>): void;
 
-	playerJoin: (player: Player) => void;
-	playerLeave: (player: Player) => void;
+	playerJoin(player: Player): void;
+	playerLeave(player: Player): void;
 
-	update: () => void;
-	error: (err: unknown) => void;
+	update(): void;
+	error(err: unknown): void;
 }
 
 declare interface ServerWatch {
@@ -126,9 +126,9 @@ class ServerWatch extends EventEmitter {
 		this.info = await this.server.getInfo();
 		if(oldInfo === null) return;
 
-		const changed = diferentKeys(oldInfo, this.info as AnyServerInfo);
+		const changed = diffKeys(oldInfo, this.info);
 		if(changed.length){
-			this.emit('infoUpdate', oldInfo, this.info as AnyServerInfo, changed as InfoKeys);
+			this.emit('infoUpdate', oldInfo, this.info, changed as InfoKeys);
 		}
 	}
 
@@ -163,7 +163,7 @@ class ServerWatch extends EventEmitter {
 		this.rules = await this.server.getRules();
 		if(oldRules === null) return;
 
-		const changed = diferentKeys(oldRules, this.rules);
+		const changed = diffKeys(oldRules, this.rules);
 		if(changed.length){
 			this.emit('rulesUpdate', oldRules, this.rules, changed);
 		}
