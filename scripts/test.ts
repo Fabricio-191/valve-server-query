@@ -13,8 +13,8 @@ debug.enable(__dirname + '/debug.log');
 		slow: false,
 		filter: new MasterServer.Filter()
 			// .appIds(215, 240, 17550, 17700, 10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // some of these have bzip2
-			// .appIds(10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // generally goldSource
-			.appIds(2400, 2401, 2402, 2403, 2405, 2406, 2410, 2412, 2413, 2420, 2430, 383790) // the ship
+			.appIds(10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // generally goldSource
+			// .appIds(2400, 2401, 2402, 2403, 2405, 2406, 2410, 2412, 2413, 2420, 2430, 383790) // the ship
 	});
 
 	console.log(servers.length);

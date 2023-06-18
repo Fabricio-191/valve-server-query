@@ -77,9 +77,7 @@ export interface Player {
 }
 
 export interface TheShipPlayer extends Player{
-	/** Player's deaths (Only for "the ship" servers). */
 	deaths: number;
-	/** Player's money (Only for "the ship" servers). */
 	money: number;
 }
 
@@ -147,11 +145,11 @@ export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | 
 
 	if(reader.byte() === 0x6D){
 		const info: GoldSourceServerInfo = {
-			address: reader.string(), // 31 32 37 2e 30 2e 30 2e 31 3a 2d 32 30 38 33 31 37 34 39 36 00
-			name: reader.string().trim(), // 47 47 2e 4f 4c 44 53 2e 52 4f 20 23 20 32 30 30 38 00
-			map: reader.string(), // 67 67 5f 66 72 65 61 6b 00
-			folder: reader.string(), // 63 73 74 72 69 6b 65 00
-			game: reader.string(), // 43 6f 75 6e 74 65 72 2d 53 74 72 69 6b 65 00
+			address: reader.string(),
+			name: reader.string().trim(),
+			map: reader.string(),
+			folder: reader.string(),
+			game: reader.string(),
 			players: {
 				online: reader.byte(),
 				bots: 'unknown',
