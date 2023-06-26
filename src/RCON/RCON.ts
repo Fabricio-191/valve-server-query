@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { parseRCONOptions, type RawRCONOptions } from '../Base/options';
-import { BufferWriter, debug, delay } from '../Base/utils';
+import { BufferWriter, log, delay } from '../Base/utils';
 import Connection, { PacketType, type RCONPacket } from './connection';
 
 function makeCommand(ID: number, type: PacketType, body = ''): Buffer {
@@ -40,7 +40,7 @@ class RCON extends EventEmitter{
 
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
-			debug(this.connection.data, `RCON disconnected: ${reason}`);
+			log(this.connection.data, `RCON disconnected: ${reason}`);
 
 			this._reset();
 			this.emit('disconnect', reason);
@@ -49,14 +49,14 @@ class RCON extends EventEmitter{
 		this._connected = (async () => {
 			const data = parseRCONOptions(options);
 
-			debug(data, 'RCON connecting');
+			log(data, 'RCON connecting');
 			this.connection = new Connection(data, onError);
 
 			if(this._ref) this.connection.socket.ref();
 			else this.connection.socket.unref();
 
 			await this.connection.awaitConnect();
-			debug(data, 'RCON connected');
+			log(data, 'RCON connected');
 			this.isConnnected = true;
 		})();
 
@@ -144,7 +144,7 @@ class RCON extends EventEmitter{
 
 		this.connection.data.password = password;
 
-		debug(this.connection.data, 'RCON autenticated');
+		log(this.connection.data, 'RCON autenticated');
 	}
 
 	private _lastID = 0x33333333;

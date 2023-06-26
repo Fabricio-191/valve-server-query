@@ -2,10 +2,10 @@ import { appendFileSync } from 'fs';
 import type { BaseData } from './options';
 
 export let isEnabled = false;
-let log = '';
+let logStr = '';
 let debugFile = 'debug.log';
 
-export function debug(data: BaseData | number | object | string, string: string, buffer?: Buffer): void {
+export function log(data: BaseData | number | object | string, string: string, buffer?: Buffer): void {
 	if(!isEnabled) return;
 
 	if(typeof data === 'object' && 'ip' in data){
@@ -13,12 +13,12 @@ export function debug(data: BaseData | number | object | string, string: string,
 			// eslint-disable-next-line no-nested-ternary
 			'password' in data ? 'RCON' : 'region' in data ? 'MasterServer' : 'Server';
 
-		log += `[${type}] ${data.ip}:${data.port} - ${string} `;
+		logStr += `[${type}] ${data.ip}:${data.port} - ${string} `;
 
 		if(buffer){
 			const parts = buffer.toString('hex').match(/../g) ?? [ '<empty>' ];
 
-			log += parts.join(' ');
+			logStr += parts.join(' ');
 		}
 	}else{
 		data = JSON.stringify(data, (_, v: unknown) => {
@@ -26,28 +26,28 @@ export function debug(data: BaseData | number | object | string, string: string,
 			return v;
 		}, 2);
 
-		log += `[${string}] - ${data}`;
+		logStr += `[${string}] - ${data}`;
 	}
 
-	log += '\n\n';
+	logStr += '\n\n';
 }
 
-debug.enable = function(file = 'debug.log'): void {
+log.enable = function(file = 'debug.log'): void {
 	if(isEnabled) throw new Error('Debug already enabled');
 	isEnabled = true;
 	debugFile = file;
 
 
-	setInterval(debug.save, 1000).unref();
+	setInterval(log.save, 1000).unref();
 
 	const handleExit = (err?: unknown): void => {
-		debug.save();
+		log.save();
 
 		// eslint-disable-next-line no-console
 		if(err) console.error('unhandled', err);
 
 		setTimeout(() => {
-			debug.save();
+			log.save();
 			// eslint-disable-next-line no-console
 			console.log('debugging end');
 			process.exit();
@@ -61,8 +61,8 @@ debug.enable = function(file = 'debug.log'): void {
 	process.on('uncaughtException', handleExit);
 };
 
-debug.save = function(file = debugFile): void {
-	if(log === '') return;
-	appendFileSync(file, log);
-	log = '';
+log.save = function(file = debugFile): void {
+	if(logStr === '') return;
+	appendFileSync(file, logStr);
+	logStr = '';
 };

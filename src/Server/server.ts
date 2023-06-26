@@ -118,6 +118,8 @@ export default class Server{
 	public static bulkQuery = bulkQuery;
 }
 
+export type ServerOptions = RawServerOptions;
+
 interface BulkQueryResult {
 	address: string;
 	info: InfoWithPing | { error: string };

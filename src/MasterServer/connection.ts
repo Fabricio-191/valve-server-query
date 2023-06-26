@@ -1,5 +1,5 @@
 import BaseConnection from '../Base/connection';
-import { delay, debug } from '../Base/utils';
+import { delay, log } from '../Base/utils';
 import type { MasterServerData } from '../Base/options';
 
 class MasterServerConnection extends BaseConnection<MasterServerData> {
@@ -14,7 +14,7 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 		}else if(header === -2){
 			throw new Error('Master servers should not use multiple packets response');
 		}else{
-			debug(this.data, 'cannot parse packet', buffer);
+			log(this.data, 'cannot parse packet', buffer);
 		}
 	}
 }

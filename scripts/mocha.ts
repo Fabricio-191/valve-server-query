@@ -22,7 +22,12 @@ describe('Server', () => {
 		}
 	}
 
-	const server = new valve.Server(options);
+	// eslint-disable-next-line @typescript-eslint/init-declarations
+	let server: valve.Server;
+
+	it('constructor', () => {
+		server = new valve.Server(options);
+	});
 
 	it('getInfo()', async () => {
 		const info = await server.getInfo();
@@ -49,6 +54,23 @@ describe('Server', () => {
 		}
 
 		valve.debug(server.lastPing, 'Server ping');
+	});
+
+	it('others constructors', async () => {
+		const option = [
+			// eslint-disable-next-line no-undefined
+			undefined,
+			{},
+			options.ip,
+			{ ip: options.ip },
+			{ ip: options.ip.split(':')[0]!, port: options.ip.split(':')[1]! },
+			{ ip: options.ip.split(':')[0]!, port: Number(options.ip.split(':')[1]) },
+		] as const;
+
+		for(const opt of option){
+			const s = new valve.Server(opt);
+			await s.getInfo();
+		}
 	});
 });
 

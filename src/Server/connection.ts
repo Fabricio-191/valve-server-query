@@ -1,4 +1,4 @@
-import { BufferReader, optionalImport, debug } from '../Base/utils';
+import { BufferReader, optionalImport, log } from '../Base/utils';
 import { type ServerData } from '../Base/options';
 import BaseConnection from '../Base/connection';
 
@@ -80,7 +80,7 @@ export default class Connection extends BaseConnection<ServerData> {
 		}else if(header === -2){
 			this.handleMultiplePackets(buffer);
 		}else{
-			debug(this.data, 'ERROR cannot parse packet', buffer);
+			log(this.data, 'ERROR cannot parse packet', buffer);
 		}
 	}
 
@@ -94,8 +94,8 @@ export default class Connection extends BaseConnection<ServerData> {
 				if(this.packetsQueues.has(packetID)){
 					const queue = this.packetsQueues.get(packetID)!;
 
-					debug(this.data, 'ERROR multi packet not recieved completely', buffer.subarray(4, 8));
-					debug(this.data, JSON.stringify(queue.data, null, '  '));
+					log(this.data, 'ERROR multi packet not recieved completely', buffer.subarray(4, 8));
+					log(this.data, JSON.stringify(queue.data, null, '  '));
 					this.packetsQueues.delete(packetID);
 				}
 			}, this.data.timeout).unref();
@@ -107,7 +107,7 @@ export default class Connection extends BaseConnection<ServerData> {
 		const mpData = getMultiPacketData(buffer, packetID);
 		if(mpData){
 			if(queue.data){
-				debug(this.data, 'ERROR multiple packets with different types');
+				log(this.data, 'ERROR multiple packets with different types');
 				throw new Error('Multiple packets with different types');
 			}else{
 				queue.data = mpData;

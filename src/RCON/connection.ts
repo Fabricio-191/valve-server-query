@@ -1,6 +1,6 @@
 import type { RCONData } from '../Base/options';
 import { createConnection as createSocket, type Socket } from 'net';
-import { BufferReader, debug, delay } from '../Base/utils';
+import { BufferReader, log, delay } from '../Base/utils';
 
 export interface RCONPacket {
 	size: number;
@@ -47,7 +47,7 @@ export default class Connection {
 	public buffers: Buffer[] = [];
 
 	public async send(command: Buffer): Promise<void> {
-		debug(this.data, 'RCON sending:', command);
+		log(this.data, 'RCON sending:', command);
 
 		await new Promise<void>((res, rej) => {
 			this.socket.write(command, 'ascii', err => {
@@ -102,7 +102,7 @@ export default class Connection {
 	}
 
 	private onData(buffer: Buffer): void {
-		debug(this.data, 'RCON received:', buffer);
+		log(this.data, 'RCON received:', buffer);
 
 		if(this.remaining === 0){
 			this.remaining = buffer.readUInt32LE() + 4; // size field
@@ -134,11 +134,11 @@ export default class Connection {
 	public async reconnect(): Promise<void> {
 		// Tiny delay to avoid "Error: Already connected" while reconnecting
 		await delay(1);
-		debug(this.data, 'RCON reconnecting...');
+		log(this.data, 'RCON reconnecting...');
 
 		this.socket.connect(this.data.port, this.data.ip);
 		await this.awaitConnect();
 
-		debug(this.data, 'RCON reconnected');
+		log(this.data, 'RCON reconnected');
 	}
 }

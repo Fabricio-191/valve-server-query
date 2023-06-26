@@ -27,7 +27,7 @@ This module allows you to:
 
 ## Links
 
-* [Docs](https://fabricio-191.github.io/docs/valve-server-query/)
+* [Full Docs](https://fabricio-191.github.io/docs/valve-server-query/)
 * [GitHub](https://github.com/Fabricio-191/valve-server-query)
 * [Discord](https://discord.gg/zrESMn6)
 
@@ -114,3 +114,5 @@ rcon.on('passwordChanged', async () => {
 
 const response = await rcon.exec('sv_gravity 1000');
 ```
+
+#### [Full docs](https://fabricio-191.github.io/docs/valve-server-query/)

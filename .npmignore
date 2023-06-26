@@ -1,0 +1,15 @@
+.npmignore
+.gitignore
+.eslintrc.js
+.eslintrc.json
+
+node_modules/
+package-lock.json
+
+src/
+test/
+examples/
+scripts/
+
+tsconfig.json
+tsconfig.build.json

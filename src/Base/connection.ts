@@ -1,4 +1,4 @@
-import { debug } from './utils';
+import { log } from './utils';
 import { createSocket, type Socket } from 'dgram';
 import type { BaseData } from './options';
 
@@ -7,7 +7,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 		this.data = data;
 		this.socket = createSocket('udp4')
 			.on('message', buffer => {
-				debug(this.data, 'recieved:', buffer);
+				log(this.data, 'recieved:', buffer);
 
 				if(buffer.length > 4) this.onMessage(buffer);
 			})
@@ -45,7 +45,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 	public async send(command: Buffer): Promise<void> {
 		await this.connect();
 
-		debug(this.data, 'sent:', command);
+		log(this.data, 'sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(command, err => {

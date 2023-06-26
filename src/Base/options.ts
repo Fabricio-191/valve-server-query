@@ -128,7 +128,7 @@ export function parseMasterServerOptions(options: RawMasterServerOptions): Maste
 		parsedOptions.quantity = Infinity;
 	}
 
-	if(!Number.isInteger(options.quantity) || parsedOptions.quantity < 0){
+	if(!Number.isInteger(parsedOptions.quantity) || parsedOptions.quantity < 0){
 		throw Error("'quantity' should be a number greater than zero");
 	}else if(typeof parsedOptions.region !== 'string'){
 		throw Error("'region' should be a string");

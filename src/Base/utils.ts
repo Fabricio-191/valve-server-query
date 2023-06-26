@@ -127,4 +127,4 @@ export function optionalImport<T>(moduleName: string): T | null {
 	}
 }
 
-export * from './debugger';
+export * from './logger';
