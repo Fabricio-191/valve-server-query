@@ -1,9 +1,9 @@
 import Server from './Server/server';
 import MasterServer from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
-import { debug } from './Base/utils';
+import { log } from './Base/utils';
 
-const enableDebug = debug.enable;
+const enableLog = log.enable;
 
 export type {
 	ServerInfo, GoldSourceServerInfo,
@@ -12,5 +12,5 @@ export type {
 	Player, TheShipPlayer
 } from './Server/parsers';
 
-export { Server, MasterServer, RCON, enableDebug, debug };
-export default { Server, MasterServer, RCON, enableDebug, debug };
+export { Server, MasterServer, RCON, enableLog, log };
+export default { Server, MasterServer, RCON, enableLog, log };

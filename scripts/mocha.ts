@@ -2,7 +2,7 @@
 /* eslint-env mocha */
 import type { EventEmitter } from 'events';
 import * as valve from '../src';
-valve.debug.enable(__dirname + '/debug.log');
+valve.log.enable(__dirname + '/log.log');
 
 const doNothing = (): void => { /* do nothing */ };
 
@@ -33,17 +33,17 @@ describe('Server', () => {
 		const info = await server.getInfo();
 
 		checkInfo(info);
-		valve.debug(info, 'Server info');
+		valve.log(info, 'Server info');
 	});
 
 	it('getPlayers()', async () => {
 		const players = await server.getPlayers();
-		valve.debug(players, 'Server players');
+		valve.log(players, 'Server players');
 	});
 
 	it('getRules()', async () => {
 		const rules = await server.getRules();
-		valve.debug(rules, 'Server rules');
+		valve.log(rules, 'Server rules');
 	});
 
 	it('lastPing', () => {
@@ -53,7 +53,7 @@ describe('Server', () => {
 			throw new Error(`Server.lastPing is too small (${server.lastPing})`);
 		}
 
-		valve.debug(server.lastPing, 'Server ping');
+		valve.log(server.lastPing, 'Server ping');
 	});
 
 	it('others constructors', async () => {
@@ -114,7 +114,7 @@ describe('MasterServer', () => {
 
 		IPs.forEach(checkIP);
 
-		valve.debug(IPs, 'MasterServer result');
+		valve.log(IPs, 'MasterServer result');
 	});
 
 	it('filter', async function(){
@@ -162,7 +162,7 @@ describe('RCON', () => {
 
 	it("exec('sv_gravity') (single packet response)", async () => {
 		const result = await rcon.exec('sv_gravity');
-		valve.debug(result, "exec('sv_gravity')");
+		valve.log(result, "exec('sv_gravity')");
 	});
 
 	it("exec('cvarlist') (multiple packet response)", async function(){
@@ -170,12 +170,12 @@ describe('RCON', () => {
 		this.timeout(10000);
 
 		const result = await rcon.exec('cvarlist');
-		valve.debug(result, "exec('cvarlist')");
+		valve.log(result, "exec('cvarlist')");
 	});
 
 	it("exec('status')", async () => {
 		const result = await rcon.exec('status');
-		valve.debug(result, "exec('status')");
+		valve.log(result, "exec('status')");
 	});
 
 	it('multiple requests', async function(){

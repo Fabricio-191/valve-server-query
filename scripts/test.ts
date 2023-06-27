@@ -1,9 +1,9 @@
 /* eslint-disable */
-import { debug, Server, MasterServer } from '../src';
+import { log, Server, MasterServer } from '../src';
 // @ts-expect-error asdasd
-import * as log from 'why-is-node-running';
+import * as whyIsNodeRunning from 'why-is-node-running';
 
-debug.enable(__dirname + '/debug.log');
+log.enable(__dirname + '/debug.log');
 
 (async () => {
 	const servers = await MasterServer({
@@ -37,9 +37,9 @@ debug.enable(__dirname + '/debug.log');
 		}
 	}
 
-	for(const err in errors) debug(errors[err]!, err);
+	for(const err in errors) log(errors[err]!, err);
 
-	debug(results, 'results')
+	log(results, 'results')
 })().catch(e => console.error('asdasd', e));
 
 // 87.106.170.160:27015
