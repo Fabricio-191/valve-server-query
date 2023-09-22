@@ -44,21 +44,21 @@ export default class Filter{
 	}
 
 	/* eslint-disable */
-	public hasTags          (   tags: string[]): this { return this._addArr('\\gametype\\',                  tags); }
-	public hasTagsL4D2      (   tags: string[]): this { return this._addArr('\\gamedata\\',                  tags); }
-	public hasAnyTagsL4F2   (   tags: string[]): this { return this._addArr('\\gamedataor\\',                tags); }
-	public map              (    map: string  ): this { return this._add   ('\\map\\',                        map); }
-	public mod              (    mod: string  ): this { return this._add   ('\\gamedir\\',                    mod); }
-	public address          (address: string  ): this { return this._add   ('\\gameaddr\\',               address); }
-	public name             (   name: string  ): this { return this._add   ('\\name_match\\',                name); }
-	public version          (version: string  ): this { return this._add   ('\\version_match\\',          version); }
-	public notMap           (    map: string  ): this { return this._add   ('\\nand\\1\\map\\',               map); }
-	public notMod           (    mod: string  ): this { return this._add   ('\\nand\\1\\gamedir\\',           mod); }
-	public notAddress       (address: string  ): this { return this._add   ('\\nand\\1\\gameaddr\\',      address); }
-	public notName          (   name: string  ): this { return this._add   ('\\nand\\1\\name_match\\',       name); }
-	public notVersion       (version: string  ): this { return this._add   ('\\nand\\1\\version_match\\', version); }
-	public appId            (  appId: number  ): this { return this._add   ('\\appid\\',          checkNum(appId)); }
-	public notAppId         (  appId: number  ): this { return this._add   ('\\nappid\\',         checkNum(appId)); }
+	public hasTags       (   tags: string[]): this { return this._addArr('\\gametype\\',   tags); }
+	public hasTagsL4D2   (   tags: string[]): this { return this._addArr('\\gamedata\\',   tags); }
+	public hasAnyTagsL4D2(   tags: string[]): this { return this._addArr('\\gamedataor\\', tags); }
+	public map           (    map: string  ): this { return this._add   ('\\map\\',                        map); }
+	public mod           (    mod: string  ): this { return this._add   ('\\gamedir\\',                    mod); }
+	public address       (address: string  ): this { return this._add   ('\\gameaddr\\',               address); }
+	public name          (   name: string  ): this { return this._add   ('\\name_match\\',                name); }
+	public version       (version: string  ): this { return this._add   ('\\version_match\\',          version); }
+	public notMap        (    map: string  ): this { return this._add   ('\\nand\\1\\map\\',               map); }
+	public notMod        (    mod: string  ): this { return this._add   ('\\nand\\1\\gamedir\\',           mod); }
+	public notAddress    (address: string  ): this { return this._add   ('\\nand\\1\\gameaddr\\',      address); }
+	public notName       (   name: string  ): this { return this._add   ('\\nand\\1\\name_match\\',       name); }
+	public notVersion    (version: string  ): this { return this._add   ('\\nand\\1\\version_match\\', version); }
+	public appId         (  appId: number  ): this { return this._add   ('\\appid\\',          checkNum(appId)); }
+	public notAppId      (  appId: number  ): this { return this._add   ('\\nappid\\',         checkNum(appId)); }
 	/* eslint-enable */
 
 	public addresses(...addresses: string[]): this {

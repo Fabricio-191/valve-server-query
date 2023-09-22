@@ -6,4 +6,5 @@ package-lock.json
 
 lib/
 test/results.json
-debug.log
+*.log
+temp/

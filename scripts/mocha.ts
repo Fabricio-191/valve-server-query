@@ -8,7 +8,7 @@ const doNothing = (): void => { /* do nothing */ };
 
 // https://www.freegamehosting.eu/stats#garrysmod
 const options = {
-	ip: '49.12.122.244:33040',
+	ip: '213.239.207.78:33049',
 	password: 'cosas',
 	enableWarns: false,
 };
@@ -147,7 +147,7 @@ describe('MasterServer', () => {
 			)
 			.length;
 
-		if(results.length - satisfiesFilter < results.length * 0.1){ // (10% error margin) master servers are not perfect
+		if(results.length - satisfiesFilter < results.length * 0.1){ // (10% error margin)
 			throw new Error('Filter is not working well');
 		}
 	});
