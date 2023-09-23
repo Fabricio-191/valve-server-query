@@ -1,21 +1,22 @@
 /* eslint-disable */
-import { log, Server, MasterServer } from '../src';
+import { log, Server, MasterServerRequest } from '../src';
 // @ts-expect-error asdasd
 import * as whyIsNodeRunning from 'why-is-node-running';
 
 log.enable(__dirname + '/debug.log');
 
 (async () => {
-	const servers = await MasterServer({
+	const masterServerRequest = new MasterServerRequest({
 		timeout: 5000,
-		quantity: 30000,
-		region: 'ANY',
+		quantity: 15000,
+		region: 'SOUTH_AMERICA',
 		slow: false,
-		filter: new MasterServer.Filter()
+		filter: new MasterServerRequest.Filter()
 			.appIds(215, 240, 17550, 17700, 10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // some of these have bzip2
 			// .appIds(10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // generally goldSource
 			// .appIds(2400, 2401, 2402, 2403, 2405, 2406, 2410, 2412, 2413, 2420, 2430, 383790) // the ship
 	});
+	const servers = await masterServerRequest.end();
 
 	console.log(servers.length);
 	const results = await Server.bulkQuery(servers, { getPlayers: true });

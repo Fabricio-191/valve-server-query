@@ -44,9 +44,9 @@ export default class Filter{
 	}
 
 	/* eslint-disable */
-	public hasTags       (   tags: string[]): this { return this._addArr('\\gametype\\',   tags); }
-	public hasTagsL4D2   (   tags: string[]): this { return this._addArr('\\gamedata\\',   tags); }
-	public hasAnyTagsL4D2(   tags: string[]): this { return this._addArr('\\gamedataor\\', tags); }
+	public hasTags       (   tags: string[]): this { return this._addArr('\\gametype\\',                  tags); }
+	public hasTagsL4D2   (   tags: string[]): this { return this._addArr('\\gamedata\\',                  tags); }
+	public hasAnyTagsL4D2(   tags: string[]): this { return this._addArr('\\gamedataor\\',                tags); }
 	public map           (    map: string  ): this { return this._add   ('\\map\\',                        map); }
 	public mod           (    mod: string  ): this { return this._add   ('\\gamedir\\',                    mod); }
 	public address       (address: string  ): this { return this._add   ('\\gameaddr\\',               address); }

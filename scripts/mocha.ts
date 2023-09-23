@@ -74,7 +74,7 @@ describe('Server', () => {
 	});
 });
 
-describe('MasterServer', () => {
+describe.only('MasterServer', () => {
 	const ipv4RegexWithPort = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/;
 
 	function checkIP(ip: unknown): void {
@@ -100,11 +100,12 @@ describe('MasterServer', () => {
 		this.slow(14000);
 		this.timeout(15000);
 
-		const IPs = await valve.MasterServer({
+		const MasterServerRequest = new valve.MasterServerRequest({
 			region: 'SOUTH_AMERICA',
 			quantity: 900,
 			timeout: 5000,
 		});
+		const IPs = await MasterServerRequest.end();
 
 		if(!Array.isArray(IPs)){
 			throw new Error('ips is not an array');

@@ -25,7 +25,7 @@ export interface MasterServerData extends BaseData {
 	quantity: number;
 	region: ValueIn<typeof REGIONS>;
 	filter: string;
-	slow: boolean;
+	mode: 'bulk' | 'slow';
 }
 
 export interface RCONData extends BaseData {
@@ -76,7 +76,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	quantity: 200,
 	region: 'ANY' as const,
 	filter: new Filter(),
-	slow: false,
+	mode: 'slow',
 };
 
 export function setDefaultTimeout(timeout: number): void {

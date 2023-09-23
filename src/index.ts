@@ -1,5 +1,5 @@
 import Server from './Server/server';
-import MasterServer from './MasterServer/masterServer';
+import MasterServerRequest from './MasterServer/masterServer';
 import RCON from './RCON/RCON';
 import { log } from './Base/utils';
 
@@ -12,5 +12,5 @@ export type {
 	Player, TheShipPlayer
 } from './Server/parsers';
 
-export { Server, MasterServer, RCON, enableLog, log };
-export default { Server, MasterServer, RCON, enableLog, log };
+export { Server, MasterServerRequest, RCON, enableLog, log };
+export default { Server, MasterServerRequest, RCON, enableLog, log };

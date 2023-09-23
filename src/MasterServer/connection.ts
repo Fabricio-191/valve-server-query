@@ -11,8 +11,19 @@ Master-server rate limits:
 [ '208.64.201.194', '208.64.201.193', '208.64.200.65' ]
 */
 
+const ONE_MINUTE = 60000;
+const FIVE_MINUTES = 300000;
 const TIME_BETWEEN_REQUESTS = 5000;
-class SlowThrottle {
+const MAX_REQUESTS_PER_MINUTE = 30;
+const MAX_REQUESTS_PER_5_MINUTES = 60;
+
+interface Throttler {
+	throttle(): Promise<void>;
+	toSlow(): SlowThrottle;
+	toBulk(): BulkThrottle;
+}
+
+class SlowThrottle implements Throttler {
 	constructor(lastRequest = 0){
 		this.lastRequest = lastRequest;
 	}
@@ -26,14 +37,23 @@ class SlowThrottle {
 	}
 
 	public toBulk(): BulkThrottle {
+		const requestsLast5Minutes = (this.lastRequest - (Date.now() - FIVE_MINUTES)) / TIME_BETWEEN_REQUESTS;
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		if(this.lastRequest === 0) return new BulkThrottle();
+		if(requestsLast5Minutes < 0) return new BulkThrottle(0, 0);
+
+		const requestsLastMinute = (this.lastRequest - (Date.now() - ONE_MINUTE)) / TIME_BETWEEN_REQUESTS;
+
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		return new BulkThrottle(30, 60);
+		return new BulkThrottle(requestsLastMinute, requestsLast5Minutes);
+	}
+
+	// eslint-disable-next-line class-methods-use-this
+	public toSlow(): never {
+		throw new Error('Already slow');
 	}
 }
 
-class BulkThrottle {
+class BulkThrottle implements Throttler {
 	constructor(requestsLastMinute = 0, requestsLast5Minutes = 0){
 		this.requestsLastMinute = requestsLastMinute;
 		this.requestsLast5Minutes = requestsLast5Minutes;
@@ -42,18 +62,23 @@ class BulkThrottle {
 	private requestsLast5Minutes: number;
 
 	public async throttle(): Promise<void> {
-		while(this.requestsLastMinute >= 30 || this.requestsLast5Minutes >= 60) await delay(100);
+		while(this.requestsLastMinute >= MAX_REQUESTS_PER_MINUTE || this.requestsLast5Minutes >= MAX_REQUESTS_PER_5_MINUTES) await delay(100);
 
 		this.requestsLastMinute++;
 		this.requestsLast5Minutes++;
 
-		setTimeout(() => this.requestsLastMinute--, 60000).unref();
-		setTimeout(() => this.requestsLast5Minutes--, 300000).unref();
+		setTimeout(() => this.requestsLastMinute--, ONE_MINUTE).unref();
+		setTimeout(() => this.requestsLast5Minutes--, FIVE_MINUTES).unref();
 	}
 
 	public toSlow(): SlowThrottle {
 		if(this.requestsLastMinute === 0) return new SlowThrottle();
 		return new SlowThrottle(Date.now());
+	}
+
+	// eslint-disable-next-line class-methods-use-this
+	public toBulk(): never {
+		throw new Error('Already bulk');
 	}
 }
 
@@ -61,23 +86,24 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 	constructor(data: MasterServerData){
 		super(data);
 
-		this.throttle = this.data.slow ? new SlowThrottle() : new BulkThrottle();
+		this.throttle = this.data.mode === 'slow' ? new SlowThrottle() : new BulkThrottle();
 	}
 
-	private throttle: BulkThrottle | SlowThrottle;
+	private throttle: Throttler;
 
 	public override async query(command: Buffer): Promise<Buffer> {
 		await this.throttle.throttle();
 		return await super.query(command, [0x66]);
 	}
 
-	public changeMode(slow: boolean): void {
-		if(this.data.slow === slow) return;
-		this.data.slow = slow;
+	public changeMode(mode: 'bulk' | 'slow'): void {
+		if(this.data.mode === mode) return;
+		this.data.mode = mode;
 
-		this.throttle = slow ?
-			(this.throttle as BulkThrottle).toSlow() :
-			(this.throttle as SlowThrottle).toBulk();
+
+		this.throttle = mode === 'slow' ?
+			this.throttle.toSlow() :
+			this.throttle.toBulk();
 	}
 
 	protected onMessage(buffer: Buffer): void {

@@ -47,6 +47,8 @@ export default class MasterServerRequest extends EventEmitter {
 					this.emit('chunk', chunk);
 				}while(this.remaining > 0 && last !== ZERO_IP);
 
+				if(last !== ZERO_IP) this.emit('chunk', [last]);
+
 				await this.connection.destroy();
 				this.emit('end');
 			})
@@ -65,23 +67,30 @@ export default class MasterServerRequest extends EventEmitter {
 		});
 	}
 
+	public changeMode(mode: 'bulk' | 'slow'): void {
+		this.connection.changeMode(mode);
+	}
+
 	public end(): Promise<string[]> {
-		this.connection.changeMode(false);
+		this.connection.changeMode('bulk');
 
 		return new Promise((res, rej) => {
 			const servers: string[] = [];
-			this.on('chunk', (chunk: string[]) => servers.push(...chunk));
-			this.on('end', () => res(servers));
-			this.on('error', rej);
+			const fn = (chunk: string[]): unknown => servers.push(...chunk);
+			this.on('chunk', fn);
+			this.once('end', () => res(servers));
+			this.once('error', rej);
 		});
 	}
 
 	public async* [Symbol.asyncIterator](): AsyncGenerator<string> {
 		while(this.remaining > 0){
 			const chunk = await this._nextChunk();
-			yield* chunk;
+			for(const server of chunk) yield server;
 		}
 	}
+
+	public static Filter = Filter;
 }
 
 /*
@@ -100,8 +109,6 @@ export default async function MasterServer(
 	return servers;
 }
 */
-
-MasterServer.Filter = Filter;
 
 function parseServerList(buffer: Buffer): string[] {
 	const reader = new BufferReader(buffer, 2);
