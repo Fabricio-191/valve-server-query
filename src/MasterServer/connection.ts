@@ -19,8 +19,7 @@ const MAX_REQUESTS_PER_5_MINUTES = 60;
 
 interface Throttler {
 	throttle(): Promise<void>;
-	toSlow(): SlowThrottle;
-	toBulk(): BulkThrottle;
+	changeMode(mode: 'bulk' | 'slow'): Throttler;
 }
 
 class SlowThrottle implements Throttler {
@@ -36,20 +35,20 @@ class SlowThrottle implements Throttler {
 		this.lastRequest = Date.now();
 	}
 
-	public toBulk(): BulkThrottle {
-		const requestsLast5Minutes = (this.lastRequest - (Date.now() - FIVE_MINUTES)) / TIME_BETWEEN_REQUESTS;
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		if(requestsLast5Minutes < 0) return new BulkThrottle(0, 0);
+	public changeMode(mode: 'bulk' | 'slow'): BulkThrottle {
+		if(mode === 'slow') throw new Error('Already slow');
+		else if(mode === 'bulk'){
+			const requestsLast5Minutes = (this.lastRequest - (Date.now() - FIVE_MINUTES)) / TIME_BETWEEN_REQUESTS;
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			if(requestsLast5Minutes < 0) return new BulkThrottle(0, 0);
 
-		const requestsLastMinute = (this.lastRequest - (Date.now() - ONE_MINUTE)) / TIME_BETWEEN_REQUESTS;
+			const requestsLastMinute = (this.lastRequest - (Date.now() - ONE_MINUTE)) / TIME_BETWEEN_REQUESTS;
 
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		return new BulkThrottle(requestsLastMinute, requestsLast5Minutes);
-	}
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			return new BulkThrottle(requestsLastMinute, requestsLast5Minutes);
+		}
 
-	// eslint-disable-next-line class-methods-use-this
-	public toSlow(): never {
-		throw new Error('Already slow');
+		throw new Error('Invalid mode');
 	}
 }
 
@@ -71,14 +70,14 @@ class BulkThrottle implements Throttler {
 		setTimeout(() => this.requestsLast5Minutes--, FIVE_MINUTES).unref();
 	}
 
-	public toSlow(): SlowThrottle {
-		if(this.requestsLastMinute === 0) return new SlowThrottle();
-		return new SlowThrottle(Date.now());
-	}
+	public changeMode(mode: 'bulk' | 'slow'): SlowThrottle {
+		if(mode === 'bulk') throw new Error('Already bulk');
+		else if(mode === 'slow'){
+			if(this.requestsLastMinute === 0) return new SlowThrottle();
+			return new SlowThrottle(Date.now());
+		}
 
-	// eslint-disable-next-line class-methods-use-this
-	public toBulk(): never {
-		throw new Error('Already bulk');
+		throw new Error('Invalid mode');
 	}
 }
 
@@ -101,9 +100,7 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 		this.data.mode = mode;
 
 
-		this.throttle = mode === 'slow' ?
-			this.throttle.toSlow() :
-			this.throttle.toBulk();
+		this.throttle = this.throttle.changeMode(mode);
 	}
 
 	protected onMessage(buffer: Buffer): void {
