@@ -50,7 +50,7 @@ export type RawMasterServerOptions = string | (BaseRawOptions & {
 	quantity?: number | 'all';
 	region?: keyof typeof REGIONS;
 	filter?: Filter;
-	slow?: boolean;
+	mode?: 'bulk' | 'slow';
 });
 // #endregion
 
@@ -62,9 +62,7 @@ const DEFAULT_OPTIONS = {
 };
 
 const DEFAULT_SERVER_OPTIONS = {
-	ip: '127.0.0.1',
-	port: 27015,
-	timeout: 5000,
+	...DEFAULT_OPTIONS,
 	retries: 3,
 };
 
@@ -76,7 +74,7 @@ const DEFAULT_MASTER_SERVER_OPTIONS = {
 	quantity: 200,
 	region: 'ANY' as const,
 	filter: new Filter(),
-	mode: 'slow',
+	mode: 'bulk',
 };
 
 export function setDefaultTimeout(timeout: number): void {
@@ -136,8 +134,8 @@ export function parseMasterServerOptions(options: RawMasterServerOptions): Maste
 		throw Error(`'region' should be one of the following: ${Object.keys(REGIONS).join(', ')}`);
 	}else if(!(parsedOptions.filter instanceof Filter)){
 		throw Error("'filter' should be an instance of Filter");
-	}else if(typeof parsedOptions.slow !== 'boolean'){
-		throw Error("'slow' should be a boolean");
+	}else if(!['bulk', 'slow'].includes(parsedOptions.mode)){
+		throw Error("'mode' should be 'bulk' or 'slow'");
 	}
 
 	// @ts-expect-error quantity is a number

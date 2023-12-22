@@ -102,7 +102,7 @@ function serverType(type: string): ServerType {
 		case 'd': return 'dedicated'; // 64 44
 		case 'l': return 'non-dedicated'; // 6c 4c
 		case 'p': return 'source tv relay'; // 70 50
-		case '\x00': return 'unknown';
+		case '\x00': return 'unknown'; // 00
 		default: throw new Error(`Unknown server type: ${type}`);
 	}
 }
@@ -140,58 +140,60 @@ class Time {
 	}
 }
 
+function goldSourceServerInfo(reader: BufferReader): GoldSourceServerInfo {
+	const info: GoldSourceServerInfo = {
+		address: reader.string(),
+		name: reader.string().trim(),
+		map: reader.string(),
+		folder: reader.string(),
+		game: reader.string(),
+		players: {
+			online: reader.byte(),
+			bots: 'unknown',
+			max: reader.byte(),
+		},
+		protocol: reader.byte(),
+		type: serverType(reader.char()),
+		OS: operativeSystem(reader.char()),
+		hasPassword: reader.byte() === 1,
+		mod: false,
+		VAC: false,
+	};
+
+	if(reader.remainingLength === 3){
+		info.mod = reader.byte() === 1;
+		if(info.mod) info._wrongData = true;
+
+		info.VAC = reader.byte() === 1;
+		info.players.bots = reader.byte();
+	}else if(reader.remainingLength >= 16){ // has mod
+		info.mod = {
+			link: reader.string(),
+			downloadLink: reader.string(),
+			version: reader.addOffset(1).long(),
+			size: reader.long(),
+			multiplayerOnly: reader.byte() === 1,
+			ownDLL: reader.byte() === 1,
+		};
+
+		info.VAC = reader.byte() === 1;
+		if(reader.hasRemaining) info.players.bots = reader.byte();
+	}else{
+		info.mod = 'unknown';
+		info._wrongData = true;
+
+		reader.setOffset(-2);
+		info.VAC = reader.byte() === 1;
+		info.players.bots = reader.byte();
+	}
+
+	return info;
+}
+
 export function serverInfo(buffer: Buffer): GoldSourceServerInfo | ServerInfo | TheShipServerInfo {
 	const reader = new BufferReader(buffer);
 
-	if(reader.byte() === 0x6D){
-		const info: GoldSourceServerInfo = {
-			address: reader.string(),
-			name: reader.string().trim(),
-			map: reader.string(),
-			folder: reader.string(),
-			game: reader.string(),
-			players: {
-				online: reader.byte(),
-				bots: 'unknown',
-				max: reader.byte(),
-			},
-			protocol: reader.byte(),
-			type: serverType(reader.char()),
-			OS: operativeSystem(reader.char()),
-			hasPassword: reader.byte() === 1,
-			mod: false,
-			VAC: false,
-		};
-
-		if(reader.remainingLength === 3){
-			info.mod = reader.byte() === 1;
-			if(info.mod) info._wrongData = true;
-
-			info.VAC = reader.byte() === 1;
-			info.players.bots = reader.byte();
-		}else if(reader.remainingLength >= 16){ // has mod
-			info.mod = {
-				link: reader.string(),
-				downloadLink: reader.string(),
-				version: reader.addOffset(1).long(),
-				size: reader.long(),
-				multiplayerOnly: reader.byte() === 1,
-				ownDLL: reader.byte() === 1,
-			};
-
-			info.VAC = reader.byte() === 1;
-			if(reader.hasRemaining) info.players.bots = reader.byte();
-		}else{
-			info.mod = 'unknown';
-			info._wrongData = true;
-
-			reader.setOffset(-2);
-			info.VAC = reader.byte() === 1;
-			info.players.bots = reader.byte();
-		}
-
-		return info;
-	}
+	if(reader.byte() === 0x6D) return goldSourceServerInfo(reader);
 
 	// @ts-expect-error missing properties are added later
 	const info: ServerInfo | TheShipServerInfo = {

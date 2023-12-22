@@ -10,7 +10,7 @@ log.enable(__dirname + '/debug.log');
 		timeout: 5000,
 		quantity: 15000,
 		region: 'SOUTH_AMERICA',
-		slow: false,
+		mode: 'bulk',
 		filter: new MasterServerRequest.Filter()
 			.appIds(215, 240, 17550, 17700, 10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // some of these have bzip2
 			// .appIds(10, 20, 30, 40, 50, 60, 70, 80, 130, 225840) // generally goldSource

@@ -3,49 +3,22 @@ const { Server } = require('@fabricio-191/valve-server-query');
 const express = require('express');
 const app = express();
 
-const servers = {};
-
-async function getServer(address){
-	if(!(address in servers)){
-		servers[address] = new Server();
-
-		await servers[address].connect(address);
-	}
-
-	return servers[address];
-}
-
-app.get('/api/getInfo/:address', async (req, res) => {
-	try{
-		const server = await getServer(req.params.address);
-		const info = await server.getInfo();
-
-		res.json(info);
-	}catch(e){
-		res.status(500).json({ error: e.message });
-	}
+app.get('/api/getInfo/:address', (req, res) => {
+	Server.getInfo(req.params.address)
+		.then(info => res.json(info))
+		.catch(e => res.status(500).json({ error: e.message }));
 });
 
-app.get('/api/getPlayers/:address', async (req, res) => {
-	try{
-		const server = await getServer(req.params.address);
-		const info = await server.getPlayers();
-
-		res.json(info);
-	}catch(e){
-		res.status(500).json({ error: e.message });
-	}
+app.get('/api/getPlayers/:address', (req, res) => {
+	Server.getPlayers(req.params.address)
+		.then(players => res.json(players))
+		.catch(e => res.status(500).json({ error: e.message }));
 });
 
-app.get('/api/getRules/:address', async (req, res) => {
-	try{
-		const server = await getServer(req.params.address);
-		const info = await server.getRules();
-
-		res.json(info);
-	}catch(e){
-		res.status(500).json({ error: e.message });
-	}
+app.get('/api/getRules/:address', (req, res) => {
+	Server.getRules(req.params.address)
+		.then(rules => res.json(rules))
+		.catch(e => res.status(500).json({ error: e.message }));
 });
 
 app.listen(3000, () => {

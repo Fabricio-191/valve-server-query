@@ -1,6 +1,6 @@
 /* eslint-disable new-cap */
 import { parseMasterServerOptions, type RawMasterServerOptions } from '../Base/options';
-import { BufferReader } from '../Base/utils';
+import { BufferReader, BufferWriter } from '../Base/utils';
 import MasterServerConnection from './connection';
 import Filter from './filter';
 import EventEmitter from 'events';
@@ -8,19 +8,11 @@ import EventEmitter from 'events';
 const ZERO_IP = '0.0.0.0:0';
 
 function makeCommand(region: number, filter: string, last: string): Buffer {
-	/*
 	return new BufferWriter()
 		.byte(0x31, region)
 		.string(last)
 		.string(filter)
 		.end();
-	*/
-	const buffer = Buffer.allocUnsafe(6 + filter.length);
-	buffer[0] = 0x31;
-	buffer[1] = region;
-	buffer.write(last, 2, 4, 'ascii');
-	buffer.write(filter, 6, filter.length, 'ascii');
-	return buffer;
 }
 
 export default class MasterServerRequest extends EventEmitter {
@@ -92,23 +84,6 @@ export default class MasterServerRequest extends EventEmitter {
 
 	public static Filter = Filter;
 }
-
-/*
-export default async function MasterServer(
-	options: RawMasterServerOptions = {},
-	onChunk: ((servers: string[]) => void) | null = null
-): Promise<string[]> {
-	const data = parseMasterServerOptions(options);
-	const connection = await createConnection(data);
-
-	const servers: string[] = [];
-
-	if(last === ZERO_IP) servers.pop();
-
-	await connection.destroy();
-	return servers;
-}
-*/
 
 function parseServerList(buffer: Buffer): string[] {
 	const reader = new BufferReader(buffer, 2);

@@ -2,7 +2,6 @@
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
 		"noEmit": false,
-		"types": ["node"],
 	
 		"rootDir": "./src",
 		"outDir":  "./lib",
