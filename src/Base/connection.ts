@@ -7,7 +7,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 		this.data = data;
 		this.socket = createSocket('udp4')
 			.on('message', buffer => {
-				log(this.data, 'recieved:', buffer);
+				if(log.isEnabled) log.buffer(this.data, 'recieved:', buffer);
 
 				if(buffer.length > 4) this.onMessage(buffer);
 			})
@@ -45,7 +45,7 @@ export default abstract class BaseConnection<Data extends BaseData> {
 	public async send(command: Buffer): Promise<void> {
 		await this.connect();
 
-		log(this.data, 'sent:', command);
+		if(log.isEnabled) log.buffer(this.data, 'sent:', command);
 
 		return new Promise((res, rej) => {
 			this.socket.send(command, err => {

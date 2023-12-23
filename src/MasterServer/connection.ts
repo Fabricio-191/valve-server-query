@@ -108,10 +108,10 @@ class MasterServerConnection extends BaseConnection<MasterServerData> {
 		if(header === -1){
 			this.socket.emit('packet', buffer.subarray(4));
 		}else if(header === -2){
-			log(this.data, 'master server using multiple packets response', buffer);
+			if(log.isEnabled) log.buffer(this.data, 'master server using multiple packets response', buffer);
 			throw new Error('Master servers should not use multiple packets response');
 		}else{
-			log(this.data, 'cannot parse packet', buffer);
+			if(log.isEnabled) log.buffer(this.data, 'cannot parse packet', buffer);
 		}
 	}
 }

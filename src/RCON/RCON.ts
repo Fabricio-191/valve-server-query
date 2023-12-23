@@ -40,7 +40,7 @@ class RCON extends EventEmitter{
 
 		const onError = (err?: Error): void => {
 			const reason = err ? err.message : 'The server closed the connection.';
-			log(this.connection.data, `RCON disconnected: ${reason}`);
+			if(log.isEnabled) log.message(this.connection.data, `RCON disconnected: ${reason}`);
 
 			this._reset();
 			this.emit('disconnect', reason);
@@ -49,14 +49,14 @@ class RCON extends EventEmitter{
 		this._connected = (async () => {
 			const data = parseRCONOptions(options);
 
-			log(data, 'RCON connecting');
+			if(log.isEnabled) log.message(data, 'RCON connecting');
 			this.connection = new Connection(data, onError);
 
 			if(this._ref) this.connection.socket.ref();
 			else this.connection.socket.unref();
 
 			await this.connection.awaitConnect();
-			log(data, 'RCON connected');
+			if(log.isEnabled) log.message(data, 'RCON connected');
 			this.isConnnected = true;
 		})();
 
@@ -144,7 +144,7 @@ class RCON extends EventEmitter{
 
 		this.connection.data.password = password;
 
-		log(this.connection.data, 'RCON autenticated');
+		if(log.isEnabled) log.message(this.connection.data, 'RCON autenticated');
 	}
 
 	private _lastID = 0x33333333;

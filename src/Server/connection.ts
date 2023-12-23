@@ -79,9 +79,7 @@ export default class Connection extends BaseConnection<ServerData> {
 			}
 		}else if(header === -2){
 			this.handleMultiplePackets(buffer);
-		}else{
-			log(this.data, 'ERROR cannot parse packet', buffer);
-		}
+		}else if(log.isEnabled) log.buffer(this.data, 'ERROR cannot parse packet', buffer);
 	}
 
 	private handleMultiplePackets(buffer: Buffer): void {
@@ -94,8 +92,8 @@ export default class Connection extends BaseConnection<ServerData> {
 				if(this.packetsQueues.has(packetID)){
 					const queue = this.packetsQueues.get(packetID)!;
 
-					log(this.data, 'ERROR multi packet not recieved completely', buffer.subarray(4, 8));
-					log(this.data, JSON.stringify(queue.data, null, '  '));
+					if(log.isEnabled) log.buffer(this.data, 'ERROR multi packet not recieved completely', buffer.subarray(4, 8));
+					if(log.isEnabled) log.message(this.data, JSON.stringify(queue.data, null, '  '));
 					this.packetsQueues.delete(packetID);
 				}
 			}, this.data.timeout).unref();
@@ -107,7 +105,7 @@ export default class Connection extends BaseConnection<ServerData> {
 		const mpData = getMultiPacketData(buffer, packetID);
 		if(mpData){
 			if(queue.data){
-				log(this.data, 'ERROR multiple packets with different types');
+				if(log.isEnabled) log.message(this.data, 'ERROR multiple packets with different types');
 				throw new Error('Multiple packets with different types');
 			}else{
 				queue.data = mpData;
@@ -126,7 +124,7 @@ export default class Connection extends BaseConnection<ServerData> {
 				if(!seekBzip) throw new Error('optional dependency "seek-bzip" needed');
 
 				payload = seekBzip.decode(payload, packets[0].bzip.uncompressedSize);
-				log(this.data, 'bzip2 decompressed');
+				if(log.isEnabled) log.message(this.data, 'bzip2 decompressed');
 			}
 
 			if(queue.data.hasHeader) payload = payload.subarray(4);

@@ -27,11 +27,9 @@ export class BufferWriter{
 
 export class BufferReader{
 	constructor(buffer: Buffer, offset = 0){
-		this.length = buffer.length;
 		this.buffer = buffer;
 		this.offset = offset;
 	}
-	private readonly length: number;
 	private readonly buffer: Buffer;
 	private offset = 0;
 
@@ -87,20 +85,18 @@ export class BufferReader{
 	}
 
 	public setOffset(offset: number): this {
-		if(offset < 0){
-			offset = this.length + offset;
-		}
+		if(offset < 0) offset = this.buffer.length + offset;
 
 		this.offset = offset;
 		return this;
 	}
 
 	public get hasRemaining(): boolean {
-		return this.offset < this.length;
+		return this.offset < this.buffer.length;
 	}
 
 	public get remainingLength(): number {
-		return this.length - this.offset;
+		return this.buffer.length - this.offset;
 	}
 
 	public remaining(): Buffer {
@@ -127,4 +123,4 @@ export function optionalImport<T>(moduleName: string): T | null {
 	}
 }
 
-export * from './logger';
+export { default as log } from './logger';
