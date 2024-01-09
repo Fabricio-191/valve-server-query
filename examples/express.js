@@ -5,7 +5,7 @@ const app = express();
 
 app.get('/api/getInfo/:address', (req, res) => {
 	Server.getInfo(req.params.address)
-		.then(info => res.json(info))
+		.then(info => res.json(info)) // might have the same problem with bigints
 		.catch(e => res.status(500).json({ error: e.message }));
 });
 

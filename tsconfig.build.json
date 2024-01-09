@@ -10,10 +10,10 @@
 		"declarationDir": "./lib/typings",
 		
 		"sourceMap": false,
-		"inlineSourceMap": false,
+		"inlineSourceMap": false
 		// "mapRoot": "",
 
 		// "listEmittedFiles": true
 	},
-	"include": ["src"],
+	"include": ["src"]
 }

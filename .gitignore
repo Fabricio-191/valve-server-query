@@ -1,3 +1,4 @@
+.vs/
 .eslintrc.js
 .eslintrc.json
 
@@ -8,3 +9,4 @@ lib/
 test/results.json
 *.log
 temp/
+

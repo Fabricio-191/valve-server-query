@@ -51,7 +51,7 @@ const logger = {
 		
 		logStr += `[${type}] ${data.ip}:${data.port} - ${text}\n\n`;
 	},
-	object(text: string, object: object): void {
+	object(text: string, object: any): void {
 		const data = JSON.stringify(object, (_, v: unknown) => {
 			if(typeof v === 'bigint') return v.toString() + 'n';
 			return v;
@@ -66,3 +66,13 @@ const logger = {
 }
 
 export default logger;
+
+function out2JSON(filename, value) {
+	const str = JSON.stringify(object, (_, v: unknown) => {
+		if(typeof v === 'bigint') return v.toString() + 'n';
+		return v;
+	}, 2);
+	FileSystem.writeFile(`${filename}.json`, str, err => {
+	  	if(err) throw err; 
+	})
+}
