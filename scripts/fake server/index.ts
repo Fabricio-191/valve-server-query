@@ -1,6 +1,6 @@
 import { createSocket, type RemoteInfo, type Socket } from 'dgram';
 import { BufferWriter, THE_SHIP_IDS, THE_SHIP_MODES } from './utils';
-import type { ValueIn, AnyServerInfo, Players, Rules } from './utils';
+import type { ValueIn, AnyServerInfo, Players, Rules, AllServerInfo } from './utils';
 
 const header = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 const MAX_SINGLE_PACKET_SIZE = 300; // Usually it's 1400, but i can use less for testing purposes
@@ -49,12 +49,12 @@ class Request {
 	} as const;
 }
 
-class FakeServer {
+export default class FakeServer {
 	constructor(
 		port = 0,
-		serverInfo: AnyServerInfo = FakeServer.serverInfo,
-		playersList: Players = FakeServer.playersList,
-		rules: Rules = FakeServer.rules
+		serverInfo: AnyServerInfo,
+		playersList: Players,
+		rules: Rules
 	){
 		this.setServerInfo(serverInfo);
 		this.setPlayersList(playersList);
@@ -68,20 +68,51 @@ class FakeServer {
 		this.socket.bind(port);
 	}
 	private socket = createSocket('udp4').unref();
+
+	public stop(): void {
+		this.socket.close();
+	}
 	
-	public requiresChallenge = true;
-	public oldChallengeSystem = false;
-	public isGoldSource = false;
-	public isTheShip = false;
-	public optionalEDF = false;
+	public requiresChallenge!: boolean;
+	public oldChallengeSystem!: boolean;
+	public isGoldSource!: boolean;
+	public isTheShip!: boolean;
+	public showEmptyEDF!: boolean;
 
 	public setServerInfo(serverInfo: AnyServerInfo): void {
 		this.isTheShip = THE_SHIP_IDS.includes(serverInfo.appID);
-
+ 
 		const writer = new BufferWriter();
 
 		if(this.isGoldSource){
+			writer.byte(0x49); // header
+			writer.byte(serverInfo.protocol); // protocol
+			writer.string(serverInfo.name);
+			writer.string(serverInfo.map);
+			writer.string(serverInfo.folder);
+			writer.string(serverInfo.game);
+			writer.short(serverInfo.appID);
+			writer.byte(serverInfo.onlinePlayers);
+			writer.byte(serverInfo.bots);
+			writer.byte(serverInfo.maxPlayers);
+			writer.byte(serverInfo.type.charCodeAt(0));
+			writer.byte(serverInfo.OS.charCodeAt(0));
+			writer.byte(serverInfo.hasPassword ? 1 : 0);
+			writer.byte(serverInfo.VAC ? 1 : 0);
 
+			if(typeof serverInfo.mod === 'object'){
+				writer.byte(1);
+				writer.string(serverInfo.mod.link);
+				writer.string(serverInfo.mod.downloadLink);
+				writer.long(serverInfo.mod.version);
+				writer.long(serverInfo.mod.size);
+				writer.byte(serverInfo.mod.multiplayerOnly ? 1 : 0);
+				writer.byte(serverInfo.mod.ownDLL ? 1 : 0);
+			}else{
+				writer.byte(0);
+			}
+
+			writer.byte(serverInfo.bots);
 		}else{
 			writer.byte(0x49); // header
 			writer.byte(serverInfo.protocol); // protocol
@@ -97,6 +128,27 @@ class FakeServer {
 			writer.byte(serverInfo.OS.charCodeAt(0));
 			writer.byte(serverInfo.hasPassword ? 1 : 0);
 			writer.byte(serverInfo.VAC ? 1 : 0);
+
+			if(this.isTheShip){
+				writer.byte(serverInfo.mode);
+				writer.byte(serverInfo.witnesses);
+				writer.byte(serverInfo.duration);
+			}
+
+			writer.string(serverInfo.version);
+			if(serverInfo.EDF !== 0){
+				writer.byte(serverInfo.EDF);
+				if(serverInfo.EDF & 0b10000000) writer.short(serverInfo.gamePort!);
+				if(serverInfo.EDF & 0b00010000) writer.bigUInt(serverInfo.steamID!);
+				if(serverInfo.EDF & 0b01000000){
+					writer.short(serverInfo.TVport!);
+					writer.string(serverInfo.TVname!);
+				}
+				if(serverInfo.EDF & 0b00100000) writer.string(serverInfo.keywords!.join(','));
+				if(serverInfo.EDF & 0b00000001) writer.bigUInt(serverInfo.gameID!);
+			}else if(this.showEmptyEDF){
+				writer.byte(0);
+			}
 		}
 
 		this.INFO_RESPONSE = writer.end();
@@ -116,7 +168,9 @@ class FakeServer {
 			writer.float(player.timeOnline);
 
 			if(this.isTheShip){
+				// @ts-expect-error buffer writer will throw an error if the value is not present
 				writer.long(player.deaths);
+				// @ts-expect-error buffer writer will throw an error if the value is not present
 				writer.long(player.money);
 			}
 		}
@@ -142,26 +196,27 @@ class FakeServer {
 	}
 
 	private INFO_RESPONSE!: Buffer;
-	handleA2S_INFO(request: Request): void {
+	private PLAYER_RESPONSE!: Buffer;
+	private RULES_RESPONSE!: Buffer;
+
+	public handleA2S_INFO(request: Request): void {
 		if(!this.handleChallenge(request)) return;
 		request.reply(this.INFO_RESPONSE);
 	}
 
-	private PLAYER_RESPONSE!: Buffer;
-	handleA2S_PLAYER(request: Request): void {
+	public handleA2S_PLAYER(request: Request): void {
 		if(!this.handleChallenge(request)) return;
 		request.reply(this.PLAYER_RESPONSE);
 	}
 
-	private RULES_RESPONSE!: Buffer;
-	handleA2S_RULES(request: Request): void {
+	public handleA2S_RULES(request: Request): void {
 		if(!this.handleChallenge(request)) return;
 		request.reply(this.RULES_RESPONSE);
 	}
 
 	static readonly PING_RESPONSE = Buffer.from('ÿÿÿÿj00000000000000\x00', 'binary');
 	static readonly GOLDSOURCE_PING_RESPONSE = Buffer.from('ÿÿÿÿj\x00', 'binary')
-	handleA2S_PING(request: Request): void {
+	public handleA2S_PING(request: Request): void {
 		request.reply(
 			this.isGoldSource ?
 				FakeServer.GOLDSOURCE_PING_RESPONSE :
@@ -169,7 +224,7 @@ class FakeServer {
 		);
 	}
 
-	handleA2S_SERVERQUERY_GETCHALLENGE(request: Request): void {
+	public handleA2S_SERVERQUERY_GETCHALLENGE(request: Request): void {
 		const number = Math.floor(Math.random() * 0xFFFFFFFF);
 
 		const buffer = new BufferWriter()
@@ -181,7 +236,7 @@ class FakeServer {
 	}
 
 	private readonly challenges = new Map<string, number>();
-	handleChallenge(request: Request): boolean {
+	public handleChallenge(request: Request): boolean {
 		if(!this.requiresChallenge) return true;
 
 		const challenge = this.challenges.get(request.ID);
@@ -203,84 +258,97 @@ class FakeServer {
 
 		return true;
 	}
-
-	public static readonly serverInfo = {
-		protocol: 17,
-		name: "Fabricio's server",
-		map: 'de_dust2',
-		folder: 'cstrike',
-		game: 'Counter-Strike',
-		ID: 0,
-		players: 1,
-		max_players: 32,
-		bots: 4,
-		type: 'd',
-		OS: 'l',
-		hasPassword: false,
-		VAC: true,
-
-		// next 3 only in the ship
-		mode: 0,
-		witnesses: 0,
-		duration: 3,
-
-		version: '17.0.0',
-		EDF: 0b00000000, // optional ?
-
-		port: 27016,                 				// if EDF & 0b10000000
-		steamID: BigInt(1283019239), 				// if EDF & 0b00010000
-		TVport: 27020,               				// if EDF & 0b01000000
-		TVname: 'SourceTV',          				// if EDF & 0b01000000
-		keywords: 'Fabricio,server,Counter-Strike', // if EDF & 0b00100000
-		GameId: BigInt(10),                         // if EDF & 0b00000001
-	}
-
-	public static readonly playersList = [
-		{
-			index: 0,
-			name: 'Fabricio',
-			score: 5,
-			timeOnline: 12380,
-			deaths: 2, // only in the ship
-			money: 16000, // only in the ship
-		},
-		{
-			index: 1,
-			name: 'Player 1',
-			score: 2,
-			timeOnline: 12380,
-			deaths: 1,
-			money: 16000,
-		},
-		{
-			index: 2,
-			name: 'Player 2',
-			score: 2,
-			timeOnline: 12380,
-			deaths: 6,
-			money: 16000,
-		},
-		{
-			index: 3,
-			name: 'Player 3',
-			score: 4,
-			timeOnline: 12380,
-			deaths: 4,
-			money: 16000,
-		},
-		{
-			index: 4,
-			name: 'Player 4',
-			score: 1,
-			timeOnline: 243,
-			deaths: 0,
-			money: 16000,
-		}
-	]
-
-	public static readonly rules = {
-		'a': 'b',
-		'c': 'd',
-		'e': 'f'
-	}
 }
+
+
+
+const serverInfo = {
+	protocol: 17,
+	name: "Fabricio's server",
+	map: 'de_dust2',
+	folder: 'cstrike',
+	game: 'Counter-Strike',
+	appID: 0,
+	onlinePlayers: 1,
+	maxPlayers: 32,
+	bots: 4,
+	type: 'd',
+	OS: 'l',
+	hasPassword: false,
+	VAC: true,
+
+	// next 3 only in the ship
+	mode: 0,
+	witnesses: 0,
+	duration: 3,
+
+	// next 2 only in goldsource
+	mod: false,
+	address: 'asdasdasd',
+
+	// next only in source
+	version: '17.0.0',
+	EDF: 0b00000000, // optional ?
+
+	gamePort: 27016,                 				// if EDF & 0b10000000
+	steamID: BigInt(1283019239), 				// if EDF & 0b00010000
+	TVport: 27020,               				// if EDF & 0b01000000
+	TVname: 'SourceTV',          				// if EDF & 0b01000000
+	keywords: 'Fabricio,server,Counter-Strike', // if EDF & 0b00100000
+	gameID: BigInt(10),                         // if EDF & 0b00000001
+}
+
+const playersList = [
+	{
+		index: 0,
+		name: 'Fabricio',
+		score: 5,
+		timeOnline: 12380,
+		deaths: 2, // only in the ship
+		money: 16000, // only in the ship
+	},
+	{
+		index: 1,
+		name: 'Player 1',
+		score: 2,
+		timeOnline: 12380,
+		deaths: 1,
+		money: 16000,
+	},
+	{
+		index: 2,
+		name: 'Player 2',
+		score: 2,
+		timeOnline: 12380,
+		deaths: 6,
+		money: 16000,
+	},
+	{
+		index: 3,
+		name: 'Player 3',
+		score: 4,
+		timeOnline: 12380,
+		deaths: 4,
+		money: 16000,
+	},
+	{
+		index: 4,
+		name: 'Player 4',
+		score: 1,
+		timeOnline: 243,
+		deaths: 0,
+		money: 16000,
+	}
+]
+
+const rules = {
+	'a': 'b',
+	'c': 'd',
+	'e': 'f'
+}
+
+const server = new FakeServer(27015, serverInfo, playersList, rules);
+
+setTimeout(() => {
+	server.stop();
+}, 1000 * 60 * 5);

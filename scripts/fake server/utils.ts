@@ -15,8 +15,8 @@ export const THE_SHIP_IDS = Object.freeze([
 	2412, 2430,
 ]);
 
-type OS = 'linux' | 'mac' | 'unknown' | 'windows';
-type ServerType = 'dedicated' | 'non-dedicated' | 'source tv relay' | 'unknown';
+type OS = 'l' | 'm' | 'w';
+type ServerType = 'd' | 'l' | 'p';
 
 interface BaseInfo {
 	address: string;
@@ -31,7 +31,7 @@ interface BaseInfo {
 	type: ServerType;
 	OS: OS;
 	hasPassword: boolean;
-	VAC: boolean | 'unknown';
+	VAC: boolean;
 }
 
 interface GoldSourceServerInfo extends BaseInfo {
@@ -47,14 +47,13 @@ interface GoldSourceServerInfo extends BaseInfo {
 
 interface ServerInfo extends BaseInfo {
 	appID: number;
+	EDF?: number;
 	version?: string;
 	gamePort?: number;
 	steamID?: bigint;
-	tv?: {
-		port: number;
-		name: string;
-	};
-	keywords?: string[];
+	TVport?: number;
+	TVname?: string;
+	keywords?: string;
 	gameID?: bigint;
 }
 
@@ -65,6 +64,7 @@ interface TheShipServerInfo extends ServerInfo {
 }
 
 export type AnyServerInfo = GoldSourceServerInfo | ServerInfo | TheShipServerInfo | GoldSourceServerInfo & ServerInfo | GoldSourceServerInfo & TheShipServerInfo;
+export type AllServerInfo = GoldSourceServerInfo & ServerInfo & TheShipServerInfo;
 
 interface Player {
 	index: number;
