@@ -50,7 +50,16 @@ class Request {
 }
 
 class FakeServer {
-	constructor(port = 0){
+	constructor(
+		port = 0,
+		serverInfo: AnyServerInfo = FakeServer.serverInfo,
+		playersList: Players = FakeServer.playersList,
+		rules: Rules = FakeServer.rules
+	){
+		this.setServerInfo(serverInfo);
+		this.setPlayersList(playersList);
+		this.setRules(rules);
+
 		this.socket.on('message', (msg, rinfo) => {
 			const request = new Request(msg, rinfo, this.socket);
 			this[`handle${request.type}`](request);
@@ -61,8 +70,10 @@ class FakeServer {
 	private socket = createSocket('udp4').unref();
 	
 	public requiresChallenge = true;
+	public oldChallengeSystem = false;
 	public isGoldSource = false;
-	public isTheShip: boolean; 
+	public isTheShip = false;
+	public optionalEDF = false;
 
 	public setServerInfo(serverInfo: AnyServerInfo): void {
 		this.isTheShip = THE_SHIP_IDS.includes(serverInfo.appID);
@@ -102,9 +113,9 @@ class FakeServer {
 			writer.byte(player.index);
 			writer.string(player.name);
 			writer.long(player.score);
-			writer.float(player.time);
+			writer.float(player.timeOnline);
 
-			if(options.isTheShip){
+			if(this.isTheShip){
 				writer.long(player.deaths);
 				writer.long(player.money);
 			}
@@ -123,43 +134,26 @@ class FakeServer {
 		writer.short(rules.length);
 
 		for(const [key, value] of rules){
-			if(typeof key !== 'string') throw new TypeError('Rule key must be a string');
 			writer.string(key);
-			if(typeof value !== 'string') throw new TypeError('Rule value must be a string');
 			writer.string(value);
 		}
 
 		this.RULES_RESPONSE = writer.end();
 	}
 
-	private readonly challenges = new Map<string, number>();
-	handleChallenge(request: Request): boolean {
-		if(!this.requiresChallenge) return true;
-
-		const challenge = this.challenges.get(request.ID);
-		if(!challenge){
-			const challenge = Math.floor(Math.random() * 0xFFFFFFFF);
-			this.challenges.set(request.ID, challenge);
-
-
-		}
-
-
-	}
-
-	private INFO_RESPONSE: Buffer;
+	private INFO_RESPONSE!: Buffer;
 	handleA2S_INFO(request: Request): void {
 		if(!this.handleChallenge(request)) return;
 		request.reply(this.INFO_RESPONSE);
 	}
 
-	private PLAYER_RESPONSE: Buffer;
+	private PLAYER_RESPONSE!: Buffer;
 	handleA2S_PLAYER(request: Request): void {
 		if(!this.handleChallenge(request)) return;
 		request.reply(this.PLAYER_RESPONSE);
 	}
 
-	private RULES_RESPONSE: Buffer;
+	private RULES_RESPONSE!: Buffer;
 	handleA2S_RULES(request: Request): void {
 		if(!this.handleChallenge(request)) return;
 		request.reply(this.RULES_RESPONSE);
@@ -176,7 +170,38 @@ class FakeServer {
 	}
 
 	handleA2S_SERVERQUERY_GETCHALLENGE(request: Request): void {
+		const number = Math.floor(Math.random() * 0xFFFFFFFF);
 
+		const buffer = new BufferWriter()
+			.byte(0x41)
+			.long(number)
+			.end();
+
+		request.reply(buffer);
+	}
+
+	private readonly challenges = new Map<string, number>();
+	handleChallenge(request: Request): boolean {
+		if(!this.requiresChallenge) return true;
+
+		const challenge = this.challenges.get(request.ID);
+		if(!challenge){
+			const challenge = Math.floor(Math.random() * 0xFFFFFFFF);
+			this.challenges.set(request.ID, challenge);
+
+			const buffer = new BufferWriter()
+				.byte(0x41)
+				.long(challenge)
+				.end();
+
+			request.reply(buffer);
+			
+			return false;
+		}
+
+		if(challenge !== request.getChallengeNumber()) return false;
+
+		return true;
 	}
 
 	public static readonly serverInfo = {
@@ -215,7 +240,7 @@ class FakeServer {
 			index: 0,
 			name: 'Fabricio',
 			score: 5,
-			time: 12380,
+			timeOnline: 12380,
 			deaths: 2, // only in the ship
 			money: 16000, // only in the ship
 		},
@@ -223,7 +248,7 @@ class FakeServer {
 			index: 1,
 			name: 'Player 1',
 			score: 2,
-			time: 12380,
+			timeOnline: 12380,
 			deaths: 1,
 			money: 16000,
 		},
@@ -231,7 +256,7 @@ class FakeServer {
 			index: 2,
 			name: 'Player 2',
 			score: 2,
-			time: 12380,
+			timeOnline: 12380,
 			deaths: 6,
 			money: 16000,
 		},
@@ -239,7 +264,7 @@ class FakeServer {
 			index: 3,
 			name: 'Player 3',
 			score: 4,
-			time: 12380,
+			timeOnline: 12380,
 			deaths: 4,
 			money: 16000,
 		},
@@ -247,7 +272,7 @@ class FakeServer {
 			index: 4,
 			name: 'Player 4',
 			score: 1,
-			time: 243,
+			timeOnline: 243,
 			deaths: 0,
 			money: 16000,
 		}
@@ -259,5 +284,3 @@ class FakeServer {
 		'e': 'f'
 	}
 }
-
-new FakeServer();
