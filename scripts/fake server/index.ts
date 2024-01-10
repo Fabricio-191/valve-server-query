@@ -1,6 +1,6 @@
 import { createSocket, type RemoteInfo, type Socket } from 'dgram';
 import { BufferWriter, THE_SHIP_IDS, THE_SHIP_MODES } from './utils';
-import type { ValueIn, AnyServerInfo, Players, Rules, AllServerInfo } from './utils';
+import type { ValueIn, AnyServerInfo, Players, Rules } from './utils';
 
 const header = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 const MAX_SINGLE_PACKET_SIZE = 300; // Usually it's 1400, but i can use less for testing purposes
@@ -17,13 +17,11 @@ class Request {
 
 		if(!this.type) throw new Error(`Unknown request header: ${msg[4]?.toString(16)}`);
 
-		this.ipPort = rinfo.address + ':' + rinfo.port;
-		this.ID = this.ipPort + ':' + this.type;
+		this.ID = rinfo.address + ':' + rinfo.port + ':' + this.type;
 	}
 	private readonly socket: Socket;
 	private readonly msg: Buffer;
 	private readonly rinfo: RemoteInfo;
-	public readonly ipPort: string;
 	public readonly ID: string;
 	public readonly type: ValueIn<typeof Request.requestHeaders>;
 
@@ -33,11 +31,12 @@ class Request {
 	}
 
 	public reply(buffer: Buffer): void {
-		if(buffer.length > MAX_SINGLE_PACKET_SIZE){
-			// TODO: split buffer into multiple packets
+		if(buffer.length <= MAX_SINGLE_PACKET_SIZE){
+			this.socket.send(Buffer.concat([header, buffer]), this.rinfo.port, this.rinfo.address);
+			return;
 		}
 
-		this.socket.send(Buffer.concat([header, buffer]), this.rinfo.port, this.rinfo.address);
+		// TODO: split buffer into multiple packets
 	}
 
 	private static requestHeaders = {
@@ -75,23 +74,25 @@ export default class FakeServer {
 	
 	public requiresChallenge!: boolean;
 	public oldChallengeSystem!: boolean;
-	public isGoldSource!: boolean;
+	public goldsourcePing = false;
 	public isTheShip!: boolean;
 	public showEmptyEDF!: boolean;
 
 	public setServerInfo(serverInfo: AnyServerInfo): void {
-		this.isTheShip = THE_SHIP_IDS.includes(serverInfo.appID);
- 
+		// goldsource keys = ['protocol', 'name', 'map', 'folder', 'game', 'appID', 'onlinePlayers', 'maxPlayers', 'bots', 'type', 'OS', 'hasPassword', 'VAC', 'mod', 'address']
+		// source keys = ['protocol', 'name', 'map', 'folder', 'game', 'ID', 'onlinePlayers', 'maxPlayers', 'bots', 'protocol', 'OS', 'hasPassword', 'VAC', 'version', 'EDF']
+		// extra keys = ['gamePort', 'steamID', 'TVport', 'TVname', 'keywords', 'gameID']
+		// the ship keys = [...source keys, 'mode', 'witnesses', 'duration']
+
 		const writer = new BufferWriter();
 
-		if(this.isGoldSource){
+		if('mod' in serverInfo){
 			writer.byte(0x49); // header
 			writer.byte(serverInfo.protocol); // protocol
 			writer.string(serverInfo.name);
 			writer.string(serverInfo.map);
 			writer.string(serverInfo.folder);
 			writer.string(serverInfo.game);
-			writer.short(serverInfo.appID);
 			writer.byte(serverInfo.onlinePlayers);
 			writer.byte(serverInfo.bots);
 			writer.byte(serverInfo.maxPlayers);
@@ -120,7 +121,7 @@ export default class FakeServer {
 			writer.string(serverInfo.map);
 			writer.string(serverInfo.folder);
 			writer.string(serverInfo.game);
-			writer.short(serverInfo.ID);
+			writer.short(serverInfo.appID);
 			writer.short(serverInfo.onlinePlayers);
 			writer.short(serverInfo.maxPlayers);
 			writer.byte(serverInfo.bots);
@@ -129,14 +130,15 @@ export default class FakeServer {
 			writer.byte(serverInfo.hasPassword ? 1 : 0);
 			writer.byte(serverInfo.VAC ? 1 : 0);
 
-			if(this.isTheShip){
-				writer.byte(serverInfo.mode);
+			if('witnesses' in serverInfo){
+				this.isTheShip = true;
+				writer.byte(THE_SHIP_MODES.indexOf(serverInfo.mode));
 				writer.byte(serverInfo.witnesses);
 				writer.byte(serverInfo.duration);
 			}
 
-			writer.string(serverInfo.version);
-			if(serverInfo.EDF !== 0){
+			writer.string(serverInfo.version!);
+			if('EDF' in serverInfo && serverInfo.EDF !== 0){
 				writer.byte(serverInfo.EDF);
 				if(serverInfo.EDF & 0b10000000) writer.short(serverInfo.gamePort!);
 				if(serverInfo.EDF & 0b00010000) writer.bigUInt(serverInfo.steamID!);
@@ -144,7 +146,7 @@ export default class FakeServer {
 					writer.short(serverInfo.TVport!);
 					writer.string(serverInfo.TVname!);
 				}
-				if(serverInfo.EDF & 0b00100000) writer.string(serverInfo.keywords!.join(','));
+				if(serverInfo.EDF & 0b00100000) writer.string(serverInfo.keywords!);
 				if(serverInfo.EDF & 0b00000001) writer.bigUInt(serverInfo.gameID!);
 			}else if(this.showEmptyEDF){
 				writer.byte(0);
@@ -176,6 +178,31 @@ export default class FakeServer {
 		}
 
 		this.PLAYER_RESPONSE = writer.end();
+		/*
+		const size = playersList.reduce((acc, player) => acc + player.name.length + 1, 0) + playersList.length * 9 + (this.isTheShip ? playersList.length * 8 : 0) + 2;
+		const buffer = Buffer.allocUnsafe(size);
+
+		buffer[0] = 0x44;
+		buffer[1] = playersList.length > 255 ? 255 : playersList.length;
+
+		let offset = 2;
+		for(const player of playersList){
+			buffer[offset++] = player.index;
+			offset += buffer.write(player.name, offset);
+
+			buffer.writeUInt32LE(player.score, offset);
+			offset += 4;
+			buffer.writeFloatLE(player.timeOnline, offset);
+			offset += 4;
+
+			if(this.isTheShip){
+				buffer.writeUInt32LE(player.deaths, offset);
+				offset += 4;
+				buffer.writeUInt32LE(player.money, offset);
+				offset += 4;
+			}
+		}
+		*/
 	}
 
 	public setRules(rulesObj: Rules): void {
@@ -193,11 +220,31 @@ export default class FakeServer {
 		}
 
 		this.RULES_RESPONSE = writer.end();
+
+		/*
+		const size = rules.reduce((acc, [key, value]) => acc + key.length + value.length + 2, 0) + 3;
+		const buffer = Buffer.allocUnsafe(size);
+
+		buffer[0] = 0x45;
+		buffer.writeUInt16LE(rules.length, 1);
+
+		let offset = 3;
+		for(const [key, value] of rules){
+			buffer.write(key, offset);
+			offset += key.length + 1;
+			buffer.write(value, offset);
+			offset += value.length + 1;
+		}
+
+		this.RULES_RESPONSE = buffer;
+		*/
 	}
 
 	private INFO_RESPONSE!: Buffer;
 	private PLAYER_RESPONSE!: Buffer;
 	private RULES_RESPONSE!: Buffer;
+	static readonly PING_RESPONSE = Buffer.from('ÿÿÿÿj00000000000000\x00', 'binary');
+	static readonly GOLDSOURCE_PING_RESPONSE = Buffer.from('ÿÿÿÿj\x00', 'binary')
 
 	public handleA2S_INFO(request: Request): void {
 		if(!this.handleChallenge(request)) return;
@@ -214,11 +261,9 @@ export default class FakeServer {
 		request.reply(this.RULES_RESPONSE);
 	}
 
-	static readonly PING_RESPONSE = Buffer.from('ÿÿÿÿj00000000000000\x00', 'binary');
-	static readonly GOLDSOURCE_PING_RESPONSE = Buffer.from('ÿÿÿÿj\x00', 'binary')
 	public handleA2S_PING(request: Request): void {
 		request.reply(
-			this.isGoldSource ?
+			this.goldsourcePing ?
 				FakeServer.GOLDSOURCE_PING_RESPONSE :
 				FakeServer.PING_RESPONSE
 		);
@@ -231,6 +276,8 @@ export default class FakeServer {
 			.byte(0x41)
 			.long(number)
 			.end();
+
+		// TODO
 
 		request.reply(buffer);
 	}

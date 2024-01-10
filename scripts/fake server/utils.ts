@@ -64,7 +64,6 @@ interface TheShipServerInfo extends ServerInfo {
 }
 
 export type AnyServerInfo = GoldSourceServerInfo | ServerInfo | TheShipServerInfo | GoldSourceServerInfo & ServerInfo | GoldSourceServerInfo & TheShipServerInfo;
-export type AllServerInfo = GoldSourceServerInfo & ServerInfo & TheShipServerInfo;
 
 interface Player {
 	index: number;
@@ -126,6 +125,15 @@ export class BufferWriter{
 
 		const buf = Buffer.alloc(4);
 		buf.writeFloatLE(number);
+
+		return this.byte(...buf);
+	}
+
+	public bigUInt(number: bigint): this {
+		if(typeof number !== 'bigint') throw new TypeError('value must be a bigint');
+
+		const buf = Buffer.alloc(8);
+		buf.writeBigUInt64LE(number);
 
 		return this.byte(...buf);
 	}
