@@ -4,6 +4,7 @@ import type { ValueIn, AnyServerInfo, Players, Rules } from './utils';
 
 const header = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 const MAX_SINGLE_PACKET_SIZE = 300; // Usually it's 1400, but i can use less for testing purposes
+const FIVE_MINUTES = 1000 * 60 * 5;
 
 class Request {
 	constructor(msg: Buffer, rinfo: RemoteInfo, socket: Socket){
@@ -17,17 +18,24 @@ class Request {
 
 		if(!this.type) throw new Error(`Unknown request header: ${msg[4]?.toString(16)}`);
 
-		this.ID = rinfo.address + ':' + rinfo.port + ':' + this.type;
+		this.ipPort = rinfo.address + ':' + rinfo.port;
+		this.ID = this.ipPort + ':' + this.type;
 	}
 	private readonly socket: Socket;
 	private readonly msg: Buffer;
 	private readonly rinfo: RemoteInfo;
 	public readonly ID: string;
+	public readonly ipPort: string;
 	public readonly type: ValueIn<typeof Request.requestHeaders>;
 
 	public getChallengeNumber(): number {
-		if(this.type === 'A2S_INFO') return this.msg.readUInt32LE(5); // TODO
-		return this.msg.readUInt32LE(5);
+		if(this.type === 'A2S_PLAYER') return this.msg.readUInt32LE(5);
+		if(this.type === 'A2S_RULES') return this.msg.readUInt32LE(5);
+		if(this.type === 'A2S_INFO'){
+			if(this.msg.length === 29) return this.msg.readUInt32LE(25);
+			else return -1;
+		}
+		throw new Error('Cannot get challenge number from this request');
 	}
 
 	public reply(buffer: Buffer): void {
@@ -270,14 +278,17 @@ export default class FakeServer {
 	}
 
 	public handleA2S_SERVERQUERY_GETCHALLENGE(request: Request): void {
+		if(!this.oldChallengeSystem) return;
+
 		const number = Math.floor(Math.random() * 0xFFFFFFFF);
 
 		const buffer = new BufferWriter()
 			.byte(0x41)
 			.long(number)
 			.end();
-
-		// TODO
+		
+		this.challenges.set(request.ipPort, number);
+		setTimeout(this.challenges.delete, FIVE_MINUTES, request.ipPort);
 
 		request.reply(buffer);
 	}
@@ -286,10 +297,22 @@ export default class FakeServer {
 	public handleChallenge(request: Request): boolean {
 		if(!this.requiresChallenge) return true;
 
+		if(this.oldChallengeSystem){
+			if(!this.challenges.has(request.ipPort)) return false;
+
+			const challenge = this.challenges.get(request.ipPort)!;
+			if(challenge !== request.getChallengeNumber()) return false;
+
+			this.challenges.delete(request.ipPort);
+			return true;
+		}
+
 		const challenge = this.challenges.get(request.ID);
 		if(!challenge){
 			const challenge = Math.floor(Math.random() * 0xFFFFFFFF);
 			this.challenges.set(request.ID, challenge);
+
+			setTimeout(this.challenges.delete, FIVE_MINUTES, request.ipPort);
 
 			const buffer = new BufferWriter()
 				.byte(0x41)
@@ -303,6 +326,7 @@ export default class FakeServer {
 
 		if(challenge !== request.getChallengeNumber()) return false;
 
+		this.challenges.delete(request.ID);
 		return true;
 	}
 }
@@ -343,7 +367,7 @@ const serverInfo = {
 	TVname: 'SourceTV',          				// if EDF & 0b01000000
 	keywords: 'Fabricio,server,Counter-Strike', // if EDF & 0b00100000
 	gameID: BigInt(10),                         // if EDF & 0b00000001
-}
+} as const;
 
 const playersList = [
 	{
@@ -386,16 +410,14 @@ const playersList = [
 		deaths: 0,
 		money: 16000,
 	}
-]
+];
 
 const rules = {
 	'a': 'b',
 	'c': 'd',
 	'e': 'f'
-}
+};
 
 const server = new FakeServer(27015, serverInfo, playersList, rules);
 
-setTimeout(() => {
-	server.stop();
-}, 1000 * 60 * 5);
+setTimeout(server.stop, FIVE_MINUTES);

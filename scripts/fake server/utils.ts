@@ -1,13 +1,16 @@
 export type ValueIn<T> = T[keyof T]
 
-export const THE_SHIP_MODES = Object.freeze([
+export const THE_SHIP_MODES = [
 	'hunt',
 	'elimination',
 	'duel',
 	'deathmatch',
 	'vip team',
 	'team elimination',
-]);
+] as const;
+
+
+
 
 export const THE_SHIP_IDS = Object.freeze([
 	2400, 2401, 2402, 2403,
@@ -58,7 +61,7 @@ interface ServerInfo extends BaseInfo {
 }
 
 interface TheShipServerInfo extends ServerInfo {
-	mode: ValueIn<typeof THE_SHIP_MODES>;
+	mode: 'hunt' | 'elimination' | 'duel' | 'deathmatch' | 'vip team' | 'team elimination';
 	witnesses: number;
 	duration: number;
 }
