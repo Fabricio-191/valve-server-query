@@ -45,6 +45,12 @@ class Request {
 		}
 
 		// TODO: split buffer into multiple packets
+
+		const packets = Math.ceil(buffer.length / MAX_SINGLE_PACKET_SIZE);
+		const ID = Math.floor(Math.random() * 0xFFFFFFFF);
+
+		const writer = new BufferWriter();
+		writer.byte(0xFE, 0xFF, 0xFF, 0xFF);
 	}
 
 	private static requestHeaders = {
@@ -80,11 +86,12 @@ export default class FakeServer {
 		this.socket.close();
 	}
 	
-	public requiresChallenge!: boolean;
-	public oldChallengeSystem!: boolean;
+	public requiresChallenge = true;
+	public oldChallengeSystem = false;
 	public goldsourcePing = false;
-	public isTheShip!: boolean;
-	public showEmptyEDF!: boolean;
+	public goldSourceMultiPacket = false;
+	public showEmptyEDF = true;
+	private isTheShip!: boolean;
 
 	public setServerInfo(serverInfo: AnyServerInfo): void {
 		// goldsource keys = ['protocol', 'name', 'map', 'folder', 'game', 'appID', 'onlinePlayers', 'maxPlayers', 'bots', 'type', 'OS', 'hasPassword', 'VAC', 'mod', 'address']
