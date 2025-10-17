@@ -3,9 +3,11 @@
   "version": "5.0.0",
   "typings": "./lib/typings/index.d.ts",
   "scripts": {
-    "lint": "npx eslint . --fix",
+    "lint": "eslint . --fix",
+    "check:types": "tsc --noEmit",
     "test": "ts-node scripts/tests.ts --trace-warnings",
-    "test2": "nodemon scripts/test.ts --trace-warnings --ignore *.json",
+    "dev": "nodemon scripts/test.ts --trace-warnings --ignore *.json",
+	"//1": "tsx watch src/index.ts",
     "build": "npm run lint && npm run test && tsc -p tsconfig.build.json && node scripts/tests.js && npm publish"
   },
   "type": "commonjs",
